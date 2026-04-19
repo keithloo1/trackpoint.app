@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 function Starburst({ className }) {
   const rays = 8
   const len = 72
@@ -74,9 +76,12 @@ export default function BrandPanel() {
       />
 
       <header className="relative z-10 px-8 pt-8 lg:px-12">
-        <a href="/" className="text-sm font-medium tracking-wide text-zinc-900 dark:text-white">
+        <Link
+          to="/"
+          className="text-sm font-medium tracking-wide text-zinc-900 dark:text-white"
+        >
           TrackPoint<span className="text-zinc-500 dark:text-zinc-500">.app</span>
-        </a>
+        </Link>
       </header>
 
       <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-8">
