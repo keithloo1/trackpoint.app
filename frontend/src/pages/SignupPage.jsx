@@ -182,12 +182,12 @@ export default function SignupPage({ theme, onToggleTheme }) {
               to="/"
               className="text-sm font-medium text-zinc-700 underline-offset-4 hover:underline dark:text-zinc-300"
             >
-              Back to landing
+              Back
             </Link>
             <button
               type="submit"
               disabled={isLoading}
-              className="flex h-28 w-28 shrink-0 items-center justify-center rounded-full bg-zinc-900 text-center text-[11px] font-semibold uppercase leading-tight tracking-wide text-white transition hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-100 dark:focus-visible:outline-white"
+              className="inline-flex min-w-28 items-center justify-center rounded-xl bg-zinc-900 px-5 py-3 text-sm font-semibold uppercase tracking-wide text-white transition hover:bg-zinc-800 disabled:cursor-wait disabled:opacity-70 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-zinc-900 dark:bg-white dark:text-black dark:hover:bg-zinc-100 dark:focus-visible:outline-white"
             >
               {isLoading ? 'Creating' : 'Create'}
             </button>

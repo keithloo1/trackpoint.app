@@ -59,7 +59,7 @@ const managers = ['Natalie Donovan', 'Daniel Craig', 'Kate Morton', 'Felicia Ras
 function Panel({ children, className = '' }) {
   return (
     <section
-      className={`rounded-[1.35rem] border border-white/8 bg-[#17181b] p-5 text-white shadow-[0_10px_40px_rgba(0,0,0,0.18)] ${className}`}
+      className={`rounded-[1.35rem] border border-zinc-200 bg-white p-5 text-zinc-900 shadow-[0_10px_30px_rgba(0,0,0,0.06)] dark:border-white/10 dark:bg-[#17181b] dark:text-white dark:shadow-[0_10px_40px_rgba(0,0,0,0.18)] ${className}`}
     >
       {children}
     </section>
@@ -75,8 +75,9 @@ function RevenueDonut() {
           cy="60"
           r="40"
           fill="none"
-          stroke="rgba(255,255,255,0.08)"
+          stroke="rgba(113,113,122,0.25)"
           strokeWidth="14"
+          className="dark:[stroke:rgba(255,255,255,0.08)]"
         />
         <circle
           cx="60"
@@ -122,8 +123,9 @@ function RevenueChart() {
       <path
         d="M0 130 L30 118 L60 120 L90 100 L120 102 L150 78 L180 92 L210 72 L240 88 L270 52 L300 60 L320 34"
         fill="none"
-        stroke="rgba(255,255,255,0.15)"
+        stroke="rgba(113,113,122,0.35)"
         strokeWidth="1"
+        className="dark:[stroke:rgba(255,255,255,0.15)]"
       />
       <path
         d="M0 130 L30 118 L60 120 L90 100 L120 102 L150 78 L180 92 L210 72 L240 88 L270 52 L300 60 L320 34 L320 150 L0 150 Z"
@@ -146,19 +148,19 @@ export default function DashboardPage({ theme, onToggleTheme }) {
   const displayName = user?.name || user?.email || 'TrackPoint User'
 
   return (
-    <div className="min-h-svh bg-[radial-gradient(circle_at_top,#17d86f_0%,#16c266_18%,#121314_56%)] p-4 text-white sm:p-6 lg:p-10">
-      <div className="mx-auto max-w-[1480px] rounded-[1.75rem] border border-white/10 bg-[#111214] p-3 shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
+    <div className="min-h-svh bg-zinc-100 p-4 text-zinc-900 dark:bg-black dark:text-white sm:p-6 lg:p-10">
+      <div className="mx-auto max-w-[1480px] rounded-[1.75rem] border border-zinc-200 bg-zinc-50 p-3 shadow-[0_20px_80px_rgba(0,0,0,0.12)] dark:border-white/10 dark:bg-[#111214] dark:shadow-[0_20px_80px_rgba(0,0,0,0.45)]">
         <div className="grid gap-3 lg:grid-cols-[240px_minmax(0,1fr)_280px]">
-          <aside className="rounded-[1.35rem] border border-white/8 bg-[#121317] px-4 py-5">
-            <div className="flex items-center gap-3 rounded-2xl border border-white/8 bg-white/5 px-3 py-3">
-              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-lime-300 text-xs font-bold text-black">
+          <aside className="rounded-[1.35rem] border border-zinc-200 bg-white px-4 py-5 dark:border-white/10 dark:bg-[#121317]">
+            <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-zinc-50 px-3 py-3 dark:border-white/10 dark:bg-white/5">
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-900 text-xs font-bold text-white dark:bg-lime-300 dark:text-black">
                 {displayName.slice(0, 2).toUpperCase()}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-white">
+                <p className="truncate text-sm font-medium text-zinc-900 dark:text-white">
                   {displayName}
                 </p>
-                <p className="truncate text-xs text-zinc-500">
+                <p className="truncate text-xs text-zinc-500 dark:text-zinc-500">
                   Gym owner dashboard
                 </p>
               </div>
@@ -175,8 +177,8 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                     type="button"
                     className={`flex w-full items-center rounded-xl px-3 py-2.5 text-left text-sm transition ${
                       index === 0
-                        ? 'bg-lime-300 font-semibold text-black'
-                        : 'text-zinc-400 hover:bg-white/5 hover:text-white'
+                        ? 'bg-zinc-900 font-semibold text-white dark:bg-lime-300 dark:text-black'
+                        : 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-white/5 dark:hover:text-white'
                     }`}
                   >
                     {item}
@@ -185,34 +187,34 @@ export default function DashboardPage({ theme, onToggleTheme }) {
               </nav>
             </div>
 
-            <div className="mt-8 rounded-3xl border border-lime-300/20 bg-[linear-gradient(180deg,#1f2d17,#161816)] p-4">
-              <p className="text-xs uppercase tracking-[0.24em] text-lime-300/70">
+            <div className="mt-8 rounded-3xl border border-zinc-200 bg-zinc-100 p-4 dark:border-lime-300/20 dark:bg-[linear-gradient(180deg,#1f2d17,#161816)]">
+              <p className="text-xs uppercase tracking-[0.24em] text-zinc-600 dark:text-lime-300/70">
                 Premium plan
               </p>
               <div className="mt-4 flex items-end gap-2">
                 <span className="text-4xl font-semibold">$30</span>
-                <span className="pb-1 text-sm text-zinc-400">/ per month</span>
+                <span className="pb-1 text-sm text-zinc-500 dark:text-zinc-400">/ per month</span>
               </div>
-              <p className="mt-3 text-sm leading-relaxed text-zinc-400">
+              <p className="mt-3 text-sm leading-relaxed text-zinc-600 dark:text-zinc-400">
                 Improve your workplace and analyze your profits and losses.
               </p>
               <button
                 type="button"
-                className="mt-5 w-full rounded-full bg-lime-300 px-4 py-3 text-sm font-semibold text-black transition hover:bg-lime-200"
+                className="mt-5 w-full rounded-full bg-zinc-900 px-4 py-3 text-sm font-semibold text-white transition hover:bg-zinc-800 dark:bg-lime-300 dark:text-black dark:hover:bg-lime-200"
               >
                 Get started
               </button>
             </div>
           </aside>
 
-          <main className="rounded-[1.35rem] border border-white/8 bg-[#111214] p-3">
-            <div className="rounded-[1.35rem] border border-white/8 bg-[#121317] p-5">
+          <main className="rounded-[1.35rem] border border-zinc-200 bg-white p-3 dark:border-white/10 dark:bg-[#111214]">
+            <div className="rounded-[1.35rem] border border-zinc-200 bg-zinc-50 p-5 dark:border-white/10 dark:bg-[#121317]">
               <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <p className="text-xs uppercase tracking-[0.28em] text-zinc-500">
                     Dashboards / Overview
                   </p>
-                  <h1 className="mt-4 text-2xl font-semibold text-white">
+                  <h1 className="mt-4 text-2xl font-semibold text-zinc-900 dark:text-white">
                     Overview
                   </h1>
                 </div>
@@ -221,7 +223,7 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                   <button
                     type="button"
                     onClick={logout}
-                    className="rounded-full border border-white/12 px-4 py-2 text-sm text-zinc-300 transition hover:bg-white/5 hover:text-white"
+                    className="rounded-full border border-zinc-300 px-4 py-2 text-sm text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-900 dark:border-white/15 dark:text-zinc-300 dark:hover:bg-white/5 dark:hover:text-white"
                   >
                     Log out
                   </button>
@@ -230,12 +232,12 @@ export default function DashboardPage({ theme, onToggleTheme }) {
 
               <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 {metricCards.map((card) => (
-                  <Panel key={card.label} className="bg-[#17191d] p-4">
+                  <Panel key={card.label} className="bg-white p-4 dark:bg-[#17191d]">
                     <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                       {card.label}
                     </p>
                     <p className="mt-3 text-3xl font-semibold">{card.value}</p>
-                    <p className="mt-2 text-sm text-lime-300">{card.change}</p>
+                    <p className="mt-2 text-sm text-emerald-600 dark:text-lime-300">{card.change}</p>
                   </Panel>
                 ))}
               </div>
@@ -249,7 +251,7 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                         Weekly client engagement and product sales
                       </p>
                     </div>
-                    <span className="rounded-full bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.24em] text-zinc-400">
+                    <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs uppercase tracking-[0.24em] text-zinc-500 dark:bg-white/5 dark:text-zinc-400">
                       This week
                     </span>
                   </div>
@@ -257,25 +259,25 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                   <div className="mt-6 grid items-center gap-6 lg:grid-cols-[220px_minmax(0,1fr)]">
                     <RevenueDonut />
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-2xl bg-white/4 p-4">
+                      <div className="rounded-2xl bg-zinc-100 p-4 dark:bg-white/4">
                         <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                           Number of sales
                         </p>
                         <p className="mt-3 text-2xl font-semibold">$71,020</p>
                       </div>
-                      <div className="rounded-2xl bg-white/4 p-4">
+                      <div className="rounded-2xl bg-zinc-100 p-4 dark:bg-white/4">
                         <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                           Furniture
                         </p>
                         <p className="mt-3 text-2xl font-semibold">$11,420</p>
                       </div>
-                      <div className="rounded-2xl bg-white/4 p-4">
+                      <div className="rounded-2xl bg-zinc-100 p-4 dark:bg-white/4">
                         <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                           Electronic
                         </p>
                         <p className="mt-3 text-2xl font-semibold">$55,640</p>
                       </div>
-                      <div className="rounded-2xl bg-white/4 p-4">
+                      <div className="rounded-2xl bg-zinc-100 p-4 dark:bg-white/4">
                         <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
                           Shoes
                         </p>
@@ -286,7 +288,7 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                 </Panel>
 
                 <div className="grid gap-3">
-                  <Panel className="bg-[#18231d]">
+                  <Panel className="bg-zinc-100 dark:bg-[#18231d]">
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-xs uppercase tracking-[0.24em] text-zinc-500">
@@ -294,7 +296,7 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                         </p>
                         <p className="mt-3 text-3xl font-semibold">862</p>
                       </div>
-                      <div className="rounded-full bg-lime-300 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-black">
+                      <div className="rounded-full bg-zinc-900 px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] text-white dark:bg-lime-300 dark:text-black">
                         +19%
                       </div>
                     </div>
@@ -308,7 +310,7 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                         </p>
                         <p className="mt-3 text-3xl font-semibold">$136,756</p>
                       </div>
-                      <span className="text-sm text-lime-300">+12.4%</span>
+                      <span className="text-sm text-emerald-600 dark:text-lime-300">+12.4%</span>
                     </div>
                     <div className="mt-4">
                       <RevenueChart />
@@ -328,24 +330,24 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                     </div>
                     <button
                       type="button"
-                      className="rounded-full border border-white/10 px-3 py-1.5 text-xs uppercase tracking-[0.24em] text-zinc-400 transition hover:bg-white/5"
+                      className="rounded-full border border-zinc-300 px-3 py-1.5 text-xs uppercase tracking-[0.24em] text-zinc-500 transition hover:bg-zinc-100 dark:border-white/10 dark:text-zinc-400 dark:hover:bg-white/5"
                     >
                       Export
                     </button>
                   </div>
 
-                  <div className="mt-5 overflow-hidden rounded-2xl border border-white/8">
-                    <table className="min-w-full divide-y divide-white/8 text-left">
-                      <thead className="bg-white/4 text-xs uppercase tracking-[0.22em] text-zinc-500">
+                  <div className="mt-5 overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/8">
+                    <table className="min-w-full divide-y divide-zinc-200 text-left dark:divide-white/8">
+                      <thead className="bg-zinc-100 text-xs uppercase tracking-[0.22em] text-zinc-500 dark:bg-white/4">
                         <tr>
                           <th className="px-4 py-3 font-medium">Name</th>
                           <th className="px-4 py-3 font-medium">Sales</th>
                           <th className="px-4 py-3 font-medium">Total deal value</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-white/6 text-sm text-zinc-300">
+                      <tbody className="divide-y divide-zinc-200 text-sm text-zinc-700 dark:divide-white/6 dark:text-zinc-300">
                         {clientRows.map(([name, sales, total]) => (
-                          <tr key={name} className="bg-white/[0.02]">
+                          <tr key={name} className="bg-white dark:bg-white/[0.02]">
                             <td className="px-4 py-3">{name}</td>
                             <td className="px-4 py-3">{sales}</td>
                             <td className="px-4 py-3">{total}</td>
@@ -366,10 +368,10 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                 {notifications.map((item) => (
                   <div
                     key={item}
-                    className="flex items-start gap-3 border-b border-white/6 pb-4 last:border-b-0 last:pb-0"
+                    className="flex items-start gap-3 border-b border-zinc-200 pb-4 last:border-b-0 last:pb-0 dark:border-white/6"
                   >
-                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-lime-300" />
-                    <p className="text-sm text-zinc-400">{item}</p>
+                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-zinc-900 dark:bg-lime-300" />
+                    <p className="text-sm text-zinc-600 dark:text-zinc-400">{item}</p>
                   </div>
                 ))}
               </div>
@@ -381,11 +383,11 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                 {activities.map((item) => (
                   <div
                     key={item}
-                    className="flex items-start gap-3 border-b border-white/6 pb-4 last:border-b-0 last:pb-0"
+                    className="flex items-start gap-3 border-b border-zinc-200 pb-4 last:border-b-0 last:pb-0 dark:border-white/6"
                   >
-                    <div className="mt-1 h-8 w-8 rounded-full bg-white/5" />
+                    <div className="mt-1 h-8 w-8 rounded-full bg-zinc-100 dark:bg-white/5" />
                     <div>
-                      <p className="text-sm text-zinc-300">{item}</p>
+                      <p className="text-sm text-zinc-800 dark:text-zinc-300">{item}</p>
                       <p className="mt-1 text-xs text-zinc-500">Just now</p>
                     </div>
                   </div>
@@ -398,7 +400,7 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                 <h2 className="text-lg font-semibold">Managers</h2>
                 <Link
                   to="/dashboard"
-                  className="text-xs uppercase tracking-[0.24em] text-lime-300"
+                  className="text-xs uppercase tracking-[0.24em] text-zinc-700 dark:text-lime-300"
                 >
                   View all
                 </Link>
@@ -408,15 +410,17 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                   <div
                     key={manager}
                     className={`flex items-center justify-between rounded-2xl px-3 py-3 ${
-                      index === 0 ? 'bg-lime-300 text-black' : 'bg-white/4'
+                      index === 0
+                        ? 'bg-zinc-900 text-white dark:bg-lime-300 dark:text-black'
+                        : 'bg-zinc-100 dark:bg-white/4'
                     }`}
                   >
                     <div className="flex items-center gap-3">
                       <div
                         className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-semibold ${
                           index === 0
-                            ? 'bg-black/10 text-black'
-                            : 'bg-white/6 text-white'
+                            ? 'bg-white/15 text-white dark:bg-black/10 dark:text-black'
+                            : 'bg-zinc-300 text-zinc-800 dark:bg-white/6 dark:text-white'
                         }`}
                       >
                         {manager
@@ -428,7 +432,9 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                         <p className="text-sm font-medium">{manager}</p>
                         <p
                           className={`text-xs ${
-                            index === 0 ? 'text-black/70' : 'text-zinc-500'
+                            index === 0
+                              ? 'text-zinc-200 dark:text-black/70'
+                              : 'text-zinc-500'
                           }`}
                         >
                           Team lead
@@ -439,8 +445,8 @@ export default function DashboardPage({ theme, onToggleTheme }) {
                       type="button"
                       className={`rounded-full px-3 py-1 text-xs font-medium ${
                         index === 0
-                          ? 'bg-black text-white'
-                          : 'border border-white/10 text-zinc-400'
+                          ? 'bg-white text-zinc-900 dark:bg-black dark:text-white'
+                          : 'border border-zinc-300 text-zinc-600 dark:border-white/10 dark:text-zinc-400'
                       }`}
                     >
                       Message
