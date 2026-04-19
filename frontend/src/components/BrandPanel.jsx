@@ -1,5 +1,4 @@
-import { Link } from 'react-router-dom'
-import trackpointLogo from '../assets/trackpoint-logo.png'
+import trackpointMark from '../assets/trackpoint-mark.png'
 
 export default function BrandPanel() {
   return (
@@ -27,20 +26,11 @@ export default function BrandPanel() {
         aria-hidden
       />
 
-      <header className="relative z-10 px-8 pt-8 lg:px-12">
-        <Link
-          to="/"
-          className="text-sm font-medium tracking-wide text-zinc-900 dark:text-white"
-        >
-          TrackPoint<span className="text-zinc-500 dark:text-zinc-500">.app</span>
-        </Link>
-      </header>
-
-      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 pb-16 pt-8">
+      <div className="relative z-10 flex flex-1 flex-col items-center justify-center px-6 py-16">
         <img
-          src={trackpointLogo}
+          src={trackpointMark}
           alt="TrackPoint logo"
-          className="w-full max-w-[420px] rounded-2xl object-contain dark:opacity-95"
+          className="w-full max-w-[220px] object-contain dark:invert"
         />
       </div>
 
