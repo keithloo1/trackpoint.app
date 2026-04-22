@@ -1,20 +1,28 @@
-@import 'tailwindcss';
+/* 1. IMPORT THE FONT */
+/* I swapped the Google Fonts link for the Fontshare link for Satoshi */
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@100..800&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  /* Our custom color palette stays exactly the same */
+  --color-tpyellow: #E6FF2B;
+  --color-tpteal: #0B4550;
+  --color-tpcream: #F9F7F2;
+  --color-tpgray: #898A8D;
+
+  /* 2. TELL TAILWIND ABOUT THE FONT */
+  /* This overrides the default 'font-sans' class to use Satoshi */
+  --font-sans: 'Sora', sans-serif;
+}
 
 @custom-variant dark (&:where(.dark, .dark *));
 
-@theme {
-  --font-family-sans: 'DM Sans', ui-sans-serif, system-ui, sans-serif;
-}
-
-html {
-  scroll-behavior: smooth;
-}
-
+/* 3. APPLY IT GLOBALLY TO THE BODY */
 body {
-  margin: 0;
-  min-height: 100svh;
-}
-
-#root {
-  min-height: 100svh;
+  font-family: 'Sora', sans-serif;
+  background-color: var(--color-tpcream);
+  /* Optional: This makes the font look a bit sharper/cleaner on Mac and Windows */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
