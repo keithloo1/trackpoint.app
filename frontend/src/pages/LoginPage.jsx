@@ -1,229 +1,283 @@
 import React, { useState, useEffect } from 'react';
-import { Eye, EyeOff } from 'lucide-react';
-import pb from '../lib/pb'; 
-import dobermanLogo from '../assets/doberman.png'; 
+import { supabase } from '../supabaseClient';
+import { Mail, Lock, ArrowRight, Loader2, Dumbbell, CalendarCheck, TrendingUp, ShieldCheck, Eye, EyeOff } from 'lucide-react';
 
-const placeholder1 = "https://images.unsplash.com/photo-1534438327276-14e5300c3a48?q=80&w=1470&auto=format&fit=crop"; 
-const placeholder2 = "https://images.unsplash.com/photo-1581009146145-b5ef050c2e1e?q=80&w=1470&auto=format&fit=crop"; 
-const placeholder3 = "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?q=80&w=1470&auto=format&fit=crop"; 
+// --- ASSET IMPORTS ---
+import newLogo from '../assets/logo.svg'; 
+import slide1 from '../assets/slide-1.jpg';
+import slide2 from '../assets/slide-2.jpg';
+import slide3 from '../assets/slide-3.jpg';
+
+// --- CAROUSEL DATA SETUP (3 Slides to match your files) ---
+const carouselSlides = [
+  {
+    id: 1,
+    icon: <Dumbbell size={64} className="text-[#E6FF2B]" />,
+    title: "Client Tracking, Simplified.",
+    description: "Instant access to client profiles, session balances, and workout history. No more paperwork.",
+    image: slide1 
+  },
+  {
+    id: 2,
+    icon: <CalendarCheck size={64} className="text-[#E6FF2B]" />,
+    title: "Seamless Booking.",
+    description: "A shared calendar where clients book or reschedule sessions. Hassle-free management.",
+    image: slide2 
+  },
+  {
+    id: 3,
+    icon: <TrendingUp size={64} className="text-[#E6FF2B]" />,
+    title: "Live Progress Tracking.",
+    description: "Visualize client weight trends and PRs. Keep them motivated and accountable.",
+    image: slide3 
+  }
+];
 
 export default function LoginPage({ onLogin }) {
+  // --- Auth State ---
+  const [isLogin, setIsLogin] = useState(true);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [message, setMessage] = useState(null);
+
+  // --- Carousel State & Logic ---
   const [currentSlide, setCurrentSlide] = useState(0);
 
-  const slides = [
-    {
-      title: "Data-Driven Growth.",
-      subtitle: "Access powerful analytics and insights to make informed decisions and scale your fitness business.",
-      image: placeholder1 
-    },
-    {
-      title: "Intelligent Tracking.",
-      subtitle: "Monitor client progress, automate renewals, and never lose sight of your members' goals.",
-      image: placeholder2
-    },
-    {
-      title: "Empower Your Vision.",
-      subtitle: "Streamline your daily operations, manage clients seamlessly, and boost your overall retention.",
-      image: placeholder3
-    }
-  ];
-
   useEffect(() => {
-    const timer = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % slides.length);
-    }, 6000);
-    return () => clearInterval(timer);
-  }, [slides.length]);
+    const slideInterval = setInterval(() => {
+      setCurrentSlide((prev) => (prev === carouselSlides.length - 1 ? 0 : prev + 1));
+    }, 5000); 
+    return () => clearInterval(slideInterval);
+  }, []);
 
-  const handleLogin = async (e) => {
+  // --- Real Supabase Auth Logic ---
+  const handleAuth = async (e) => {
     e.preventDefault();
-    setError('');
     setLoading(true);
+    setError(null);
+    setMessage(null);
+
     try {
-      const authData = await pb.collection('users').authWithPassword(email, password);
-      onLogin(authData.record); 
+      if (isLogin) {
+        const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        if (data.user) onLogin(data.user);
+      } else {
+        const { data, error } = await supabase.auth.signUp({ email, password });
+        if (error) throw error;
+        setMessage("Account created successfully! You can now log in.");
+        setIsLogin(true);
+        setPassword('');
+      }
     } catch (err) {
-      setError('Invalid email or password. Please try again.');
+      setError(err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // --- Forgot Password Logic ---
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: window.location.origin, // Sends them back to your site after clicking the email link
+      });
+      if (error) throw error;
+      setMessage("Password reset link sent! Check your email.");
+      setIsForgotPassword(false); // Switch back to login view automatically
+    } catch (err) {
+      setError(err.message);
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    // Base layout uses the Cream background
-    <div className="min-h-screen w-full bg-tpcream flex font-sans">
+    <div className="flex min-h-screen w-full bg-[#F9F7F2] font-sans text-[#0B4550]">
       
       {/* ========================================== */}
-      {/* LEFT PANEL: Immersive Dark Teal Side */}
+      {/* LEFT SIDE - AUTH FORM (SWAPPED & UPSCALED) */}
       {/* ========================================== */}
-      <div className="hidden lg:flex lg:w-1/2 relative bg-tpteal overflow-hidden">
+      <div className="flex-1 lg:flex-[0.8] flex flex-col justify-center items-center p-6 sm:p-4 lg:p-8 relative bg-[#F9F7F2]">
         
-        {/* FIX: Clean fade without mix-blend-modes on the images themselves */}
-        {slides.map((slide, index) => (
-          <img 
-            key={index}
-            src={slide.image} 
-            alt={`Slide ${index + 1}`}
-            className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out ${
-              currentSlide === index ? 'opacity-100 z-0' : 'opacity-0 -z-10'
-            }`}
-          />
-        ))}
-        
-        {/* FIX: A uniform Dark Teal overlay creates the colored effect flawlessly */}
-        <div className="absolute inset-0 bg-tpteal/80 mix-blend-multiply z-10"></div>
-        <div className="absolute inset-0 bg-tpteal/30 z-10"></div>
-
-        {/* Top Left Logo */}
-        <div className="absolute top-12 left-12 z-20 flex items-center gap-3">
-          <img 
-            src={dobermanLogo} 
-            alt="TrackPoint" 
-            className="h-10 w-auto invert brightness-0" 
-            onError={(e) => e.target.style.display = 'none'} 
-          />
-          <span className="text-2xl font-medium text-white tracking-widest uppercase">TrackPoint</span>
+        {/* LOGO PLACEMENT: Responsive sizing and positioning for mobile vs desktop */}
+        <div className="absolute top-6 sm:top-10 left-6 sm:left-12 z-20">
+             <img src={newLogo} alt="TrackPoint" className="h-16 sm:h-40 w-auto object-contain" onError={(e) => e.target.style.display = 'none'} />
         </div>
 
-        {/* Transparent Frosted Glass Card */}
-        <div className="absolute bottom-16 left-12 right-12 bg-white/10 backdrop-blur-xl border border-white/20 rounded-[2rem] p-10 z-20 shadow-2xl text-white">
+        {/* LOGIN CARD: Mobile Padding (p-6) & Margin (mt-24), scaling up on larger screens */}
+        <div className="w-full max-w-lg bg-white p-6 sm:p-6 lg:p-12 rounded-[3rem] shadow-[0_20px_60px_-15px_rgba(0,0,0,0.1)] border border-gray-100 z-10 mt-28 sm:mt-16">
           
-          {/* Stats Row */}
-          <div className="flex gap-10 mb-8 border-b border-white/20 pb-8">
-            
-            <div className="flex gap-4 items-center">
-              <div className="w-14 h-14 rounded-full border border-white/30 bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-              </div>
-              <div>
-                <h3 className="text-3xl font-medium leading-none mb-1.5 text-tpyellow">1000+</h3>
-                <p className="text-[11px] leading-[1.3] text-white/80 font-medium uppercase tracking-wider">Active Community<br/>Members</p>
-              </div>
-            </div>
-            
-            <div className="flex gap-4 items-center">
-              <div className="w-14 h-14 rounded-full border border-white/30 bg-white/10 backdrop-blur-sm flex items-center justify-center">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
-              </div>
-              <div>
-                <h3 className="text-3xl font-medium leading-none mb-1.5 text-tpyellow">40+</h3>
-                <p className="text-[11px] leading-[1.3] text-white/80 font-medium uppercase tracking-wider">Active Members<br/>Country</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Rotating Text */}
-          <div className="min-h-[100px]">
-            <h2 className="text-3xl font-serif font-medium tracking-tight text-white mb-3 transition-all duration-500">
-              {slides[currentSlide].title}
+          <div className="text-center mb-12">
+            <h2 className="text-4xl sm:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-3">
+              {isForgotPassword ? 'Reset Password' : (isLogin ? 'Log In' : 'Register Now')}
             </h2>
-            <p className="text-sm font-medium text-white/80 leading-relaxed pr-6 transition-all duration-500">
-              {slides[currentSlide].subtitle}
+            <p className="text-[#898A8D] font-medium text-base sm:text-lg">
+              {isForgotPassword 
+                ? 'Enter your email to receive a reset link.' 
+                : (isLogin ? 'Sign in with your trainer credentials.' : 'Create an admin account to start tracking.')}
             </p>
           </div>
-        </div>
 
-        {/* Carousel Indicators */}
-        <div className="absolute bottom-8 left-12 flex gap-2 z-20">
-            {slides.map((_, index) => (
-              <div 
-                key={index}
-                className={`h-1.5 rounded-full transition-all duration-500 ${
-                  currentSlide === index ? 'w-10 bg-tpyellow' : 'w-4 bg-white/40'
-                }`}
-              ></div>
-            ))}
-        </div>
-      </div>
+          <form onSubmit={isForgotPassword ? handleResetPassword : handleAuth} className="space-y-7">
+            
+            {error && <div className="bg-red-50 text-red-600 p-5 rounded-2xl text-base font-medium border border-red-100">{error}</div>}
+            {message && <div className="bg-emerald-50 text-emerald-600 p-5 rounded-2xl text-base font-medium border border-emerald-100">{message}</div>}
 
-      {/* ========================================== */}
-      {/* RIGHT PANEL: The Form */}
-      {/* ========================================== */}
-      <div className="w-full lg:w-1/2 flex flex-col justify-center px-10 sm:px-20 lg:px-32 relative py-16 bg-tpcream">
-        
-        <div className="max-w-[480px] w-full mx-auto">
-          
-          <h1 className="text-5xl font-serif font-medium mb-4 tracking-tight text-tpteal">
-            Log In Now
-          </h1>
-          <p className="text-base font-medium text-tpgray mb-12 leading-relaxed">
-            Welcome back. Access your dashboard to connect with professionals, showcase your progress, and grow your vision.
-          </p>
+            <div>
+              <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Trainer Email</label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-gray-400">
+                  <Mail size={24} />
+                </div>
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-5 pl-14 pr-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors"
+                  placeholder="email"
+                  required
+                />
+              </div>
+            </div>
 
-          <form onSubmit={handleLogin} className="space-y-6">
-            {error && (
-              <div className="p-4 bg-red-100 border border-red-200 text-red-600 text-sm rounded-xl font-medium">
-                {error}
+            {/* PASSWORD SECTION - Hides when in Forgot Password mode */}
+            {!isForgotPassword && (
+              <div>
+                <div className="flex justify-between items-center mb-2">
+                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest block">Password</label>
+                   {isLogin && (
+                     <button 
+                       type="button" 
+                       onClick={() => { setIsForgotPassword(true); setError(null); setMessage(null); }} 
+                       className="text-sm font-medium text-[#0B4550] hover:underline"
+                     >
+                       Forgot?
+                     </button>
+                   )}
+                </div>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-gray-400">
+                    <Lock size={24} />
+                  </div>
+                  <input 
+                    type={showPassword ? "text" : "password"} 
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-5 pl-14 pr-14 font-medium text-lg text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors"
+                    placeholder="••••••••"
+                    required
+                  />
+                  {/* EYE ICON */}
+                  <div className="absolute inset-y-0 right-0 pr-4 flex items-center">
+                    <button 
+                      type="button" 
+                      onClick={() => setShowPassword(!showPassword)} 
+                      className="text-gray-400 hover:text-[#0B4550] transition-colors p-2"
+                    >
+                      {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
+                    </button>
+                  </div>
+                </div>
               </div>
             )}
-            
-            {/* Email Field */}
-            <div>
-              <label className="block text-sm font-medium text-tpteal mb-2.5 ml-1">Email Address</label>
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-tpteal text-tpcream placeholder-tpgray/50 border-none rounded-2xl px-6 py-4 text-base focus:outline-none focus:ring-2 focus:ring-tpyellow transition-all"
-                placeholder="e.g. yourname@domain.com"
-                required 
-              />
-            </div>
-            
-            {/* Password Field */}
-            <div>
-              <div className="flex justify-between items-center mb-2.5 mx-1">
-                <label className="block text-sm font-medium text-tpteal">Password</label>
-                <a href="#" className="text-sm font-medium text-tpgray hover:text-tpteal transition-colors">Forgot?</a>
-              </div>
-              <div className="relative">
-                <input 
-                  type={showPassword ? 'text' : 'password'} 
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-tpteal text-tpcream placeholder-tpgray/50 border-none rounded-2xl px-6 py-4 text-base focus:outline-none focus:ring-2 focus:ring-tpyellow transition-all"
-                  placeholder="••••••••"
-                  required 
-                />
-                <button 
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-6 top-1/2 -translate-y-1/2 text-tpyellow hover:brightness-110 transition-all"
-                >
-                  {showPassword ? <EyeOff size={22} /> : <Eye size={22} />}
-                </button>
-              </div>
-            </div>
 
-            {/* Neon Yellow Login Button */}
+            {/* Button increased in size */}
             <button 
               type="submit" 
               disabled={loading}
-              className="w-full bg-tpyellow text-tpteal font-medium text-lg rounded-2xl py-4 hover:brightness-95 transition-all mt-4 shadow-lg shadow-tpyellow/20"
+              className="w-full py-5 rounded-[2rem] font-medium text-xl bg-[#E6FF2B] text-[#0B4550] shadow-xl transition-all hover:scale-[1.02] flex items-center justify-center gap-3 disabled:opacity-70 disabled:hover:scale-100 mt-4"
             >
-              {loading ? 'Logging In...' : 'Log In'}
+              {loading ? <Loader2 size={28} className="animate-spin" /> : (isForgotPassword ? 'Send Reset Link' : (isLogin ? 'Sign In' : 'Sign Up'))}
+              {!loading && <ArrowRight size={24} />}
             </button>
           </form>
 
-          {/* Footer Link */}
-          <div className="mt-12 text-center">
-              <p className="text-sm font-semibold text-tpgray">
-                Don't have an account?{' '}
-                {/* Yellow text with slight shadow so it pops against cream */}
-                <a href="#" className="font-medium text-tpyellow drop-shadow-sm hover:underline underline-offset-4 transition-all">
-                  Sign Up
-                </a>
-              </p>
+          <div className="mt-10 text-center">
+             <p className="text-[#898A8D] font-medium text-base">
+               {isForgotPassword ? "Remembered your password?" : (isLogin ? "Need a dashboard?" : "Already registered?")}
+               <button 
+                 type="button"
+                 onClick={() => { 
+                   setIsForgotPassword(false); 
+                   setIsLogin(!isForgotPassword ? !isLogin : true); 
+                   setError(null); 
+                   setMessage(null); 
+                 }} 
+                 className="ml-2 text-[#0B4550] hover:underline"
+               >
+                 {isForgotPassword ? 'Log in' : (isLogin ? 'Sign up' : 'Log in')}
+               </button>
+             </p>
           </div>
 
         </div>
       </div>
-      
+
+      {/* ========================================== */}
+      {/* RIGHT SIDE - CAROUSEL (FLOATING ROUNDED PANEL) */}
+      {/* ========================================== */}
+      <div className="hidden lg:flex flex-[1.2] flex-col justify-between bg-[#0B4550] text-white p-14 relative overflow-hidden my-4 mr-4 rounded-[3rem] shadow-2xl">
+        
+        {/* REAL BACKGROUND IMAGES */}
+        {carouselSlides.map((slide, index) => (
+          <div 
+            key={`bg-${slide.id}`}
+            className={`absolute inset-0 transition-opacity duration-1000 ease-in-out z-0 ${index === currentSlide ? 'opacity-40' : 'opacity-0'}`}
+          >
+            <img 
+              src={slide.image} 
+              alt="Background" 
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-[#0B4550]/70 mix-blend-multiply"></div>
+          </div>
+        ))}
+        
+        {/* --- Slides Content Area --- */}
+        <div className="relative flex-1 flex flex-col justify-center pb-20 z-10 pl-8">
+          {carouselSlides.map((slide, index) => (
+            <div 
+              key={`content-${slide.id}`} 
+              className={`absolute inset-0 flex flex-col justify-center transition-all duration-700 ease-in-out ${index === currentSlide ? 'opacity-100 translate-x-0' : 'opacity-0 translate-x-10 pointer-events-none'}`}
+            >
+              <div className="mb-8">{slide.icon}</div>
+              <h1 className="text-7xl font-medium tracking-tight mb-6 text-[#E6FF2B] leading-[1.1] drop-shadow-md max-w-2xl">
+                {slide.title}
+              </h1>
+              <p className="text-3xl font-medium text-white/90 max-w-2xl leading-snug drop-shadow-md">
+                {slide.description}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* --- Slide Indicators (Dots) --- */}
+        <div className="absolute bottom-14 left-20 flex gap-3 z-20">
+          {carouselSlides.map((slide, index) => (
+            <button 
+              key={`dot-${slide.id}`} 
+              onClick={() => setCurrentSlide(index)} 
+              className={`h-2.5 rounded-full transition-all ${index === currentSlide ? 'bg-[#E6FF2B] w-20 shadow-md' : 'bg-white/40 hover:bg-white/80 w-12'}`} 
+            />
+          ))}
+        </div>
+
+        {/* Secure Message */}
+        <div className="absolute top-10 right-10 z-20 flex items-center gap-3 font-medium text-sm text-white/70 bg-black/20 px-4 py-2 rounded-full backdrop-blur-md">
+           <ShieldCheck size={18} /> 
+        </div>
+      </div>
+
     </div>
   );
 }
