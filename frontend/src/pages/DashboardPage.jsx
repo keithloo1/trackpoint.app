@@ -31,6 +31,30 @@ const getDailyQuote = () => {
   return quotes[dayOfYear % quotes.length];
 };
 
+const getExpiryText = (client) => {
+  if (!client.expiry) return 'No expiry date';
+  
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  
+  const expiryDate = new Date(client.expiry);
+  expiryDate.setHours(0, 0, 0, 0);
+  
+  const diffTime = expiryDate.getTime() - today.getTime();
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  
+  if (diffDays < 0) {
+    const absDays = Math.abs(diffDays);
+    return `Expired ${absDays} day${absDays > 1 ? 's' : ''} ago`;
+  } else if (diffDays === 0) {
+    return 'Expires today';
+  } else if (diffDays === 1) {
+    return 'Expires tomorrow';
+  } else {
+    return `Expires in ${diffDays} day${diffDays > 1 ? 's' : ''}`;
+  }
+};
+
 const getInitials = (name) => {
   if (!name || name === 'Trainer') return 'T';
   return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
@@ -56,7 +80,6 @@ const getLiveClientStatus = (client) => {
 
 export default function Dashboard() {
   const [activePage, setActivePage] = useState('Dashboard');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isArchiveMode, setIsArchiveMode] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
   const [sortBy, setSortBy] = useState('newest');
@@ -1724,107 +1747,11 @@ export default function Dashboard() {
   };
 
   return (
-    <div className="flex flex-col h-screen w-full bg-[#F9F7F2] font-sans text-[#0B4550] overflow-hidden">
+    <div className="flex flex-col lg:flex-row h-screen w-full bg-[#F9F7F2] font-sans text-[#0B4550] overflow-hidden">
       
-      {/* MOBILE TOP BAR */}
+      {/* SIDEBAR - Hidden when in ClassMode or on mobile */}
       {activePage !== 'ClassMode' && (
-        <div className="lg:hidden flex items-center justify-between bg-white px-6 py-4 border-b border-gray-100 z-30 shadow-sm shrink-0 w-full">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsMobileMenuOpen(true)} 
-              className="p-2 text-[#0B4550] hover:bg-[#F9F7F2] rounded-xl transition-all"
-            >
-              <LayoutGrid size={24} />
-            </button>
-            <span className="font-extrabold text-2xl tracking-tight text-[#0B4550]">trackpoint</span>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <button className="relative p-2.5 bg-white rounded-full border border-gray-100 text-[#898A8D] hover:text-[#0B4550] transition-colors shrink-0 shadow-xs">
-              <Bell size={20} />
-              <span className="absolute top-1.5 right-1.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></span>
-            </button>
-            <div className="w-9 h-9 rounded-full bg-[#0B4550] flex items-center justify-center text-[#E6FF2B] text-sm font-bold shadow-sm border-2 border-white cursor-pointer shrink-0">
-              {getInitials(trainerName)}
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* MOBILE SLIDE-OVER MENU */}
-      {isMobileMenuOpen && (
-        <div className="lg:hidden fixed inset-0 z-50 flex">
-          {/* Backdrop */}
-          <div 
-            onClick={() => setIsMobileMenuOpen(false)} 
-            className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-xs transition-opacity duration-300"
-          />
-
-          {/* Drawer Content */}
-          <div className="relative flex flex-col w-[280px] max-w-xs bg-white h-full shadow-2xl animate-in slide-in-from-left duration-300">
-            <div className="flex items-center justify-between px-6 py-6 border-b border-gray-100">
-              <span className="font-extrabold text-2xl tracking-tight text-[#0B4550]">trackpoint</span>
-              <button 
-                onClick={() => setIsMobileMenuOpen(false)} 
-                className="p-2 text-gray-400 hover:text-[#0B4550] hover:bg-[#F9F7F2] rounded-xl transition-all"
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <nav className="flex-1 px-4 py-4 space-y-1.5 overflow-y-auto">
-              {[
-                { page: 'Dashboard', label: 'Dashboard', icon: <Home size={22} /> },
-                { page: 'Clients', label: 'Clients', icon: <Users size={22} /> },
-                { page: 'Revenue', label: 'Revenue History', icon: <DollarSign size={22} /> },
-                { page: 'Schedule', label: 'Schedule Manager', icon: <CalendarSearch size={22} /> },
-                { page: 'Calendar', label: 'Calendar Grid', icon: <Calendar size={22} /> },
-                { page: 'Analytics', label: 'Real-time Analytics', icon: <BarChart2 size={22} /> },
-                { page: 'Packages', label: 'Package Deals', icon: <Package size={22} /> },
-                { page: 'ClassMode', label: 'Class Mode', icon: <Monitor size={22} /> },
-                { page: 'Settings', label: 'System Settings', icon: <Settings size={22} /> },
-              ].map(item => (
-                <button
-                  key={item.page}
-                  onClick={() => {
-                    setActivePage(item.page);
-                    setSelectedClient(null);
-                    setIsMobileMenuOpen(false);
-                  }}
-                  className={`w-full flex items-center gap-4 px-4 py-3.5 rounded-2xl font-bold transition-all ${
-                    activePage === item.page 
-                      ? 'bg-[#F9F7F2] text-[#0B4550] border-l-4 border-[#E6FF2B]' 
-                      : 'text-gray-500 hover:bg-gray-50 hover:text-[#0B4550]'
-                  }`}
-                >
-                  {item.icon}
-                  <span className="text-sm">{item.label}</span>
-                </button>
-              ))}
-            </nav>
-
-            <div className="p-4 border-t border-gray-100">
-              <button
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  handleLogout();
-                }}
-                className="w-full flex items-center gap-4 px-4 py-3.5 text-red-500 hover:bg-red-50 rounded-2xl font-bold transition-all"
-              >
-                <LogOut size={22} />
-                <span className="text-sm">Log Out</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Main Responsive Grid Container */}
-      <div className="flex flex-col lg:flex-row flex-grow h-full w-full overflow-hidden relative">
-        
-        {/* SIDEBAR - Hidden when in ClassMode or on mobile */}
-        {activePage !== 'ClassMode' && (
-        <aside className="hidden lg:flex w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+      <aside className="hidden lg:flex w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="flex items-center px-6 py-8">
           <button 
             onClick={() => {
@@ -2235,38 +2162,36 @@ export default function Dashboard() {
               {filteredTransactions.length === 0 ? (
                 <div className="text-center py-10 text-[#898A8D] font-medium">No transactions found for this period.</div>
               ) : (
-                <div className="overflow-x-auto no-scrollbar">
-                  <table className="w-full text-left border-collapse mb-10 min-w-[600px]">
-                    <thead>
-                      <tr className="text-base font-medium text-[#898A8D] uppercase tracking-wider border-b border-gray-100">
-                        <th className="pb-4 pt-2">Date</th>
-                        <th className="pb-4 pt-2">Client Name</th>
-                        <th className="pb-4 pt-2">Description</th>
-                        <th className="pb-4 pt-2">Amount</th>
-                        <th className="pb-4 pt-2 text-right">Actions</th>
+                <table className="w-full text-left border-collapse mb-10">
+                  <thead>
+                    <tr className="text-base font-medium text-[#898A8D] uppercase tracking-wider border-b border-gray-100">
+                      <th className="pb-4 pt-2">Date</th>
+                      <th className="pb-4 pt-2">Client Name</th>
+                      <th className="pb-4 pt-2">Description</th>
+                      <th className="pb-4 pt-2">Amount</th>
+                      <th className="pb-4 pt-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-lg font-medium text-[#0B4550]">
+                    {filteredTransactions.map(t => (
+                      <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
+                        <td className="py-4 text-sm">{new Date(t.created_at).toLocaleDateString()}</td>
+                        <td className="py-4 font-bold">{clients.find(c => c.id === t.client_name)?.name || t.client_name}</td>
+                        <td className="py-4 text-sm">{t.description}</td>
+                        <td className="py-4 font-black text-emerald-600">+RM {Number(t.amount).toFixed(2)}</td>
+                        <td className="py-4 text-right">
+                          <button 
+                            onClick={() => handleDeleteTransaction(t.id)} 
+                            className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" 
+                            title="Delete Transaction"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody className="text-lg font-medium text-[#0B4550]">
-                      {filteredTransactions.map(t => (
-                        <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                          <td className="py-4 text-sm">{new Date(t.created_at).toLocaleDateString()}</td>
-                          <td className="py-4 font-bold">{clients.find(c => c.id === t.client_name)?.name || t.client_name}</td>
-                          <td className="py-4 text-sm">{t.description}</td>
-                          <td className="py-4 font-black text-emerald-600">+RM {Number(t.amount).toFixed(2)}</td>
-                          <td className="py-4 text-right">
-                            <button 
-                              onClick={() => handleDeleteTransaction(t.id)} 
-                              className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" 
-                              title="Delete Transaction"
-                            >
-                              <Trash2 size={16} />
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                    ))}
+                  </tbody>
+                </table>
               )}
             </div>
           </div>
@@ -2277,16 +2202,16 @@ export default function Dashboard() {
           <div className="animate-in fade-in duration-500">
             {!selectedClient && (
               <>
-                <div className="flex flex-col lg:flex-row justify-between items-stretch lg:items-center mb-8 gap-4">
-                  <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 overflow-x-auto no-scrollbar shrink-0 max-w-full">
+                <div className="flex justify-between items-center mb-8">
+                  <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 shrink-0">
                     {['All Clients', 'Active', 'Expiring Soon', 'Expired'].map((tab) => (
-                      <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 lg:px-6 py-2 rounded-full text-base lg:text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
+                      <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2 rounded-full text-lg font-medium transition-all ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
                         {tab}
                       </button>
                     ))}
                   </div>
-                  <div className="flex flex-wrap lg:flex-nowrap gap-3 items-center">
-                    <div className="bg-white border border-gray-100 rounded-xl p-1 flex items-center shadow-sm shrink-0">
+                  <div className="flex gap-3">
+                    <div className="bg-white border border-gray-100 rounded-xl p-1 flex items-center shadow-sm">
                       <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-[#0B4550] text-[#E6FF2B]' : 'text-[#898A8D] hover:text-[#0B4550]'}`} title="Grid View">
                         <LayoutGrid size={20} />
                       </button>
@@ -2298,7 +2223,7 @@ export default function Dashboard() {
                     <select 
                       value={sortBy} 
                       onChange={(e) => setSortBy(e.target.value)}
-                      className="bg-white border border-gray-100 text-[#0B4550] px-4 py-3 rounded-xl font-medium text-base outline-none shadow-sm cursor-pointer shrink-0"
+                      className="bg-white border border-gray-100 text-[#0B4550] px-4 py-3 rounded-xl font-medium text-base outline-none shadow-sm cursor-pointer"
                     >
                       <option value="newest">Recently Added</option>
                       <option value="az">Alphabetical (A-Z)</option>
@@ -2309,12 +2234,12 @@ export default function Dashboard() {
 
                     <button 
                       onClick={() => setIsArchiveMode(!isArchiveMode)} 
-                      className={`px-4 lg:px-6 py-3 rounded-xl font-medium text-base lg:text-lg flex items-center gap-2 transition-all shadow-sm shrink-0 ${isArchiveMode ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-white text-[#898A8D] border border-gray-100 hover:text-[#0B4550]'}`}
+                      className={`px-6 py-3 rounded-xl font-medium text-lg flex items-center gap-2 transition-all shadow-sm ${isArchiveMode ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-white text-[#898A8D] border border-gray-100 hover:text-[#0B4550]'}`}
                     >
                       <Download size={20} className={isArchiveMode ? "" : "opacity-70"} /> 
                       {isArchiveMode ? 'Exit Archive' : 'View Archive'}
                     </button>
-                    <button onClick={() => setShowAddModal(true)} className="bg-[#E6FF2B] text-[#0B4550] px-4 lg:px-6 py-3 rounded-xl font-medium text-base lg:text-lg flex items-center gap-2 hover:brightness-95 transition-all shadow-sm shrink-0">
+                    <button onClick={() => setShowAddModal(true)} className="bg-[#E6FF2B] text-[#0B4550] px-6 py-3 rounded-xl font-medium text-lg flex items-center gap-2 hover:brightness-95 transition-all shadow-sm">
                       <Plus size={24} />
                       Add New Client
                     </button>
@@ -3246,9 +3171,17 @@ export default function Dashboard() {
                     </div>
                     <div className="flex flex-col items-center">
                       <span className="font-bold text-lg text-[#0B4550] text-center line-clamp-1 leading-tight">{client.name}</span>
-                      <span className="text-xs font-medium text-[#898A8D] mt-1">
-                        {client.unlimited ? 'Unlimited Access' : `${client.remaining_package || 0} Sessions Left`}
-                      </span>
+                      {client.unlimited ? (
+                        <div className="flex flex-col items-center mt-1.5 space-y-0.5">
+                          <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider text-[10px]">Unlimited</span>
+                          <span className="text-[11px] font-medium text-[#898A8D]">{getExpiryText(client)}</span>
+                        </div>
+                      ) : (
+                        <div className="flex flex-col items-center mt-1.5 space-y-0.5">
+                          <span className="text-xs font-extrabold text-[#0B4550]">{client.remaining_package || 0} Sessions Left</span>
+                          <span className="text-[11px] font-medium text-[#898A8D]">{getExpiryText(client)}</span>
+                        </div>
+                      )}
                     </div>
                   </button>
                 ))}
@@ -3263,7 +3196,21 @@ export default function Dashboard() {
                     {getInitials(selectedClassClient.name)}
                   </div>
                   <h2 className="text-3xl font-black text-[#0B4550] mb-2">Check In?</h2>
-                  <p className="text-xl text-[#898A8D] mb-8 font-medium">{selectedClassClient.name}</p>
+                  <p className="text-xl text-[#898A8D] mb-4 font-medium">{selectedClassClient.name}</p>
+                  
+                  <div className="bg-[#F9F7F2] rounded-2xl p-4 mb-8 border border-gray-100 flex flex-col items-center gap-1.5 w-full">
+                    {selectedClassClient.unlimited ? (
+                      <>
+                        <span className="text-sm font-extrabold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full uppercase tracking-widest text-[11px]">Unlimited Access</span>
+                        <span className="text-xs font-medium text-[#898A8D]">{getExpiryText(selectedClassClient)}</span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-base font-black text-[#0B4550]">{selectedClassClient.remaining_package || 0} Sessions Remaining</span>
+                        <span className="text-xs font-medium text-[#898A8D]">{getExpiryText(selectedClassClient)}</span>
+                      </>
+                    )}
+                  </div>
                   
                   <div className="flex gap-4">
                     <button 
@@ -4186,7 +4133,6 @@ export default function Dashboard() {
           </div>
         </div>
       )}
-      </div>
     </div>
   );
 }
