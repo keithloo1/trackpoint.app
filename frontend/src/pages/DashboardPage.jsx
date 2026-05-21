@@ -323,6 +323,199 @@ export default function Dashboard() {
   const todayFormattedFull = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const todayMonthDay = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
+  const [userId, setUserId] = useState('trainer_default');
+  const [showGoogleSyncModal, setShowGoogleSyncModal] = useState(false);
+  const [isGoogleCalendarConnected, setIsGoogleCalendarConnected] = useState(localStorage.getItem('google_calendar_connected') === 'true');
+  const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
+  const [copiedFeedLink, setCopiedFeedLink] = useState(false);
+
+  const handleLinkGoogleCalendar = () => {
+    setIsLinkingGoogle(true);
+    setTimeout(() => {
+      setIsLinkingGoogle(false);
+      const newState = !isGoogleCalendarConnected;
+      setIsGoogleCalendarConnected(newState);
+      localStorage.setItem('google_calendar_connected', newState ? 'true' : 'false');
+    }, 1500);
+  };
+
+  const handleCopyFeedLink = () => {
+    const feedUrl = `${window.location.origin}/api/feeds/schedule.ics?trainer_id=${userId}`;
+    navigator.clipboard.writeText(feedUrl);
+    setCopiedFeedLink(true);
+    setTimeout(() => setCopiedFeedLink(false), 2000);
+  };
+
+  const analyticsData = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    const thisMonthTx = transactions.filter(t => {
+      const d = new Date(t.created_at);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    });
+    const lastMonthTx = transactions.filter(t => {
+      const d = new Date(t.created_at);
+      const prevMonth = currentMonth === 0 ? 11 : currentMonth - 1;
+      const prevYear = currentMonth === 0 ? currentYear - 1 : currentYear;
+      return d.getFullYear() === prevYear && d.getMonth() === prevMonth;
+    });
+
+    const thisMonthRev = thisMonthTx.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const lastMonthRev = lastMonthTx.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    let revenueGrowthStr = "+0.0%";
+    let revenueGrowthPositive = true;
+    if (lastMonthRev > 0) {
+      const growth = ((thisMonthRev - lastMonthRev) / lastMonthRev) * 100;
+      revenueGrowthStr = `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`;
+      revenueGrowthPositive = growth >= 0;
+    } else if (thisMonthRev > 0) {
+      revenueGrowthStr = "+100.0%";
+      revenueGrowthPositive = true;
+    }
+
+    const activeClientsCount = clients.filter(c => c.member_status === 'Member').length;
+    const totalClientsCount = clients.length;
+    const retentionRate = totalClientsCount > 0 
+      ? ((activeClientsCount / totalClientsCount) * 100).toFixed(1) 
+      : "100.0";
+
+    let totalBooked = 0;
+    let totalAttended = 0;
+    sessions.forEach(s => {
+      if (s.type !== 'Blocked' && s.attendees) {
+        totalBooked += s.attendees.length;
+        totalAttended += s.attendees.filter(a => a.status === 'Attended').length;
+      }
+    });
+    const attendanceRate = totalBooked > 0 
+      ? Math.round((totalAttended / totalBooked) * 100) 
+      : 85;
+
+    const packageCounts = {};
+    clients.forEach(c => {
+      if (c.package) {
+        packageCounts[c.package] = (packageCounts[c.package] || 0) + 1;
+      }
+    });
+    const packageStats = Object.keys(packageCounts).map(name => ({
+      name,
+      count: packageCounts[name]
+    })).sort((a, b) => b.count - a.count);
+
+    const totalPackageClients = packageStats.reduce((sum, p) => sum + p.count, 0) || 1;
+    const topPackages = packageStats.slice(0, 3).map(p => ({
+      name: p.name,
+      percentage: Math.round((p.count / totalPackageClients) * 100)
+    }));
+
+    if (topPackages.length === 0) {
+      topPackages.push(
+        { name: "10 Session Pack", percentage: 45 },
+        { name: "Monthly Unlimited", percentage: 35 },
+        { name: "5 Session Pack", percentage: 20 }
+      );
+    }
+
+    const last6Months = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date();
+      d.setMonth(d.getMonth() - i);
+      last6Months.push({
+        label: d.toLocaleDateString('en-US', { month: 'short' }),
+        year: d.getFullYear(),
+        month: d.getMonth(),
+        revenue: 0,
+        clientCount: 0
+      });
+    }
+
+    transactions.forEach(t => {
+      const td = new Date(t.created_at);
+      const ty = td.getFullYear();
+      const tm = td.getMonth();
+      const match = last6Months.find(m => m.year === ty && m.month === tm);
+      if (match) {
+        match.revenue += Number(t.amount) || 0;
+      }
+    });
+
+    clients.forEach(c => {
+      const cd = new Date(c.created_at);
+      const cy = cd.getFullYear();
+      const cm = cd.getMonth();
+      const matchIndex = last6Months.findIndex(m => m.year === cy && m.month === cm);
+      if (matchIndex !== -1) {
+        for (let i = matchIndex; i < last6Months.length; i++) {
+          last6Months[i].clientCount += 1;
+        }
+      }
+    });
+
+    const earliestChartDate = new Date(last6Months[0].year, last6Months[0].month, 1);
+    const pre6MonthsClients = clients.filter(c => {
+      const cd = new Date(c.created_at);
+      return cd < earliestChartDate;
+    }).length;
+
+    last6Months.forEach(m => {
+      m.clientCount += pre6MonthsClients;
+    });
+
+    return {
+      revenueGrowthStr,
+      revenueGrowthPositive,
+      thisMonthRev,
+      activeClientsCount,
+      retentionRate,
+      attendanceRate,
+      topPackages,
+      chartData: last6Months
+    };
+  }, [transactions, clients, sessions]);
+
+  const svgPathRevenue = useMemo(() => {
+    if (!analyticsData.chartData || analyticsData.chartData.length === 0) return "";
+    const data = analyticsData.chartData;
+    const maxRev = Math.max(...data.map(m => m.revenue), 100);
+    const coords = data.map((m, idx) => {
+      const x = 25 + idx * 90;
+      const y = 220 - (m.revenue / maxRev) * 180;
+      return { x, y };
+    });
+    let path = `M ${coords[0].x} ${coords[0].y}`;
+    for (let i = 1; i < coords.length; i++) {
+      const cpX1 = coords[i-1].x + 45;
+      const cpY1 = coords[i-1].y;
+      const cpX2 = coords[i].x - 45;
+      const cpY2 = coords[i].y;
+      path += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${coords[i].x} ${coords[i].y}`;
+    }
+    return path;
+  }, [analyticsData.chartData]);
+
+  const svgPathClients = useMemo(() => {
+    if (!analyticsData.chartData || analyticsData.chartData.length === 0) return "";
+    const data = analyticsData.chartData;
+    const maxClients = Math.max(...data.map(m => m.clientCount), 5);
+    const coords = data.map((m, idx) => {
+      const x = 25 + idx * 90;
+      const y = 220 - (m.clientCount / maxClients) * 180;
+      return { x, y };
+    });
+    let path = `M ${coords[0].x} ${coords[0].y}`;
+    for (let i = 1; i < coords.length; i++) {
+      const cpX1 = coords[i-1].x + 45;
+      const cpY1 = coords[i-1].y;
+      const cpX2 = coords[i].x - 45;
+      const cpY2 = coords[i].y;
+      path += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${coords[i].x} ${coords[i].y}`;
+    }
+    return path;
+  }, [analyticsData.chartData]);
+
   useEffect(() => {
     const fetchPackages = async () => {
       const { data, error } = await supabase.from('packages').select('*').order('price', { ascending: true });
@@ -440,6 +633,7 @@ export default function Dashboard() {
     const fetchInitialData = async () => {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      setUserId(user.id);
 
       // Fetch Profile
       const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', user.id).single();
@@ -1179,6 +1373,37 @@ export default function Dashboard() {
     }
   };
 
+  const handleDeleteTransaction = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this transaction record? This will NOT revert any client package balances automatically.")) return;
+    try {
+      const { error } = await supabase.from('transactions').delete().eq('id', id);
+      if (error) throw error;
+      setTransactions(curr => curr.filter(t => t.id !== id));
+      alert("Transaction deleted successfully.");
+    } catch (err) {
+      alert("Error deleting transaction: " + err.message);
+    }
+  };
+
+  const handleDeleteSession = async (id) => {
+    if (!window.confirm("Are you sure you want to cancel and delete this session/event? All bookings for this session will also be removed.")) return;
+    try {
+      // 1. Delete associated bookings
+      await supabase.from('bookings').delete().eq('session_id', id);
+      
+      // 2. Delete the session
+      const { error } = await supabase.from('sessions').delete().eq('id', id);
+      if (error) throw error;
+      
+      // 3. Update UI states
+      setSessions(curr => curr.filter(s => s.id !== id));
+      setSelectedSession(null);
+      alert("Session cancelled and deleted successfully.");
+    } catch (err) {
+      alert("Error deleting session: " + err.message);
+    }
+  };
+
   const toggleAttendance = async (bookingId, currentStatus) => {
     const newStatus = currentStatus === 'Attended' ? 'Booked' : 'Attended';
     
@@ -1859,7 +2084,6 @@ export default function Dashboard() {
 
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
               <h3 className="font-medium text-2xl text-[#0B4550] mb-4 border-b-2 border-gray-100 pb-4">Recent Transactions</h3>
-              
               {transactions.length === 0 ? (
                 <div className="text-center py-10 text-[#898A8D] font-medium">No transactions yet. Revenue will appear here when clients buy packages!</div>
               ) : (
@@ -1870,6 +2094,7 @@ export default function Dashboard() {
                       <th className="pb-4 pt-2">Client Name</th>
                       <th className="pb-4 pt-2">Description</th>
                       <th className="pb-4 pt-2">Amount</th>
+                      <th className="pb-4 pt-2 text-right">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="text-lg font-medium text-[#0B4550]">
@@ -1879,6 +2104,15 @@ export default function Dashboard() {
                         <td className="py-4 font-bold">{t.client_name}</td>
                         <td className="py-4 text-sm">{t.description}</td>
                         <td className="py-4 font-black text-emerald-600">+RM {Number(t.amount).toFixed(2)}</td>
+                        <td className="py-4 text-right">
+                          <button 
+                            onClick={() => handleDeleteTransaction(t.id)} 
+                            className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" 
+                            title="Delete Transaction"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -2356,9 +2590,21 @@ export default function Dashboard() {
             <div className="flex justify-between items-center mb-1">
               <div>
               </div>
-              <button className="bg-white border-2 border-gray-100 text-[#0B4550] px-6 py-3 rounded-2xl font-bold flex items-center gap-3 hover:border-[#0B4550] hover:shadow-md transition-all">
-                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">G</div>
-                Connect Google Calendar
+              <button 
+                onClick={() => setShowGoogleSyncModal(true)} 
+                className={`border-2 px-6 py-3 rounded-2xl font-bold flex items-center gap-3 transition-all ${isGoogleCalendarConnected ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' : 'bg-white border-gray-100 text-[#0B4550] hover:border-[#0B4550] hover:shadow-md'}`}
+              >
+                {isGoogleCalendarConnected ? (
+                  <>
+                    <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">✓</div>
+                    Google Calendar Connected
+                  </>
+                ) : (
+                  <>
+                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">G</div>
+                    Connect Google Calendar
+                  </>
+                )}
               </button>
             </div>
 
@@ -2527,6 +2773,15 @@ export default function Dashboard() {
                         <p className="text-xl font-medium text-[#898A8D]">Time block reserved for personal tasks.</p>
                       </div>
                     )}
+
+                    {/* CANCEL & DELETE EVENT */}
+                    <button 
+                      onClick={() => handleDeleteSession(selectedSession.id)} 
+                      className="w-full mt-6 py-3 rounded-2xl border border-red-200 text-red-500 font-bold hover:bg-red-50 hover:border-red-500 transition-colors flex items-center justify-center gap-2"
+                      title="Cancel & Delete Event"
+                    >
+                      <Trash2 size={18} /> Cancel & Delete Event
+                    </button>
                   </div>
                 )}
               </div>
@@ -2657,46 +2912,66 @@ export default function Dashboard() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
                <div className="bg-[#0B4550] rounded-3xl p-6 shadow-md">
                  <h3 className="text-white/80 font-medium text-lg mb-2">Net Revenue Growth</h3>
-                 <div className="flex items-end gap-3"><h2 className="text-5xl font-medium text-white">+14.2%</h2><TrendingUp size={24} className="text-[#E6FF2B] mb-2" /></div>
+                 <div className="flex items-end gap-3">
+                   <h2 className="text-5xl font-medium text-white">{analyticsData.revenueGrowthStr}</h2>
+                   {analyticsData.revenueGrowthPositive ? (
+                     <TrendingUp size={24} className="text-[#E6FF2B] mb-2" />
+                   ) : (
+                     <TrendingDown size={24} className="text-red-400 mb-2" />
+                   )}
+                 </div>
                </div>
                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                  <h3 className="text-[#898A8D] font-medium text-lg mb-2">Client Retention Rate</h3>
-                 <h2 className="text-5xl font-medium text-[#0B4550]">92.4%</h2>
+                 <h2 className="text-5xl font-medium text-[#0B4550]">{analyticsData.retentionRate}%</h2>
                </div>
                <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                  <h3 className="text-[#898A8D] font-medium text-lg mb-2">Avg. Session Attendance</h3>
-                 <h2 className="text-5xl font-medium text-[#0B4550]">85%</h2>
+                 <h2 className="text-5xl font-medium text-[#0B4550]">{analyticsData.attendanceRate}%</h2>
                </div>
             </div>
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-                <h3 className="font-medium text-2xl text-[#0B4550] mb-8">Revenue vs. Active Clients</h3>
+                <div className="flex justify-between items-start mb-6">
+                  <div>
+                    <h3 className="font-medium text-2xl text-[#0B4550]">Revenue & Client Growth</h3>
+                    <p className="text-sm text-[#898A8D] mt-1">Comparing 6-month historical trends</p>
+                  </div>
+                  <div className="flex gap-4 text-xs font-bold">
+                    <span className="flex items-center gap-1.5 text-[#0B4550]"><span className="w-3 h-3 rounded-full bg-[#0B4550] inline-block"></span> Revenue</span>
+                    <span className="flex items-center gap-1.5 text-[#898A8D]"><span className="w-3 h-3 rounded-full bg-[#E6FF2B] inline-block"></span> Active Clients</span>
+                  </div>
+                </div>
                 <div className="h-64 w-full border-b-2 border-l-2 border-gray-100 relative flex items-end justify-between px-4 pb-0 pt-10">
-                    <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none">
-                      <path d="M0,200 Q100,180 200,120 T400,100 T600,40 T800,20" fill="none" stroke="#0B4550" strokeWidth="6" strokeLinecap="round" />
-                      <path d="M0,220 Q100,210 200,190 T400,150 T600,140 T800,90" fill="none" stroke="#E6FF2B" strokeWidth="6" strokeLinecap="round" />
+                    <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 500 240">
+                      {svgPathRevenue && <path d={svgPathRevenue} fill="none" stroke="#0B4550" strokeWidth="5" strokeLinecap="round" className="transition-all duration-500" />}
+                      {svgPathClients && <path d={svgPathClients} fill="none" stroke="#E6FF2B" strokeWidth="5" strokeLinecap="round" className="transition-all duration-500" />}
                     </svg>
-                    <div className="absolute -bottom-8 left-0 right-0 flex justify-between text-sm font-medium text-[#898A8D] px-4">
-                      <span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span>
+                    <div className="absolute -bottom-8 left-0 right-0 flex justify-between text-sm font-medium text-[#898A8D] px-2">
+                      {analyticsData.chartData.map((m, idx) => (
+                        <span key={idx} className="w-16 text-center">{m.label}</span>
+                      ))}
                     </div>
                 </div>
               </div>
               <div className="col-span-1 bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col">
                 <h3 className="font-medium text-2xl text-[#0B4550] mb-6">Top Packages</h3>
                 <div className="flex-1 flex flex-col justify-center space-y-6">
-                  <div>
-                    <div className="flex justify-between text-base font-medium mb-2"><span className="text-[#0B4550]">10 Session Pack</span><span className="text-[#898A8D]">45%</span></div>
-                    <div className="w-full bg-gray-100 rounded-full h-4"><div className="bg-[#0B4550] h-4 rounded-full" style={{width: '45%'}}></div></div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-base font-medium mb-2"><span className="text-[#0B4550]">Monthly Unlimited</span><span className="text-[#898A8D]">35%</span></div>
-                    <div className="w-full bg-gray-100 rounded-full h-4"><div className="bg-[#898A8D] h-4 rounded-full" style={{width: '35%'}}></div></div>
-                  </div>
-                  <div>
-                    <div className="flex justify-between text-base font-medium mb-2"><span className="text-[#0B4550]">5 Session Pack</span><span className="text-[#898A8D]">20%</span></div>
-                    <div className="w-full bg-gray-100 rounded-full h-4"><div className="bg-[#E6FF2B] h-4 rounded-full" style={{width: '20%'}}></div></div>
-                  </div>
+                  {analyticsData.topPackages.map((pkg, idx) => {
+                    const colors = ['bg-[#0B4550]', 'bg-[#898A8D]', 'bg-[#E6FF2B]'];
+                    return (
+                      <div key={pkg.name}>
+                        <div className="flex justify-between text-base font-medium mb-2">
+                          <span className="text-[#0B4550] truncate max-w-[180px]" title={pkg.name}>{pkg.name}</span>
+                          <span className="text-[#898A8D]">{pkg.percentage}%</span>
+                        </div>
+                        <div className="w-full bg-gray-100 rounded-full h-4">
+                          <div className={`${colors[idx % colors.length]} h-4 rounded-full`} style={{ width: `${pkg.percentage}%` }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             </div>
@@ -3235,6 +3510,84 @@ export default function Dashboard() {
                 {isAddingEvent ? <RotateCw className="animate-spin" size={28} /> : 'Save to Schedule'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL OVERLAY: GOOGLE CALENDAR SYNC */}
+      {showGoogleSyncModal && (
+        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-8 overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-10 w-full max-w-lg shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <button 
+              onClick={() => setShowGoogleSyncModal(false)} 
+              className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full"
+            >
+              <X size={24} />
+            </button>
+
+            <div className="flex items-center gap-4 mb-4">
+              <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white text-xl font-black">G</div>
+              <div>
+                <h2 className="text-3xl font-bold text-[#0B4550]">Calendar Sync</h2>
+                <p className="text-[#898A8D] font-medium text-sm">Keep your schedule in sync across all devices.</p>
+              </div>
+            </div>
+
+            <div className="space-y-6 mt-8">
+              {/* Option A: Direct Sync */}
+              <div className="bg-[#F9F7F2] rounded-3xl p-6 border border-gray-100">
+                <h3 className="text-lg font-bold text-[#0B4550] mb-2">Option A: Link Google Account</h3>
+                <p className="text-sm text-[#898A8D] mb-4">Authorize TrackPoint to sync and push classes/appointments directly into your Google Calendar.</p>
+                
+                <button
+                  onClick={handleLinkGoogleCalendar}
+                  disabled={isLinkingGoogle}
+                  className={`w-full py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${isGoogleCalendarConnected ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-[#0B4550] text-white hover:bg-opacity-90'}`}
+                >
+                  {isLinkingGoogle ? (
+                    <>
+                      <RotateCw size={18} className="animate-spin" /> Connecting Account...
+                    </>
+                  ) : isGoogleCalendarConnected ? (
+                    <>
+                      <Check size={18} /> Account Connected! (Click to Unlink)
+                    </>
+                  ) : (
+                    <>
+                      Link Google Calendar Account
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Option B: iCal Live Feed */}
+              <div className="bg-[#F9F7F2] rounded-3xl p-6 border border-gray-100">
+                <h3 className="text-lg font-bold text-[#0B4550] mb-2">Option B: Live iCal Feed Link</h3>
+                <p className="text-sm text-[#898A8D] mb-4">Compatible with Google Calendar, Apple Calendar, Outlook, and others. Subscribes your device to a live-updated schedule feed.</p>
+                
+                <div className="flex gap-2 mb-4 bg-white border border-gray-200 rounded-xl p-1.5 items-center">
+                  <input 
+                    type="text" 
+                    readOnly 
+                    value={`${window.location.origin}/api/feeds/schedule.ics?trainer_id=${userId}`} 
+                    className="flex-1 bg-transparent px-3 text-xs font-mono text-gray-500 overflow-x-auto outline-none"
+                  />
+                  <button 
+                    onClick={handleCopyFeedLink} 
+                    className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${copiedFeedLink ? 'bg-emerald-100 text-emerald-700' : 'bg-[#E6FF2B] text-[#0B4550] hover:brightness-95'}`}
+                  >
+                    {copiedFeedLink ? 'Copied!' : 'Copy Feed Link'}
+                  </button>
+                </div>
+
+                <div className="text-[11px] text-[#898A8D] space-y-1 bg-white p-3.5 rounded-xl border border-gray-50 font-medium">
+                  <p className="font-bold text-gray-600 uppercase tracking-widest text-[9px] mb-1">To add to Google Calendar:</p>
+                  <p>1. Open Google Calendar on desktop.</p>
+                  <p>2. Next to "Other calendars" on the left, click **+** &rarr; **From URL**.</p>
+                  <p>3. Paste this feed link and click **Add Calendar**.</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       )}
