@@ -165,6 +165,7 @@ export default function Dashboard() {
     }
   };
   const [activeTab, setActiveTab] = useState('Month');
+  const [activeRevenuePeriod, setActiveRevenuePeriod] = useState('Year');
   
   // --- REAL DATA STATES ---
   const [clients, setClients] = useState([]);
@@ -515,6 +516,56 @@ export default function Dashboard() {
     }
     return path;
   }, [analyticsData.chartData]);
+
+  const dashboardMetrics = useMemo(() => {
+    const today = new Date();
+    const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+    
+    // Filter transactions to only those with non-zero financial amount
+    let filtered = transactions.filter(t => Number(t.amount) !== 0);
+    
+    if (activeTab === 'Day') {
+      filtered = filtered.filter(t => new Date(t.created_at) >= startOfDay);
+    } else if (activeTab === 'Week') {
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      filtered = filtered.filter(t => new Date(t.created_at) >= oneWeekAgo);
+    } else if (activeTab === 'Month') {
+      filtered = filtered.filter(t => {
+        const d = new Date(t.created_at);
+        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+      });
+    } else if (activeTab === 'Year') {
+      filtered = filtered.filter(t => new Date(t.created_at).getFullYear() === today.getFullYear());
+    }
+    
+    const totalRevenue = filtered.reduce((sum, t) => sum + Number(t.amount), 0);
+    const totalCount = filtered.length;
+    
+    return { totalRevenue, totalCount };
+  }, [transactions, activeTab]);
+
+  const filteredTransactions = useMemo(() => {
+    const today = new Date();
+    // Filter transactions to only those with non-zero financial amount
+    const revenueOnly = transactions.filter(t => Number(t.amount) !== 0);
+
+    return revenueOnly.filter(t => {
+      const d = new Date(t.created_at);
+      if (activeRevenuePeriod === 'Day') {
+        return d.toDateString() === today.toDateString();
+      } else if (activeRevenuePeriod === 'Week') {
+        const oneWeekAgo = new Date();
+        oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+        return d >= oneWeekAgo;
+      } else if (activeRevenuePeriod === 'Month') {
+        return d.getMonth() === today.getMonth() && d.getFullYear() === today.getFullYear();
+      } else if (activeRevenuePeriod === 'Year') {
+        return d.getFullYear() === today.getFullYear();
+      }
+      return true; // 'All Time'
+    });
+  }, [transactions, activeRevenuePeriod]);
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -1832,13 +1883,13 @@ export default function Dashboard() {
                   <ArrowUpRight className="text-white/50 group-hover:text-[#E6FF2B] transition-colors" size={20} />
                 </div>
                 <h2 className="text-4xl lg:text-5xl font-medium text-white mb-1">
-                  RM {totalCollectedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                  RM {dashboardMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
                 </h2>
               </div>
               
               <StatCard 
                 title="Total Transactions" 
-                value={transactions.length} 
+                value={dashboardMetrics.totalCount} 
                 trend="+1" 
                 isPositive={true} 
                 onClick={() => setActivePage('Revenue')} 
@@ -2055,11 +2106,11 @@ export default function Dashboard() {
 
             {/* Your existing tabs */}
             <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100">
-              {['Day', 'Month', 'Year', 'All Time'].map((tab) => (
+              {['Day', 'Week', 'Month', 'Year', 'All Time'].map((tab) => (
                 <button 
                   key={tab} 
-                  onClick={() => setActiveTab(tab)} 
-                  className={`px-6 py-2 rounded-full text-lg font-medium transition-all ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                  onClick={() => setActiveRevenuePeriod(tab)} 
+                  className={`px-6 py-2 rounded-full text-lg font-medium transition-all ${activeRevenuePeriod === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
                 >
                   {tab}
                 </button>
@@ -2084,8 +2135,8 @@ export default function Dashboard() {
 
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
               <h3 className="font-medium text-2xl text-[#0B4550] mb-4 border-b-2 border-gray-100 pb-4">Recent Transactions</h3>
-              {transactions.length === 0 ? (
-                <div className="text-center py-10 text-[#898A8D] font-medium">No transactions yet. Revenue will appear here when clients buy packages!</div>
+              {filteredTransactions.length === 0 ? (
+                <div className="text-center py-10 text-[#898A8D] font-medium">No transactions found for this period.</div>
               ) : (
                 <table className="w-full text-left border-collapse mb-10">
                   <thead>
@@ -2098,10 +2149,10 @@ export default function Dashboard() {
                     </tr>
                   </thead>
                   <tbody className="text-lg font-medium text-[#0B4550]">
-                    {transactions.map(t => (
+                    {filteredTransactions.map(t => (
                       <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="py-4 text-sm">{new Date(t.created_at).toLocaleDateString()}</td>
-                        <td className="py-4 font-bold">{t.client_name}</td>
+                        <td className="py-4 font-bold">{clients.find(c => c.id === t.client_name)?.name || t.client_name}</td>
                         <td className="py-4 text-sm">{t.description}</td>
                         <td className="py-4 font-black text-emerald-600">+RM {Number(t.amount).toFixed(2)}</td>
                         <td className="py-4 text-right">
