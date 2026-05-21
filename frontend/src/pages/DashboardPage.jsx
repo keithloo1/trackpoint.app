@@ -3242,18 +3242,22 @@ export default function Dashboard() {
                   <span className="text-[#E6FF2B]">{undoTargetClient.name}</span>!
                 </h1>
 
-                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-12 max-w-lg w-full border border-white/20">
+                <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 mb-12 max-w-lg w-full border border-white/20 flex flex-col items-center gap-2">
                   {undoTargetClient.unlimited ? (
-                    <p className="text-2xl text-white font-medium">
-                      You have <span className="text-[#E6FF2B] font-black">
-                        {Math.max(0, Math.ceil((new Date(undoTargetClient.expiry).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))}
-                      </span> days till expiry.
-                    </p>
+                    <>
+                      <span className="text-sm font-extrabold text-[#E6FF2B] bg-[#E6FF2B]/10 px-4 py-1.5 rounded-full uppercase tracking-widest text-[11px] border border-[#E6FF2B]/20">Unlimited Access</span>
+                      <span className="text-lg font-medium text-white/90">{getExpiryText(undoTargetClient)}</span>
+                    </>
                   ) : (
-                    <p className="text-2xl text-white font-medium">
-                      After today your updated session count is <span className="text-[#E6FF2B] font-black">{(undoTargetClient.initial_package || 0) - (undoTargetClient.remaining_package || 0)}/{undoTargetClient.initial_package}</span>.
-                      <br/><span className="text-lg opacity-80 mt-2 block">You have {undoTargetClient.remaining_package} more sessions to go!</span>
-                    </p>
+                    <>
+                      <span className="text-2xl font-black text-white">{undoTargetClient.remaining_package || 0} Sessions Remaining</span>
+                      <span className="text-sm font-medium text-white/80">{getExpiryText(undoTargetClient)}</span>
+                      {undoTargetClient.initial_package ? (
+                        <span className="text-xs opacity-60 text-white mt-1">
+                          (Package usage: {(undoTargetClient.initial_package || 0) - (undoTargetClient.remaining_package || 0)}/{undoTargetClient.initial_package || 0} used)
+                        </span>
+                      ) : null}
+                    </>
                   )}
                 </div>
 
