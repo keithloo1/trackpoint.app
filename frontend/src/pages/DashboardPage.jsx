@@ -228,30 +228,49 @@ export default function Dashboard() {
   const [clientHistory, setClientHistory] = useState([]);
 
   const groupedHistory = useMemo(() => {
-    const groups = {};
+    const years = {};
     clientHistory.forEach(item => {
       const date = new Date(item.timestamp);
-      const monthYear = date.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' });
-      if (!groups[monthYear]) {
-        groups[monthYear] = {
-          items: [],
+      const year = date.getFullYear();
+      const monthName = date.toLocaleDateString('en-GB', { month: 'long' });
+      
+      if (!years[year]) {
+        years[year] = {
+          year: year,
           totalEarned: 0,
-          sessionsCount: 0
+          sessionsCount: 0,
+          months: {}
         };
       }
-      groups[monthYear].items.push(item);
+      
+      if (!years[year].months[monthName]) {
+        years[year].months[monthName] = {
+          monthName: monthName,
+          monthYear: `${monthName} ${year}`,
+          items: [],
+          totalEarned: 0,
+          sessionsCount: 0,
+          maxTimestamp: item.timestamp
+        };
+      }
+      
+      years[year].months[monthName].items.push(item);
+      
       if (item.type === 'purchase' && Number(item.amount) > 0) {
-        groups[monthYear].totalEarned += Number(item.amount);
+        const amt = Number(item.amount);
+        years[year].months[monthName].totalEarned += amt;
+        years[year].totalEarned += amt;
       }
       if (item.type === 'usage') {
-        groups[monthYear].sessionsCount += 1;
+        years[year].months[monthName].sessionsCount += 1;
+        years[year].sessionsCount += 1;
       }
     });
-    return groups;
+    return years;
   }, [clientHistory]);
 
   const [expandedMonths, setExpandedMonths] = useState({});
-  const isMonthExpanded = (month) => expandedMonths[month] !== false;
+  const isMonthExpanded = (month) => expandedMonths[month] === true;
   const toggleMonth = (month) => {
     setExpandedMonths(prev => ({
       ...prev,
@@ -2194,68 +2213,94 @@ export default function Dashboard() {
                             <p className="text-sm font-medium text-[#898A8D]">No activity recorded yet.</p>
                           </div>
                         ) : (
-                          Object.entries(groupedHistory).map(([month, data]) => (
-                            <div key={month} className="space-y-4">
-                              <div 
-                                onClick={() => toggleMonth(month)}
-                                className="flex justify-between items-center bg-[#F9F7F2] p-4 rounded-2xl border border-gray-100 shadow-sm sticky top-0 z-10 cursor-pointer hover:bg-gray-100 transition-colors group/header"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <ChevronRight size={18} className={`text-[#0B4550] transition-transform duration-300 ${isMonthExpanded(month) ? 'rotate-90' : ''}`} />
-                                  <h4 className="font-bold text-[#0B4550] text-sm uppercase tracking-wider">{month}</h4>
+                          Object.values(groupedHistory)
+                            .sort((a, b) => b.year - a.year)
+                            .map((yearData) => (
+                              <div key={yearData.year} className="space-y-6">
+                                {/* YEAR HEADER */}
+                                <div className="flex justify-between items-center border-b border-gray-100 pb-3 mt-4">
+                                  <h4 className="text-base font-extrabold text-[#0B4550] flex items-center gap-2">
+                                    <Calendar size={18} /> {yearData.year}
+                                  </h4>
+                                  <div className="flex gap-4 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                                    <div>Yearly Revenue: <span className="text-emerald-600 font-extrabold">RM {yearData.totalEarned.toLocaleString()}</span></div>
+                                    <span className="text-gray-300">|</span>
+                                    <div>Sessions: <span className="text-blue-600 font-extrabold">{yearData.sessionsCount}</span></div>
+                                  </div>
                                 </div>
-                                <div className="flex gap-6">
-                                  <div className="text-right">
-                                    <p className="text-[10px] font-bold text-[#898A8D] uppercase">Earned</p>
-                                    <p className="text-sm font-bold text-emerald-600">RM {data.totalEarned.toLocaleString()}</p>
-                                  </div>
-                                  <div className="text-right">
-                                    <p className="text-[10px] font-bold text-[#898A8D] uppercase">Sessions</p>
-                                    <p className="text-sm font-bold text-blue-600">{data.sessionsCount}</p>
-                                  </div>
+
+                                {/* MONTHS LIST */}
+                                <div className="space-y-4">
+                                  {Object.values(yearData.months)
+                                    .sort((a, b) => b.maxTimestamp - a.maxTimestamp)
+                                    .map((monthData) => {
+                                      const monthYearKey = monthData.monthYear;
+                                      return (
+                                        <div key={monthYearKey} className="space-y-4">
+                                          <div 
+                                            onClick={() => toggleMonth(monthYearKey)}
+                                            className="flex justify-between items-center bg-[#F9F7F2] p-4 rounded-2xl border border-gray-100 shadow-sm sticky top-0 z-10 cursor-pointer hover:bg-gray-100 transition-colors group/header"
+                                          >
+                                            <div className="flex items-center gap-3">
+                                              <ChevronRight size={18} className={`text-[#0B4550] transition-transform duration-300 ${isMonthExpanded(monthYearKey) ? 'rotate-90' : ''}`} />
+                                              <h4 className="font-bold text-[#0B4550] text-sm uppercase tracking-wider">{monthData.monthName}</h4>
+                                            </div>
+                                            <div className="flex gap-6">
+                                              <div className="text-right">
+                                                <p className="text-[10px] font-bold text-[#898A8D] uppercase">Earned</p>
+                                                <p className="text-sm font-bold text-emerald-600">RM {monthData.totalEarned.toLocaleString()}</p>
+                                              </div>
+                                              <div className="text-right">
+                                                <p className="text-[10px] font-bold text-[#898A8D] uppercase">Sessions</p>
+                                                <p className="text-sm font-bold text-blue-600">{monthData.sessionsCount}</p>
+                                              </div>
+                                            </div>
+                                          </div>
+                                          
+                                          {isMonthExpanded(monthYearKey) && (
+                                            <div className="space-y-4 pl-2 animate-in slide-in-from-top-2 duration-300">
+                                              {monthData.items.map((item) => (
+                                                <div key={`${item.dbTable}-${item.id}`} className="flex gap-4 group">
+                                                  <div className="flex flex-col items-center">
+                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === 'purchase' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500'}`}>
+                                                      {item.type === 'purchase' ? <DollarSign size={20} /> : <CheckSquare size={20} />}
+                                                    </div>
+                                                    <div className="w-0.5 h-full bg-gray-50 mt-2"></div>
+                                                  </div>
+                                                  <div className="flex-1 pb-6 border-b border-gray-50 group-last:border-none relative">
+                                                    <div className="flex justify-between items-start mb-1">
+                                                      <h4 className="font-bold text-[#0B4550]">{item.title}</h4>
+                                                      <div className="flex items-center gap-2">
+                                                        <span className="text-xs font-bold text-[#898A8D]">{item.date}</span>
+                                                        {item.isEditable && (
+                                                          <button 
+                                                            onClick={(e) => { e.stopPropagation(); handleEditHistoryEntry(item); }}
+                                                            className="text-gray-300 hover:text-[#0B4550] opacity-0 group-hover:opacity-100 transition-opacity"
+                                                          >
+                                                            <Edit3 size={14} />
+                                                          </button>
+                                                        )}
+                                                        <button 
+                                                          onClick={(e) => { e.stopPropagation(); handleDeleteHistoryEntry(item); }}
+                                                          className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                        >
+                                                          <Trash2 size={14} />
+                                                        </button>
+                                                      </div>
+                                                    </div>
+                                                    <p className="text-sm font-medium text-[#898A8D] mb-1">{item.detail}</p>
+                                                    <span className="text-[10px] font-bold text-gray-400 uppercase">{item.time}</span>
+                                                  </div>
+                                                </div>
+                                              ))}
+                                            </div>
+                                          )}
+                                        </div>
+                                      );
+                                    })}
                                 </div>
                               </div>
-                              
-                              {isMonthExpanded(month) && (
-                                <div className="space-y-4 pl-2 animate-in slide-in-from-top-2 duration-300">
-                                  {data.items.map((item) => (
-                                    <div key={`${item.dbTable}-${item.id}`} className="flex gap-4 group">
-                                      <div className="flex flex-col items-center">
-                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === 'purchase' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500'}`}>
-                                          {item.type === 'purchase' ? <DollarSign size={20} /> : <CheckSquare size={20} />}
-                                        </div>
-                                        <div className="w-0.5 h-full bg-gray-50 mt-2"></div>
-                                      </div>
-                                      <div className="flex-1 pb-6 border-b border-gray-50 group-last:border-none relative">
-                                        <div className="flex justify-between items-start mb-1">
-                                          <h4 className="font-bold text-[#0B4550]">{item.title}</h4>
-                                          <div className="flex items-center gap-2">
-                                            <span className="text-xs font-bold text-[#898A8D]">{item.date}</span>
-                                            {item.isEditable && (
-                                              <button 
-                                                onClick={(e) => { e.stopPropagation(); handleEditHistoryEntry(item); }}
-                                                className="text-gray-300 hover:text-[#0B4550] opacity-0 group-hover:opacity-100 transition-opacity"
-                                              >
-                                                <Edit3 size={14} />
-                                              </button>
-                                            )}
-                                            <button 
-                                              onClick={(e) => { e.stopPropagation(); handleDeleteHistoryEntry(item); }}
-                                              className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                            >
-                                              <Trash2 size={14} />
-                                            </button>
-                                          </div>
-                                        </div>
-                                        <p className="text-sm font-medium text-[#898A8D] mb-1">{item.detail}</p>
-                                        <span className="text-[10px] font-bold text-gray-400 uppercase">{item.time}</span>
-                                      </div>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          ))
+                            ))
                         )}
                       </div>
                     </div>
