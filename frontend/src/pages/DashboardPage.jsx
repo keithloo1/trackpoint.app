@@ -358,7 +358,9 @@ export default function Dashboard() {
         package: selectedClient.package || '',
         expiry: selectedClient.expiry || '',
         initial_package: selectedClient.initial_package || 0,
-        remaining_package: selectedClient.remaining_package || 0
+        remaining_package: selectedClient.remaining_package || 0,
+        dob: selectedClient.dob || '',
+        date_paid: selectedClient.date_paid || ''
       });
       setIsEditingClient(false); // Reset to read-only when clicking a new client
       fetchClientHistory(selectedClient);
@@ -390,25 +392,34 @@ export default function Dashboard() {
       .order('created_at', { ascending: false });
 
     const history = [
-      ...(transData || []).map(t => ({
-        id: t.id,
-        dbTable: 'transactions',
-        type: t.amount > 0 ? 'purchase' : (
+      ...(transData || []).map(t => {
+        const type = t.amount > 0 ? 'purchase' : (
           t.description?.toLowerCase().includes('adjustment') || 
           t.description?.toLowerCase().includes('check-in') || 
           t.description?.toLowerCase().includes('usage') ||
           t.description?.toLowerCase().includes('session') ||
           t.description?.toLowerCase().includes('class')
-        ) ? 'usage' : 'note',
-        title: t.description || 'Package Purchased',
-        detail: t.amount > 0 ? `Paid RM ${t.amount} • ${t.is_backlog ? 'Historical Record' : 'Direct Payment'}` : `Record • ${t.is_backlog ? 'Historical' : 'System'}`,
-        date: new Date(t.created_at).toLocaleDateString('en-GB'),
-        rawDate: new Date(t.created_at).toISOString().split('T')[0],
-        time: new Date(t.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
-        timestamp: new Date(t.created_at).getTime(),
-        amount: t.amount,
-        isEditable: true // Transactions added manually are editable
-      })),
+        ) ? 'usage' : 'note';
+        
+        const match = t.description?.match(/(\d+)\s*Session/i);
+        const sessionCount = match ? parseInt(match[1]) : 1;
+
+        return {
+          id: t.id,
+          dbTable: 'transactions',
+          type,
+          title: t.description || 'Package Purchased',
+          detail: t.amount > 0 ? `Paid RM ${t.amount} • ${t.is_backlog ? 'Historical Record' : 'Direct Payment'}` : `Record • ${t.is_backlog ? 'Historical' : 'System'}`,
+          date: new Date(t.created_at).toLocaleDateString('en-GB'),
+          rawDate: new Date(t.created_at).toISOString().split('T')[0],
+          time: new Date(t.created_at).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' }),
+          rawTime: new Date(t.created_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
+          timestamp: new Date(t.created_at).getTime(),
+          amount: t.amount,
+          sessionCount,
+          isEditable: true // Transactions added manually are editable
+        };
+      }),
       ...(bookData || []).map(b => ({
         id: b.id,
         dbTable: 'bookings',
@@ -975,14 +986,17 @@ export default function Dashboard() {
   const handleEditHistoryEntry = (item) => {
     if (item.dbTable !== 'transactions') return alert("This entry is linked to a scheduled class and cannot be edited from here. Please manage it via the Schedule tab.");
     
+    const cleanTitle = item.title.startsWith('Note: ') ? item.title.substring(6) : item.title;
+    
     setEditingLedgerItem(item);
     setLedgerForm({
-      type: item.type === 'purchase' ? 'purchase' : (item.type === 'usage' ? 'usage' : 'note'),
-      title: item.title,
-      amount: item.type === 'usage' ? 0 : 0, // We don't easily know the session count from transaction description alone without complex parsing
+      type: item.type,
+      title: cleanTitle,
+      amount: item.sessionCount || 1,
       date: item.rawDate,
+      time: item.rawTime || new Date(item.timestamp).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }),
       price: item.amount || 0,
-      packageId: '' // We don't store packageId in transactions currently
+      packageId: ''
     });
     setShowLedgerModal(true);
   };
@@ -995,7 +1009,11 @@ export default function Dashboard() {
       if (editingLedgerItem) {
         // UPDATE Existing
         const updateData = {
-          description: ledgerForm.title,
+          description: ledgerForm.type === 'note' 
+            ? (ledgerForm.title.startsWith('Note: ') ? ledgerForm.title : `Note: ${ledgerForm.title}`)
+            : (ledgerForm.type === 'usage' 
+               ? (ledgerForm.title || `Manual Adjustment: ${ledgerForm.amount} Sessions`)
+               : ledgerForm.title),
           amount: ledgerForm.type === 'purchase' ? ledgerForm.price : 0,
           created_at: renDate.toISOString()
         };
@@ -2090,9 +2108,20 @@ export default function Dashboard() {
 
                         {isEditingClient ? (
                           <div className="space-y-3 animate-in fade-in duration-300">
-                            <div><label className="text-xs font-bold text-[#898A8D] uppercase">Name</label><input type="text" value={editClientForm.name} onChange={e => setEditClientForm({...editClientForm, name: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
-                            <div><label className="text-xs font-bold text-[#898A8D] uppercase">Email</label><input type="email" value={editClientForm.email} onChange={e => setEditClientForm({...editClientForm, email: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
-                            <div><label className="text-xs font-bold text-[#898A8D] uppercase">Phone</label><input type="text" value={editClientForm.phone} onChange={e => setEditClientForm({...editClientForm, phone: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
+                            <div><label className="text-xs font-bold text-[#898A8D] uppercase">Name</label><input type="text" value={editClientForm.name || ''} onChange={e => setEditClientForm({...editClientForm, name: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
+                            <div><label className="text-xs font-bold text-[#898A8D] uppercase">Email</label><input type="email" value={editClientForm.email || ''} onChange={e => setEditClientForm({...editClientForm, email: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
+                            
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs font-bold text-[#898A8D] uppercase">Phone</label>
+                                <input type="text" value={editClientForm.phone || ''} onChange={e => setEditClientForm({...editClientForm, phone: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-[#898A8D] uppercase">Date of Birth</label>
+                                <input type="date" value={editClientForm.dob || ''} onChange={e => setEditClientForm({...editClientForm, dob: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
+                              </div>
+                            </div>
+                            
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className="text-xs font-bold text-[#898A8D] uppercase">Type</label>
@@ -2116,7 +2145,17 @@ export default function Dashboard() {
                                 ))}
                               </select>
                             </div>
-                            <div><label className="text-xs font-bold text-[#898A8D] uppercase">Expiry Date</label><input type="date" value={editClientForm.expiry} onChange={e => setEditClientForm({...editClientForm, expiry: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none" /></div>
+                            
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-xs font-bold text-[#898A8D] uppercase">Expiry Date</label>
+                                <input type="date" value={editClientForm.expiry || ''} onChange={e => setEditClientForm({...editClientForm, expiry: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
+                              </div>
+                              <div>
+                                <label className="text-xs font-bold text-[#898A8D] uppercase">Date Paid</label>
+                                <input type="date" value={editClientForm.date_paid || ''} onChange={e => setEditClientForm({...editClientForm, date_paid: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
+                              </div>
+                            </div>
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className="text-xs font-bold text-[#898A8D] uppercase">Total Sessions</label>
