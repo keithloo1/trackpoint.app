@@ -23,7 +23,33 @@ const getDailyQuote = () => {
     "“Action is the foundational key to all success.” – Pablo Picasso",
     "“Success is the sum of small efforts, repeated day-in and day-out.” – Robert Collier",
     "“Don’t count the days, make the days count.” – Muhammad Ali",
-    "“The secret of getting ahead is getting started.” – Mark Twain"
+    "“The secret of getting ahead is getting started.” – Mark Twain",
+    "“Today I will do what others won't, so tomorrow I can accomplish what others can't.” – Jerry Rice",
+    "“The only place where success comes before work is in the dictionary.” – Vidal Sassoon",
+    "“You miss 100% of the shots you don’t take.” – Wayne Gretzky",
+    "“Strength does not come from physical capacity. It comes from an indomitable will.” – Mahatma Gandhi",
+    "“It never gets easier, you just get better.” – Greg LeMond",
+    "“The difference between the impossible and the possible lies in a person’s determination.” – Tommy Lasorda",
+    "“If you want something you’ve never had, you must be willing to do something you’ve never done.” – Thomas Jefferson",
+    "“Your body can stand almost anything. It’s your mind that you have to convince.” – Unknown",
+    "“I've failed over and over again in my life and that is why I succeed.” – Michael Jordan",
+    "“The hard part isn’t getting your body in shape. The hard part is getting your mind in shape.” – Unknown",
+    "“Energy and persistence conquer all things.” – Benjamin Franklin",
+    "“Perseverance is the hard work you do after you get tired of doing the hard work you already did.” – Newt Gingrich",
+    "“Success isn’t always about greatness. It’s about consistency.” – Dwayne Johnson",
+    "“We are what we repeatedly do. Excellence, then, is not an act, but a habit.” – Aristotle",
+    "“The only way to define your limits is by going beyond them.” – Arthur C. Clarke",
+    "“Small daily improvements over time lead to stunning results.” – Robin Sharma",
+    "“Do something today that your future self will thank you for.” – Unknown",
+    "“Believe you can and you're halfway there.” – Theodore Roosevelt",
+    "“Difficulty is the excuse history never accepts.” – Edward R. Murrow",
+    "“There are no shortcuts to any place worth going.” – Beverly Sills",
+    "“It’s not whether you get knocked down; it’s whether you get up.” – Vince Lombardi",
+    "“Continuous improvement is better than delayed perfection.” – Mark Twain",
+    "“If it doesn’t challenge you, it doesn’t change you.” – Fred Devito",
+    "“You don't have to be extreme, just consistent.” – Unknown",
+    "“Look in the mirror. That’s your competition.” – Unknown",
+    "“The clock is ticking. Are you becoming the person you want to be?” – Greg Plitt"
   ];
   const start = new Date(new Date().getFullYear(), 0, 0);
   const diff = new Date() - start;
@@ -58,6 +84,39 @@ const getExpiryText = (client) => {
 const getInitials = (name) => {
   if (!name || name === 'Trainer') return 'T';
   return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+};
+
+const getWeekDays = (date) => {
+  const current = new Date(date);
+  const day = current.getDay();
+  const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+  const monday = new Date(current.getFullYear(), current.getMonth(), diff);
+  
+  const days = [];
+  for (let i = 0; i < 7; i++) {
+    const next = new Date(monday);
+    next.setDate(monday.getDate() + i);
+    days.push(next);
+  }
+  return days;
+};
+
+const getCalendarDays = (date) => {
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  const firstDay = new Date(year, month, 1);
+  let startDay = firstDay.getDay(); 
+  startDay = startDay === 0 ? 6 : startDay - 1;
+  const totalDays = new Date(year, month + 1, 0).getDate();
+  
+  const days = [];
+  for (let i = 0; i < startDay; i++) {
+    days.push({ isPlaceholder: true, day: '' });
+  }
+  for (let i = 1; i <= totalDays; i++) {
+    days.push({ isPlaceholder: false, day: i, date: new Date(year, month, i) });
+  }
+  return days;
 };
 
 const parseNotesAndMetadata = (rawNotes) => {
@@ -340,6 +399,8 @@ export default function Dashboard() {
   // State for Schedule (NOW LIVE!)
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
+  const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
+  const [selectedScheduleDate, setSelectedScheduleDate] = useState(new Date());
 
   // State for Todo List
   const [todos, setTodos] = useState([]);
@@ -359,7 +420,7 @@ export default function Dashboard() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [newEventData, setNewEventData] = useState({
-    title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10
+    title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: ''
   });
 
   const greeting = getGreeting();
@@ -778,6 +839,8 @@ export default function Dashboard() {
     setIsAddingEvent(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const fullLocation = newEventData.coach ? `${newEventData.location} | Coach: ${newEventData.coach}` : newEventData.location;
+
       const { error } = await supabase.from('sessions').insert([{
         trainer_id: user.id,
         title: newEventData.title,
@@ -785,13 +848,13 @@ export default function Dashboard() {
         time: newEventData.time,
         duration: newEventData.duration,
         type: newEventData.type,
-        location: newEventData.location,
+        location: fullLocation,
         capacity: newEventData.type === '1-on-1' ? 1 : parseInt(newEventData.capacity)
       }]);
 
       if (error) throw error;
       setShowEventModal(false);
-      setNewEventData({ title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10 });
+      setNewEventData({ title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: '' });
       fetchSessions();
     } catch (error) {
       alert("Error adding event: " + error.message);
@@ -1598,6 +1661,71 @@ export default function Dashboard() {
     // DB Update
     await supabase.from('bookings').update({ status: newStatus }).eq('id', bookingId);
   };
+
+  const handleAssignClient = async (clientId) => {
+    if (!selectedSession) return;
+    
+    const alreadyBooked = selectedSession.attendees.some(a => a.client_id === clientId);
+    if (alreadyBooked) {
+      alert("This client is already booked in this session!");
+      return;
+    }
+
+    const client = clients.find(c => c.id === clientId);
+    if (!client) return;
+
+    try {
+      const { data, error } = await supabase.from('bookings').insert([{
+        client_id: clientId,
+        session_id: selectedSession.id,
+        session_date: selectedSession.date,
+        time_slot: selectedSession.time,
+        status: 'Booked'
+      }]).select('id');
+
+      if (error) throw error;
+
+      let updatedClient = { ...client };
+      if (!client.unlimited) {
+        const newRemaining = Math.max(0, (client.remaining_package || 0) - 1);
+        const newUsed = (client.used_sessions || 0) + 1;
+        
+        const { error: clientErr } = await supabase.from('clients')
+          .update({ remaining_package: newRemaining, used_sessions: newUsed })
+          .eq('id', clientId);
+          
+        if (clientErr) console.error("Error updating client sessions remaining:", clientErr);
+        
+        updatedClient.remaining_package = newRemaining;
+        updatedClient.used_sessions = newUsed;
+        
+        setClients(prev => prev.map(c => c.id === clientId ? updatedClient : c));
+      }
+
+      const newBookingId = data[0].id;
+      const newAttendee = {
+        booking_id: newBookingId,
+        client_id: clientId,
+        name: client.name,
+        status: 'Booked'
+      };
+
+      const updatedAttendees = [...(selectedSession.attendees || []), newAttendee];
+      const updatedSessions = sessions.map(s => {
+        if (s.id === selectedSession.id) {
+          return { ...s, attendees: updatedAttendees };
+        }
+        return s;
+      });
+
+      setSessions(updatedSessions);
+      setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
+      
+      alert(`${client.name} has been successfully assigned to ${selectedSession.title}!`);
+    } catch (err) {
+      alert("Error assigning client: " + err.message);
+    }
+  };
     
     // Optimistic Update
   // Helper to format dates coming from the database
@@ -2173,7 +2301,9 @@ export default function Dashboard() {
 
                 <div className="bg-white rounded-3xl p-6 shadow-sm border border-gray-100">
                   <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium text-xl text-[#0B4550]">April Birthdays</h3>
+                    <h3 className="font-medium text-xl text-[#0B4550]">
+                      {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][currentMonth]} Birthdays
+                    </h3>
                     <span className="bg-[#E6FF2B]/30 text-[#0B4550] text-xs font-medium px-2 py-1 rounded-lg">{liveBirthdays.length}</span>
                   </div>
                   <div className="space-y-3">
@@ -2916,10 +3046,30 @@ export default function Dashboard() {
 
             <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 flex-1 flex flex-col">
               <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-extrabold text-[#0B4550]">April 2026</h3>
+                <h3 className="text-xl font-extrabold text-[#0B4550]">
+                  {currentCalendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h3>
                 <div className="flex gap-2">
-                  <button className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200"><ChevronLeft size={16}/></button>
-                  <button className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200"><ChevronRight size={16}/></button>
+                  <button 
+                    onClick={() => {
+                      const newDate = new Date(currentCalendarDate);
+                      newDate.setMonth(newDate.getMonth() - 1);
+                      setCurrentCalendarDate(newDate);
+                    }} 
+                    className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200"
+                  >
+                    <ChevronLeft size={16}/>
+                  </button>
+                  <button 
+                    onClick={() => {
+                      const newDate = new Date(currentCalendarDate);
+                      newDate.setMonth(newDate.getMonth() + 1);
+                      setCurrentCalendarDate(newDate);
+                    }} 
+                    className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200"
+                  >
+                    <ChevronRight size={16}/>
+                  </button>
                 </div>
               </div>
 
@@ -2931,22 +3081,46 @@ export default function Dashboard() {
               </div>
               
               <div className="grid grid-cols-7 gap-4 flex-1">
-                {[...Array(30)].map((_, i) => {
-                  const day = i + 1;
+                {getCalendarDays(currentCalendarDate).map((dayObj, i) => {
+                  if (dayObj.isPlaceholder) {
+                    return <div key={`placeholder-${i}`} className="bg-gray-50/50 rounded-2xl p-3 min-h-[100px] border border-transparent"></div>;
+                  }
+                  
+                  const day = dayObj.day;
+                  const dateObj = dayObj.date;
+                  
                   // Find sessions for this specific day to plot on the calendar
-                  const daySessions = sessions.filter(s => new Date(s.date).getDate() === day);
+                  const daySessions = sessions.filter(s => {
+                    const sDate = new Date(s.date);
+                    return sDate.getDate() === day && 
+                           sDate.getMonth() === dateObj.getMonth() && 
+                           sDate.getFullYear() === dateObj.getFullYear();
+                  });
+                  
+                  const isToday = new Date().toDateString() === dateObj.toDateString();
                   
                   return (
-                    <div key={day} className="border border-gray-100 rounded-2xl p-3 min-h-[100px] hover:border-[#0B4550] transition-colors group cursor-pointer flex flex-col">
-                      <span className={`text-l font-extrabold mb-2 ${day === new Date().getDate() ? 'bg-[#0B4550] text-[#E6FF2B] w-7 h-7 rounded-full flex items-center justify-center' : 'text-[#0B4550]'}`}>
+                    <div 
+                      key={`day-${day}`} 
+                      onClick={() => {
+                        setSelectedScheduleDate(dateObj);
+                        setCurrentCalendarDate(dateObj);
+                        setActivePage('Schedule');
+                      }}
+                      className="border border-gray-100 rounded-2xl p-3 min-h-[100px] hover:border-[#0B4550] transition-colors group cursor-pointer flex flex-col"
+                    >
+                      <span className={`text-l font-extrabold mb-2 ${isToday ? 'bg-[#0B4550] text-[#E6FF2B] w-7 h-7 rounded-full flex items-center justify-center' : 'text-[#0B4550]'}`}>
                         {day}
                       </span>
                       <div className="flex-1 flex flex-col gap-1 overflow-y-auto no-scrollbar">
-                        {daySessions.map(s => (
-                          <div key={s.id} className="bg-[#F9F7F2] text-[#0B4550] text-[15px] font-bold px-2 py-1.5 rounded-lg truncate group-hover:bg-[#E6FF2B] transition-colors">
-                            {s.time} - {s.title}
-                          </div>
-                        ))}
+                        {daySessions.map(s => {
+                          const coachName = s.location && s.location.includes(' | Coach: ') ? s.location.split(' | Coach: ')[1] : '';
+                          return (
+                            <div key={s.id} className="bg-[#F9F7F2] text-[#0B4550] text-[15px] font-bold px-2 py-1.5 rounded-lg truncate group-hover:bg-[#E6FF2B] transition-colors" title={coachName ? `${s.title} (Coach: ${coachName})` : s.title}>
+                              {s.time} - {s.title}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
                   );
@@ -2961,17 +3135,44 @@ export default function Dashboard() {
            <div className="animate-in fade-in duration-500 flex flex-col h-full">
             <div className="flex justify-between items-center mb-8 bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center gap-6 px-4">
-                <ChevronLeft size={28} className="text-[#898A8D] cursor-pointer hover:text-[#0B4550] transition-colors" />
-                <h2 className="text-2xl font-medium text-[#0B4550] w-48 text-center">April 2026</h2>
-                <ChevronRight size={28} className="text-[#898A8D] cursor-pointer hover:text-[#0B4550] transition-colors" />
+                <ChevronLeft 
+                  size={28} 
+                  className="text-[#898A8D] cursor-pointer hover:text-[#0B4550] transition-colors" 
+                  onClick={() => {
+                    const newDate = new Date(selectedScheduleDate);
+                    newDate.setDate(newDate.getDate() - 7);
+                    setSelectedScheduleDate(newDate);
+                  }}
+                />
+                <h2 className="text-2xl font-medium text-[#0B4550] w-56 text-center">
+                  {selectedScheduleDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </h2>
+                <ChevronRight 
+                  size={28} 
+                  className="text-[#898A8D] cursor-pointer hover:text-[#0B4550] transition-colors" 
+                  onClick={() => {
+                    const newDate = new Date(selectedScheduleDate);
+                    newDate.setDate(newDate.getDate() + 7);
+                    setSelectedScheduleDate(newDate);
+                  }}
+                />
               </div>
               <div className="flex gap-2 flex-1 justify-center border-l border-r border-gray-100 px-6">
-                <Day date="20" day="Mon" />
-                <Day date="21" day="Tue" />
-                <Day date="22" day="Wed" />
-                <Day date="23" day="Thu" />
-                <Day date="24" day="Fri" />
-                <Day date="25" day="Sat" active />
+                {getWeekDays(selectedScheduleDate).map((dayObj) => {
+                  const isDayActive = selectedScheduleDate.toDateString() === dayObj.toDateString();
+                  const dayNum = dayObj.getDate();
+                  const dayName = dayObj.toLocaleDateString('en-US', { weekday: 'short' });
+                  
+                  return (
+                    <button 
+                      key={dayObj.toISOString()} 
+                      onClick={() => setSelectedScheduleDate(dayObj)}
+                      className="outline-none"
+                    >
+                      <Day date={dayNum} day={dayName} active={isDayActive} />
+                    </button>
+                  );
+                })}
               </div>
               <div className="px-4">
                 <button onClick={() => setShowEventModal(true)} className="bg-[#E6FF2B] text-[#0B4550] px-6 py-3 rounded-xl font-medium text-lg flex items-center gap-2 hover:brightness-95 transition-all shadow-sm">
@@ -2982,19 +3183,37 @@ export default function Dashboard() {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 flex-1 pb-10">
               <div className="lg:col-span-2 space-y-6">
-                <h3 className="font-medium text-2xl text-[#0B4550] mb-4">Upcoming</h3>
+                <h3 className="font-medium text-2xl text-[#0B4550] mb-4">
+                  Sessions on {selectedScheduleDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                </h3>
                 <div className="space-y-4">
-                  {sessions.length === 0 ? (
-                    <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
-                      <Calendar size={64} className="mx-auto text-gray-300 mb-4" />
-                      <h2 className="text-2xl font-medium text-[#0B4550] mb-2">No upcoming sessions</h2>
-                      <p className="text-[#898A8D]">Click "New Event" to schedule your first class.</p>
-                    </div>
-                  ) : (
-                    sessions.map((session) => {
+                  {(() => {
+                    const daySessions = sessions.filter(session => {
+                      if (!session.date) return false;
+                      const sDate = new Date(session.date);
+                      return sDate.getDate() === selectedScheduleDate.getDate() &&
+                             sDate.getMonth() === selectedScheduleDate.getMonth() &&
+                             sDate.getFullYear() === selectedScheduleDate.getFullYear();
+                    });
+
+                    if (daySessions.length === 0) {
+                      return (
+                        <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                          <Calendar size={64} className="mx-auto text-gray-300 mb-4" />
+                          <h2 className="text-2xl font-medium text-[#0B4550] mb-2">No sessions scheduled for this day</h2>
+                          <p className="text-[#898A8D]">Click "New Event" to schedule a class on this day.</p>
+                        </div>
+                      );
+                    }
+
+                    return daySessions.map((session) => {
                       const isSelected = selectedSession?.id === session.id;
                       const is1on1 = session.type === '1-on-1';
                       const isBlocked = session.type === 'Blocked';
+
+                      const locationParts = session.location ? session.location.split(' | Coach: ') : [];
+                      const displayLocation = locationParts[0] || 'Main Floor';
+                      const displayCoach = locationParts[1] || '';
 
                       return (
                         <div key={session.id} onClick={() => setSelectedSession(session)} className={`flex gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''}`}>
@@ -3010,7 +3229,8 @@ export default function Dashboard() {
                                 </span>
                                 <h3 className={`text-2xl font-medium mb-1 ${is1on1 ? 'text-white' : 'text-[#0B4550]'}`}>{session.title}</h3>
                                 <div className={`flex items-center gap-2 text-lg font-medium ${is1on1 ? 'text-white/70' : 'text-[#898A8D]'}`}>
-                                  <MapPin size={18} /> {session.location} • {formatDbDate(session.date)}
+                                  <MapPin size={18} /> 
+                                  <span>{displayLocation} {displayCoach && `• Coach: ${displayCoach}`} • {formatDbDate(session.date)}</span>
                                 </div>
                               </div>
                               {!isBlocked && (
@@ -3027,8 +3247,8 @@ export default function Dashboard() {
                           </div>
                         </div>
                       );
-                    })
-                  )}
+                    });
+                  })()}
                 </div>
               </div>
 
@@ -3039,7 +3259,13 @@ export default function Dashboard() {
                     <h2 className="text-4xl font-medium text-[#0B4550] mb-6 leading-tight">{selectedSession.title}</h2>
                     <div className="space-y-5 border-b border-gray-100 pb-8 mb-8">
                       <div className="flex items-center gap-4 text-xl font-medium text-[#0B4550]"><Clock className="text-[#898A8D]" size={28} /> {formatDbDate(selectedSession.date)} - {selectedSession.time}</div>
-                      <div className="flex items-center gap-4 text-xl font-medium text-[#0B4550]"><MapPin className="text-[#898A8D]" size={28} /> {selectedSession.location}</div>
+                      <div className="flex items-center gap-4 text-xl font-medium text-[#0B4550]"><MapPin className="text-[#898A8D]" size={28} /> {selectedSession.location ? selectedSession.location.split(' | Coach: ')[0] : 'Main Floor'}</div>
+                      {selectedSession.location && selectedSession.location.includes(' | Coach: ') && (
+                        <div className="flex items-center gap-4 text-xl font-medium text-[#0B4550]">
+                          <Users className="text-[#898A8D]" size={28} />
+                          <span>Coach: <span className="font-extrabold text-[#0B4550]">{selectedSession.location.split(' | Coach: ')[1]}</span></span>
+                        </div>
+                      )}
                     </div>
 
                     {selectedSession.type !== 'Blocked' ? (
@@ -3048,31 +3274,61 @@ export default function Dashboard() {
                           <h3 className="text-2xl font-medium text-[#0B4550]">Roster</h3>
                           <span className="text-[#898A8D] font-medium text-lg">Capacity: {selectedSession.capacity}</span>
                         </div>
+
+                        {/* ASSIGN STUDENT DROPDOWN */}
+                        <div className="mb-6 p-4 bg-[#F9F7F2] rounded-2xl border border-gray-100">
+                          <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider mb-2">Book / Assign Student</p>
+                          <div className="flex gap-2">
+                            <select 
+                              id="assign-student-select"
+                              defaultValue=""
+                              onChange={(e) => {
+                                if (e.target.value) {
+                                  handleAssignClient(e.target.value);
+                                  e.target.value = ""; // Reset
+                                }
+                              }}
+                              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0B4550] font-medium outline-none focus:border-[#0B4550]"
+                            >
+                              <option value="" disabled>Select student to book...</option>
+                              {clients
+                                .filter(c => c.status !== 'Archived')
+                                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                                .map(c => (
+                                  <option key={c.id} value={c.id}>
+                                    {c.name} ({c.unlimited ? 'Unlimited' : `${c.remaining_package || 0} sessions left`})
+                                  </option>
+                                ))
+                              }
+                            </select>
+                          </div>
+                        </div>
+
                         {selectedSession.attendees.length === 0 ? (
-  <div className="text-center py-10 bg-[#F9F7F2] rounded-2xl border border-gray-100">
-     <p className="text-lg font-medium text-[#898A8D]">No bookings yet.</p>
-  </div>
-) : (
-  <div className="space-y-3 mb-8">
-    {selectedSession.attendees.map((attendee) => (
-      <div key={attendee.booking_id} className="flex items-center gap-4 p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-[#0B4550] transition-colors">
-        <div className="w-12 h-12 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-lg font-medium">
-          {getInitials(attendee.name)}
-        </div>
-        <div className="flex-1">
-          <span className="text-lg font-medium text-[#0B4550] block">{attendee.name}</span>
-          <span className={`text-xs font-medium uppercase tracking-widest ${attendee.status === 'Attended' ? 'text-emerald-500' : 'text-[#898A8D]'}`}>
-            {attendee.status}
-          </span>
-        </div>
-        {/* ATTENDANCE TOGGLE */}
-        <button onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} className={`p-3 rounded-xl transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm border border-gray-200'}`}>
-          <CheckSquare size={24} />
-        </button>
-      </div>
-    ))}
-  </div>
-)}
+                          <div className="text-center py-10 bg-[#F9F7F2] rounded-2xl border border-gray-100">
+                             <p className="text-lg font-medium text-[#898A8D]">No bookings yet.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-3 mb-8">
+                            {selectedSession.attendees.map((attendee) => (
+                              <div key={attendee.booking_id} className="flex items-center gap-4 p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-[#0B4550] transition-colors">
+                                <div className="w-12 h-12 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-lg font-medium">
+                                  {getInitials(attendee.name)}
+                                </div>
+                                <div className="flex-1">
+                                  <span className="text-lg font-medium text-[#0B4550] block">{attendee.name}</span>
+                                  <span className={`text-xs font-medium uppercase tracking-widest ${attendee.status === 'Attended' ? 'text-emerald-500' : 'text-[#898A8D]'}`}>
+                                    {attendee.status}
+                                  </span>
+                                </div>
+                                {/* ATTENDANCE TOGGLE */}
+                                <button onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} className={`p-3 rounded-xl transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm border border-gray-200'}`}>
+                                  <CheckSquare size={24} />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="text-center py-10">
@@ -3838,10 +4094,14 @@ export default function Dashboard() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Location</label>
                   <input type="text" value={newEventData.location} onChange={(e) => setNewEventData({...newEventData, location: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Main Floor" />
+                </div>
+                <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Assign Coach</label>
+                  <input type="text" value={newEventData.coach} onChange={(e) => setNewEventData({...newEventData, coach: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Keith" />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Max Capacity</label>
