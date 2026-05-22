@@ -423,6 +423,13 @@ export default function Dashboard() {
     title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: ''
   });
 
+  // EDIT EVENT MODAL STATES
+  const [showEditEventModal, setShowEditEventModal] = useState(false);
+  const [isEditingEvent, setIsEditingEvent] = useState(false);
+  const [editEventData, setEditEventData] = useState({
+    id: '', title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: ''
+  });
+
   const greeting = getGreeting();
   const quote = getDailyQuote();
   
@@ -860,6 +867,68 @@ export default function Dashboard() {
       alert("Error adding event: " + error.message);
     } finally {
       setIsAddingEvent(false);
+    }
+  };
+
+  const handleOpenEditEvent = () => {
+    if (!selectedSession) return;
+    const locationParts = selectedSession.location ? selectedSession.location.split(' | Coach: ') : [];
+    const displayLocation = locationParts[0] || 'Main Floor';
+    const displayCoach = locationParts[1] || '';
+
+    setEditEventData({
+      id: selectedSession.id,
+      title: selectedSession.title || '',
+      date: selectedSession.date || '',
+      time: selectedSession.time || '09:00 AM',
+      duration: selectedSession.duration || '60 min',
+      type: selectedSession.type || 'Group Class',
+      location: displayLocation,
+      capacity: selectedSession.capacity || 10,
+      coach: displayCoach
+    });
+    setShowEditEventModal(true);
+  };
+
+  const handleUpdateEvent = async (e) => {
+    e.preventDefault();
+    setIsEditingEvent(true);
+    try {
+      const fullLocation = editEventData.coach ? `${editEventData.location} | Coach: ${editEventData.coach}` : editEventData.location;
+      const capacityVal = editEventData.type === '1-on-1' ? 1 : parseInt(editEventData.capacity);
+
+      const { error } = await supabase.from('sessions').update({
+        title: editEventData.title,
+        date: editEventData.date,
+        time: editEventData.time,
+        duration: editEventData.duration,
+        type: editEventData.type,
+        location: fullLocation,
+        capacity: capacityVal
+      }).eq('id', editEventData.id);
+
+      if (error) throw error;
+
+      // Update local state
+      const updatedSession = {
+        ...selectedSession,
+        title: editEventData.title,
+        date: editEventData.date,
+        time: editEventData.time,
+        duration: editEventData.duration,
+        type: editEventData.type,
+        location: fullLocation,
+        capacity: capacityVal
+      };
+
+      setSessions(prev => prev.map(s => s.id === editEventData.id ? updatedSession : s));
+      setSelectedSession(updatedSession);
+      setShowEditEventModal(false);
+      alert("Event updated successfully!");
+    } catch (error) {
+      alert("Error updating event: " + error.message);
+    } finally {
+      setIsEditingEvent(false);
     }
   };
 
@@ -3336,10 +3405,19 @@ export default function Dashboard() {
                       </div>
                     )}
 
+                    {/* EDIT EVENT */}
+                    <button 
+                      onClick={handleOpenEditEvent} 
+                      className="w-full mt-6 py-3 rounded-2xl bg-[#0B4550] text-[#E6FF2B] font-bold hover:bg-[#0B4550]/90 transition-all flex items-center justify-center gap-2 shadow-sm"
+                      title="Edit Event Details"
+                    >
+                      <Edit3 size={18} /> Edit Event Details
+                    </button>
+
                     {/* CANCEL & DELETE EVENT */}
                     <button 
                       onClick={() => handleDeleteSession(selectedSession.id)} 
-                      className="w-full mt-6 py-3 rounded-2xl border border-red-200 text-red-500 font-bold hover:bg-red-50 hover:border-red-500 transition-colors flex items-center justify-center gap-2"
+                      className="w-full mt-3 py-3 rounded-2xl border border-red-200 text-red-500 font-bold hover:bg-red-50 hover:border-red-500 transition-colors flex items-center justify-center gap-2"
                       title="Cancel & Delete Event"
                     >
                       <Trash2 size={18} /> Cancel & Delete Event
@@ -4111,6 +4189,80 @@ export default function Dashboard() {
 
               <button type="submit" disabled={isAddingEvent} className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-medium text-xl hover:bg-[#0B4550]/90 transition-all shadow-md mt-4 flex justify-center">
                 {isAddingEvent ? <RotateCw className="animate-spin" size={28} /> : 'Save to Schedule'}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL OVERLAY: EDIT EVENT */}
+      {showEditEventModal && (
+        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-8 overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-10 w-full max-w-xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <button onClick={() => setShowEditEventModal(false)} className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full">
+              <X size={24} />
+            </button>
+
+            <h2 className="text-4xl font-medium text-[#0B4550] mb-2">Edit Event</h2>
+            <p className="text-[#898A8D] font-medium text-lg mb-8">Update class details or time blocks.</p>
+            
+            <form onSubmit={handleUpdateEvent} className="space-y-6">
+              
+              <div>
+                <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Event Title</label>
+                <input type="text" required value={editEventData.title} onChange={(e) => setEditEventData({...editEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. HIIT Bootcamp" />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Date</label>
+                  <input type="date" required value={editEventData.date} onChange={(e) => setEditEventData({...editEventData, date: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
+                </div>
+                <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Start Time</label>
+                  <select required value={editEventData.time} onChange={(e) => setEditEventData({...editEventData, time: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                    {["06:00 AM", "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", "12:00 PM", "03:00 PM", "04:30 PM", "05:00 PM", "06:00 PM", "07:00 PM"].map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Duration</label>
+                  <select required value={editEventData.duration} onChange={(e) => setEditEventData({...editEventData, duration: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                    <option value="30 min">30 min</option>
+                    <option value="45 min">45 min</option>
+                    <option value="60 min">60 min</option>
+                    <option value="90 min">90 min</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Type</label>
+                  <select required value={editEventData.type} onChange={(e) => setEditEventData({...editEventData, type: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                    <option value="Group Class">Group Class</option>
+                    <option value="1-on-1">1-on-1 Session</option>
+                    <option value="Blocked">Blocked / Busy</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Location</label>
+                  <input type="text" value={editEventData.location} onChange={(e) => setEditEventData({...editEventData, location: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Main Floor" />
+                </div>
+                <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Assign Coach</label>
+                  <input type="text" value={editEventData.coach} onChange={(e) => setEditEventData({...editEventData, coach: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Keith" />
+                </div>
+                <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Max Capacity</label>
+                  <input type="number" min="1" disabled={editEventData.type === '1-on-1' || editEventData.type === 'Blocked'} value={editEventData.type === '1-on-1' ? 1 : editEventData.capacity} onChange={(e) => setEditEventData({...editEventData, capacity: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50" />
+                </div>
+              </div>
+
+              <button type="submit" disabled={isEditingEvent} className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-medium text-xl hover:bg-[#0B4550]/90 transition-all shadow-md mt-4 flex justify-center">
+                {isEditingEvent ? <RotateCw className="animate-spin" size={28} /> : 'Save Changes'}
               </button>
             </form>
           </div>
