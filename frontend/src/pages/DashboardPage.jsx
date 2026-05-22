@@ -1185,6 +1185,28 @@ export default function Dashboard() {
     }
   };
 
+  const handleToggleFollowUp = async (client) => {
+    const isCurrentlyFollowUp = client.member_status === 'Follow Up';
+    const nextStatus = isCurrentlyFollowUp ? 'Member' : 'Follow Up';
+    
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ member_status: nextStatus })
+        .eq('id', client.id);
+        
+      if (error) throw error;
+      
+      const updatedClient = { ...client, member_status: nextStatus };
+      setSelectedClient(updatedClient);
+      setClients(clients.map(c => c.id === client.id ? updatedClient : c));
+      
+      alert(isCurrentlyFollowUp ? `Removed ${client.name} from Follow Up.` : `Moved ${client.name} to Follow Up!`);
+    } catch (err) {
+      alert("Error moving client to Follow Up: " + err.message);
+    }
+  };
+
   const handleCopyLink = () => {
     const linkToCopy = `${window.location.origin}/client/${selectedClient.id}`;
     navigator.clipboard.writeText(linkToCopy);
@@ -1668,7 +1690,11 @@ export default function Dashboard() {
       return c.member_status === 'Trial';
     }
 
-    if (activeTab !== 'All Clients' && !searchQuery && c.member_status === 'Trial') {
+    if (activeTab === 'Follow Up') {
+      return c.member_status === 'Follow Up';
+    }
+
+    if (activeTab !== 'All Clients' && !searchQuery && (c.member_status === 'Trial' || c.member_status === 'Follow Up')) {
       return false;
     }
     
@@ -2293,7 +2319,7 @@ export default function Dashboard() {
               <>
                 <div className="flex justify-between items-center mb-8">
                   <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 shrink-0">
-                    {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients'].map((tab) => (
+                    {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
                       <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2 rounded-full text-lg font-medium transition-all ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
                         {tab}
                       </button>
@@ -2371,6 +2397,9 @@ export default function Dashboard() {
                                   {client.member_status === 'Trial' && (
                                     <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Trial</span>
                                   )}
+                                  {client.member_status === 'Follow Up' && (
+                                    <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Follow Up</span>
+                                  )}
                                 </div>
                                 <span className="text-[#898A8D] text-sm">{client.package || 'No package'}</span>
                               </div>
@@ -2416,6 +2445,9 @@ export default function Dashboard() {
                                 <h3 className="text-2xl font-medium text-[#0B4550]">{client.name}</h3>
                                 {client.member_status === 'Trial' && (
                                   <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Trial</span>
+                                )}
+                                {client.member_status === 'Follow Up' && (
+                                  <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Follow Up</span>
                                 )}
                               </div>
                               <p className="text-[#898A8D] font-medium text-sm">{client.package || 'No package selected'}</p>
@@ -2540,7 +2572,7 @@ export default function Dashboard() {
                               <div>
                                 <label className="text-xs font-bold text-[#898A8D] uppercase">Status</label>
                                 <select value={editClientForm.member_status} onChange={e => setEditClientForm({...editClientForm, member_status: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none">
-                                  <option value="Member">Member</option><option value="Non-Member">Non-Member</option><option value="Trial">Trial</option>
+                                  <option value="Member">Member</option><option value="Non-Member">Non-Member</option><option value="Trial">Trial</option><option value="Follow Up">Follow Up</option>
                                 </select>
                               </div>
                             </div>
@@ -2593,7 +2625,7 @@ export default function Dashboard() {
                             <div><p className="text-sm font-medium text-[#898A8D]">Date Paid</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.date_paid || 'N/A'}</p></div>
                             <div><p className="text-sm font-medium text-[#898A8D]">Expiry Date</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.expiry || 'No date set'}</p></div>
 
-                            <div className="col-span-2 mt-2">
+                             <div className="col-span-2 mt-2">
                               <button 
                                 onClick={handleRenewPackage}
                                 className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-extrabold text-lg hover:scale-[1.02] transition-all shadow-lg flex items-center justify-center gap-3 group"
@@ -2601,6 +2633,26 @@ export default function Dashboard() {
                                 <RotateCw size={22} className="group-hover:rotate-180 transition-transform duration-500" />
                                 Renew Package
                               </button>
+                            </div>
+
+                            <div className="col-span-2 mt-1">
+                              {selectedClient.member_status === 'Follow Up' ? (
+                                <button 
+                                  onClick={() => handleToggleFollowUp(selectedClient)}
+                                  className="w-full bg-[#E6FF2B] text-[#0B4550] py-4 rounded-2xl font-extrabold text-lg hover:scale-[1.02] transition-all shadow-md flex items-center justify-center gap-3 group"
+                                >
+                                  <Check size={22} />
+                                  Mark Follow Up as Done
+                                </button>
+                              ) : (
+                                <button 
+                                  onClick={() => handleToggleFollowUp(selectedClient)}
+                                  className="w-full bg-[#F9F7F2] border-2 border-[#0B4550] text-[#0B4550] py-4 rounded-2xl font-extrabold text-lg hover:bg-[#0B4550]/5 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 group"
+                                >
+                                  <Clock size={22} />
+                                  Move to Follow Up
+                                </button>
+                              )}
                             </div>
                           </div>
                         )}
@@ -3672,6 +3724,7 @@ export default function Dashboard() {
                     <option value="Member">Member</option>
                     <option value="Non-Member">Non-Member / Drop-in</option>
                     <option value="Trial">Trial Prospect</option>
+                    <option value="Follow Up">Follow Up Needed</option>
                   </select>
                 </div>
                 <div>
