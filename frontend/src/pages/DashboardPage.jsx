@@ -60,6 +60,25 @@ const getInitials = (name) => {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 };
 
+const parseNotesAndMetadata = (rawNotes) => {
+  if (!rawNotes) return { notes: '', trialMeta: { checklist: [false, false, false, false], status: 'Pending' } };
+  const parts = rawNotes.split('---TRIAL_META---');
+  const notes = parts[0].trim();
+  let trialMeta = { checklist: [false, false, false, false], status: 'Pending' };
+  if (parts[1]) {
+    try {
+      trialMeta = JSON.parse(parts[1].trim());
+    } catch (e) {
+      console.error("Error parsing trial metadata: ", e);
+    }
+  }
+  return { notes, trialMeta };
+};
+
+const serializeNotesAndMetadata = (notes, trialMeta) => {
+  return `${notes.trim()}\n\n---TRIAL_META---\n${JSON.stringify(trialMeta)}`;
+};
+
 const getLiveClientStatus = (client) => {
   if (client.status === 'Archived') return 'Archived';
   if (!client.expiry) return 'Active';
@@ -314,6 +333,7 @@ export default function Dashboard() {
 
   // State for Trainer Notes
   const [clientNotes, setClientNotes] = useState('');
+  const [trialMeta, setTrialMeta] = useState({ checklist: [false, false, false, false], status: 'Pending' });
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [notesSavedMsg, setNotesSavedMsg] = useState(false);
   
@@ -616,7 +636,9 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (selectedClient) {
-      setClientNotes(selectedClient.notes || '');
+      const parsed = parseNotesAndMetadata(selectedClient.notes);
+      setClientNotes(parsed.notes);
+      setTrialMeta(parsed.trialMeta);
       setEditClientForm({
         name: selectedClient.name || '',
         email: selectedClient.email || '',
@@ -1097,15 +1119,69 @@ export default function Dashboard() {
 
   const handleSaveNotes = async () => {
     setIsSavingNotes(true);
-    const { error } = await supabase.from('clients').update({ notes: clientNotes }).eq('id', selectedClient.id);
+    const notesToSave = selectedClient.member_status === 'Trial' 
+      ? serializeNotesAndMetadata(clientNotes, trialMeta)
+      : clientNotes;
+
+    const { error } = await supabase.from('clients').update({ notes: notesToSave }).eq('id', selectedClient.id);
     setIsSavingNotes(false);
     if (error) {
       alert("Error saving notes: " + error.message);
     } else {
-      setSelectedClient({ ...selectedClient, notes: clientNotes });
-      setClients(clients.map(c => c.id === selectedClient.id ? { ...c, notes: clientNotes } : c));
+      setSelectedClient({ ...selectedClient, notes: notesToSave });
+      setClients(clients.map(c => c.id === selectedClient.id ? { ...c, notes: notesToSave } : c));
       setNotesSavedMsg(true);
       setTimeout(() => setNotesSavedMsg(false), 2000);
+    }
+  };
+
+  const handleSaveTrialMeta = async (newMeta) => {
+    setTrialMeta(newMeta);
+    const notesToSave = serializeNotesAndMetadata(clientNotes, newMeta);
+    
+    const updatedClient = { ...selectedClient, notes: notesToSave };
+    setSelectedClient(updatedClient);
+    setClients(clients.map(c => c.id === selectedClient.id ? updatedClient : c));
+    
+    const { error } = await supabase
+      .from('clients')
+      .update({ notes: notesToSave })
+      .eq('id', selectedClient.id);
+      
+    if (error) {
+      console.error("Error saving trial metadata: ", error.message);
+    }
+  };
+
+  const handleConvertToMember = async (client) => {
+    const confirmConvert = window.confirm(`Are you sure you want to convert ${client.name} to a Full Member?`);
+    if (!confirmConvert) return;
+    
+    try {
+      const { error } = await supabase
+        .from('clients')
+        .update({ member_status: 'Member' })
+        .eq('id', client.id);
+        
+      if (error) throw error;
+      
+      const updatedClient = { ...client, member_status: 'Member' };
+      setSelectedClient(updatedClient);
+      setClients(clients.map(c => c.id === client.id ? updatedClient : c));
+      
+      alert(`🎉 ${client.name} is now a Full Member! Let's set up their package.`);
+      
+      const defaultPkg = packagesList[0];
+      setRenewForm({
+        packageId: defaultPkg?.id || '',
+        renewalDate: new Date().toISOString().split('T')[0],
+        expiryDate: '',
+        amount: defaultPkg?.price || 0,
+        sessions: defaultPkg?.session_count || 0
+      });
+      setShowRenewModal(true);
+    } catch (err) {
+      alert("Error converting client to member: " + err.message);
     }
   };
 
@@ -1581,6 +1657,14 @@ export default function Dashboard() {
         (c.email || '').toLowerCase().includes(q) ||
         (c.phone || '').toLowerCase().includes(q);
       if (!matchesSearch) return false;
+    }
+    
+    if (activeTab === 'Trial Clients') {
+      return c.member_status === 'Trial';
+    }
+
+    if (activeTab !== 'All Clients' && !searchQuery && c.member_status === 'Trial') {
+      return false;
     }
     
     if (activeTab === 'All Clients' || searchQuery) return true;
@@ -2204,7 +2288,7 @@ export default function Dashboard() {
               <>
                 <div className="flex justify-between items-center mb-8">
                   <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 shrink-0">
-                    {['All Clients', 'Active', 'Expiring Soon', 'Expired'].map((tab) => (
+                    {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients'].map((tab) => (
                       <button key={tab} onClick={() => setActiveTab(tab)} className={`px-6 py-2 rounded-full text-lg font-medium transition-all ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
                         {tab}
                       </button>
@@ -2277,7 +2361,12 @@ export default function Dashboard() {
                                 {getInitials(client.name)}
                               </div>
                               <div className="flex flex-col">
-                                <span className="font-bold">{client.name}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="font-bold">{client.name}</span>
+                                  {client.member_status === 'Trial' && (
+                                    <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Trial</span>
+                                  )}
+                                </div>
                                 <span className="text-[#898A8D] text-sm">{client.package || 'No package'}</span>
                               </div>
                             </td>
@@ -2318,7 +2407,12 @@ export default function Dashboard() {
                               {getInitials(client.name)}
                             </div>
                             <div>
-                              <h3 className="text-2xl font-medium text-[#0B4550]">{client.name}</h3>
+                              <div className="flex items-center gap-2">
+                                <h3 className="text-2xl font-medium text-[#0B4550]">{client.name}</h3>
+                                {client.member_status === 'Trial' && (
+                                  <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Trial</span>
+                                )}
+                              </div>
                               <p className="text-[#898A8D] font-medium text-sm">{client.package || 'No package selected'}</p>
                             </div>
                           </div>
@@ -2441,7 +2535,7 @@ export default function Dashboard() {
                               <div>
                                 <label className="text-xs font-bold text-[#898A8D] uppercase">Status</label>
                                 <select value={editClientForm.member_status} onChange={e => setEditClientForm({...editClientForm, member_status: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none">
-                                  <option value="Member">Member</option><option value="Non-Member">Non-Member</option>
+                                  <option value="Member">Member</option><option value="Non-Member">Non-Member</option><option value="Trial">Trial</option>
                                 </select>
                               </div>
                             </div>
@@ -2518,6 +2612,86 @@ export default function Dashboard() {
                         </button>
                       </div>
                     </div>
+
+                    {selectedClient.member_status === 'Trial' && (
+                      <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 flex flex-col gap-6 animate-in fade-in duration-300">
+                        <div className="flex justify-between items-center pb-4 border-b border-gray-100">
+                          <h3 className="font-medium text-2xl text-[#0B4550] flex items-center gap-2">
+                            <Sparkles size={22} className="text-[#0B4550]" /> Trial Conversion Hub
+                          </h3>
+                          <span className="bg-[#E6FF2B] text-[#0B4550] text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Prospect</span>
+                        </div>
+                        
+                        {/* Pipeline Checklist */}
+                        <div className="flex flex-col gap-4">
+                          <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider">Trial Progression Pipeline</p>
+                          <div className="flex flex-col gap-3.5">
+                            {[
+                              "Scheduled Trial Session",
+                              "Attended Trial Session",
+                              "Sent Follow-up message",
+                              "Final Decision Made"
+                            ].map((step, idx) => {
+                              const isChecked = trialMeta.checklist[idx];
+                              return (
+                                <button
+                                  key={idx}
+                                  onClick={() => {
+                                    const nextChecklist = [...trialMeta.checklist];
+                                    nextChecklist[idx] = !isChecked;
+                                    handleSaveTrialMeta({ ...trialMeta, checklist: nextChecklist });
+                                  }}
+                                  className="flex items-center gap-3 text-left group hover:bg-[#F9F7F2] p-2 rounded-xl transition-all"
+                                >
+                                  {isChecked ? (
+                                    <CheckSquare size={22} className="text-[#0B4550] shrink-0" />
+                                  ) : (
+                                    <Square size={22} className="text-[#898A8D] group-hover:text-[#0B4550] shrink-0" />
+                                  )}
+                                  <span className={`text-base font-medium ${isChecked ? 'line-through text-[#898A8D]' : 'text-[#0B4550]'}`}>
+                                    {step}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Roster Status Pills */}
+                        <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
+                          <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider mb-2">Follow-up Pipeline Status</p>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {['Pending', 'Contacted', 'Completed', 'Lost'].map((st) => {
+                              const isActive = trialMeta.status === st;
+                              const colors = 
+                                st === 'Pending' ? (isActive ? 'bg-[#898A8D] text-white' : 'bg-gray-100 text-[#898A8D]') :
+                                st === 'Contacted' ? (isActive ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600') :
+                                st === 'Completed' ? (isActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600') :
+                                (isActive ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-600');
+                              return (
+                                <button
+                                  key={st}
+                                  onClick={() => handleSaveTrialMeta({ ...trialMeta, status: st })}
+                                  className={`py-2 px-1 rounded-xl text-xs font-bold text-center transition-all hover:scale-[1.03] ${colors}`}
+                                >
+                                  {st}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+
+                        {/* Convert Call to Action */}
+                        <button
+                          onClick={() => handleConvertToMember(selectedClient)}
+                          className="w-full mt-2 bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-extrabold text-lg hover:scale-[1.02] transition-all shadow-lg flex items-center justify-center gap-3 group relative overflow-hidden"
+                        >
+                          <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                          <Sparkles size={20} className="animate-pulse" />
+                          Convert to Full Member
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <div className="col-span-3 flex flex-col gap-6">
@@ -3470,14 +3644,14 @@ export default function Dashboard() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Email</label>
-                  <input type="email" required value={newClientData.email} onChange={(e) => setNewClientData({...newClientData, email: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="john@example.com" />
+                  <input type="email" value={newClientData.email} onChange={(e) => setNewClientData({...newClientData, email: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="john@example.com" />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Phone</label>
-                  <input type="text" required value={newClientData.phone} onChange={(e) => setNewClientData({...newClientData, phone: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="+1 (555) 000-0000" />
+                  <input type="text" value={newClientData.phone} onChange={(e) => setNewClientData({...newClientData, phone: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="+1 (555) 000-0000" />
                 </div>
               </div>
-
+              
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Client Type</label>
@@ -3492,16 +3666,26 @@ export default function Dashboard() {
                   <select value={newClientData.member_status} onChange={(e) => setNewClientData({...newClientData, member_status: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="Member">Member</option>
                     <option value="Non-Member">Non-Member / Drop-in</option>
+                    <option value="Trial">Trial Prospect</option>
                   </select>
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Package Type</label>
-                  <select value={newClientData.package} onChange={(e) => setNewClientData({...newClientData, package: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
-                    <option value="5 Class Pack">5 Class Pack</option>
-                    <option value="10 Class Pack">10 Class Pack</option>
-                    <option value="15 Class Pack">15 Class Pack</option>
-                    <option value="30 Class Pack">30 Class Pack</option>
-                    <option value="Monthly Unlimited">Monthly Unlimited</option>
+                  <select value={newClientData.package} onChange={(e) => {
+                    const selectedName = e.target.value;
+                    const pkg = packagesList.find(p => p.name === selectedName);
+                    setNewClientData({
+                      ...newClientData,
+                      package: selectedName,
+                      initial_package: pkg ? pkg.session_count : '',
+                      remaining_package: pkg ? pkg.session_count : '',
+                      unlimited: pkg ? pkg.type === 'Unlimited' : false
+                    });
+                  }} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                    <option value="">No Package Selected</option>
+                    {packagesList.map(pkg => (
+                      <option key={pkg.id} value={pkg.name}>{pkg.name}</option>
+                    ))}
                   </select>
                 </div>
               </div>
