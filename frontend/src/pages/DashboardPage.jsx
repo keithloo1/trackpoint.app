@@ -1498,7 +1498,12 @@ export default function Dashboard() {
       const sessionsChanged = editClientForm.initial_package !== selectedClient.initial_package || 
                                editClientForm.remaining_package !== selectedClient.remaining_package;
 
-      const { error } = await supabase.from('clients').update(editClientForm).eq('id', selectedClient.id);
+      const sanitizedForm = { ...editClientForm };
+      if (sanitizedForm.dob === '') sanitizedForm.dob = null;
+      if (sanitizedForm.expiry === '') sanitizedForm.expiry = null;
+      if (sanitizedForm.date_paid === '') sanitizedForm.date_paid = null;
+
+      const { error } = await supabase.from('clients').update(sanitizedForm).eq('id', selectedClient.id);
       if (error) throw error;
       
       if (sessionsChanged) {
@@ -1507,14 +1512,14 @@ export default function Dashboard() {
           trainer_id: user?.id,
           client_name: selectedClient.id,
           amount: 0,
-          description: `Profile Update: Adjusted sessions to ${editClientForm.remaining_package}/${editClientForm.initial_package}`,
+          description: `Profile Update: Adjusted sessions to ${sanitizedForm.remaining_package}/${sanitizedForm.initial_package}`,
           is_backlog: true,
           created_at: new Date().toISOString()
         }]);
       }
 
       // Instantly update the UI without reloading
-      const updatedClient = { ...selectedClient, ...editClientForm };
+      const updatedClient = { ...selectedClient, ...sanitizedForm };
       setSelectedClient(updatedClient);
       setClients(clients.map(c => c.id === selectedClient.id ? updatedClient : c));
       setIsEditingClient(false);
