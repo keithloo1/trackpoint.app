@@ -1795,6 +1795,50 @@ export default function Dashboard() {
       alert("Error assigning client: " + err.message);
     }
   };
+
+  const handleRemoveStudent = async (bookingId, clientId) => {
+    if (!window.confirm("Are you sure you want to remove this student from the class roster? If they are on a session package, their session count will be refunded.")) return;
+
+    try {
+      const { error } = await supabase.from('bookings').delete().eq('id', bookingId);
+      if (error) throw error;
+
+      const client = clients.find(c => c.id === clientId);
+      if (client && !client.unlimited) {
+        const newRemaining = (client.remaining_package || 0) + 1;
+        const newUsed = Math.max(0, (client.used_sessions || 0) - 1);
+
+        const { error: clientErr } = await supabase.from('clients')
+          .update({ remaining_package: newRemaining, used_sessions: newUsed })
+          .eq('id', clientId);
+
+        if (clientErr) console.error("Error refunding client session:", clientErr);
+
+        const updatedClient = {
+          ...client,
+          remaining_package: newRemaining,
+          used_sessions: newUsed
+        };
+
+        setClients(prev => prev.map(c => c.id === clientId ? updatedClient : c));
+      }
+
+      const updatedAttendees = (selectedSession.attendees || []).filter(a => a.booking_id !== bookingId);
+      const updatedSessions = sessions.map(s => {
+        if (s.id === selectedSession.id) {
+          return { ...s, attendees: updatedAttendees };
+        }
+        return s;
+      });
+
+      setSessions(updatedSessions);
+      setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
+
+      alert("Student removed successfully and session package refunded (if applicable).");
+    } catch (err) {
+      alert("Error removing student: " + err.message);
+    }
+  };
     
     // Optimistic Update
   // Helper to format dates coming from the database
@@ -3391,8 +3435,12 @@ export default function Dashboard() {
                                   </span>
                                 </div>
                                 {/* ATTENDANCE TOGGLE */}
-                                <button onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} className={`p-3 rounded-xl transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm border border-gray-200'}`}>
+                                <button onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} className={`p-3 rounded-xl transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm border border-gray-200'}`} title="Toggle Attendance">
                                   <CheckSquare size={24} />
+                                </button>
+                                {/* REMOVE FROM ROSTER */}
+                                <button onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} className="p-3 rounded-xl bg-white text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors shadow-sm border border-gray-200" title="Remove from roster">
+                                  <Trash2 size={24} />
                                 </button>
                               </div>
                             ))}
