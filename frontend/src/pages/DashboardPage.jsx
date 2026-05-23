@@ -480,18 +480,198 @@ export default function Dashboard() {
 
   const [userId, setUserId] = useState('trainer_default');
   const [showGoogleSyncModal, setShowGoogleSyncModal] = useState(false);
-  const [isGoogleCalendarConnected, setIsGoogleCalendarConnected] = useState(localStorage.getItem('google_calendar_connected') === 'true');
+  const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1036495166418-fallbacksynthesizerdefault.apps.googleusercontent.com';
+  const [gcalAccessToken, setGcalAccessToken] = useState(localStorage.getItem('gcal_access_token') || '');
+  const [gcalTokenExpiresAt, setGcalTokenExpiresAt] = useState(parseInt(localStorage.getItem('gcal_token_expires_at')) || 0);
   const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
   const [copiedFeedLink, setCopiedFeedLink] = useState(false);
 
+  const isGcalConnected = useMemo(() => {
+    if (!gcalAccessToken) return false;
+    return Date.now() < gcalTokenExpiresAt;
+  }, [gcalAccessToken, gcalTokenExpiresAt]);
+
+  const isGcalExpired = useMemo(() => {
+    return gcalAccessToken && Date.now() >= gcalTokenExpiresAt;
+  }, [gcalAccessToken, gcalTokenExpiresAt]);
+
   const handleLinkGoogleCalendar = () => {
+    if (isGcalConnected) {
+      setGcalAccessToken('');
+      setGcalTokenExpiresAt(0);
+      localStorage.removeItem('gcal_access_token');
+      localStorage.removeItem('gcal_token_expires_at');
+      alert("Successfully unlinked Google Calendar account.");
+      return;
+    }
+
     setIsLinkingGoogle(true);
-    setTimeout(() => {
+    try {
+      if (!window.google || !window.google.accounts || !window.google.accounts.oauth2) {
+        throw new Error("Google Identity Services script not loaded. Please refresh the page and try again.");
+      }
+
+      const client = window.google.accounts.oauth2.initTokenClient({
+        client_id: GOOGLE_CLIENT_ID,
+        scope: 'https://www.googleapis.com/auth/calendar.events',
+        callback: (response) => {
+          setIsLinkingGoogle(false);
+          if (response.error) {
+            alert("Google Authentication failed: " + response.error_description);
+            return;
+          }
+          if (response.access_token) {
+            const expiresAt = Date.now() + (parseInt(response.expires_in) || 3600) * 1000;
+            setGcalAccessToken(response.access_token);
+            setGcalTokenExpiresAt(expiresAt);
+            localStorage.setItem('gcal_access_token', response.access_token);
+            localStorage.setItem('gcal_token_expires_at', String(expiresAt));
+            alert("Google Calendar account linked successfully! Direct, real-time synchronization is now active.");
+          }
+        },
+        error_callback: (err) => {
+          setIsLinkingGoogle(false);
+          alert("Error opening auth prompt: " + (err.message || JSON.stringify(err)));
+        }
+      });
+
+      client.requestAccessToken({ prompt: 'consent' });
+    } catch (err) {
       setIsLinkingGoogle(false);
-      const newState = !isGoogleCalendarConnected;
-      setIsGoogleCalendarConnected(newState);
-      localStorage.setItem('google_calendar_connected', newState ? 'true' : 'false');
-    }, 1500);
+      alert("Failed to initialize Google Authentication: " + err.message);
+    }
+  };
+
+  const syncToGoogleCalendar = async (action, sessionData) => {
+    const accessToken = localStorage.getItem('gcal_access_token');
+    const expiresAt = parseInt(localStorage.getItem('gcal_token_expires_at')) || 0;
+    if (!accessToken || Date.now() >= expiresAt) {
+      console.warn("Google Calendar direct sync skipped: Token is missing or expired.");
+      return;
+    }
+
+    try {
+      const googleEventId = sessionData.id.replace(/-/g, '').toLowerCase();
+
+      if (action === 'DELETE') {
+        const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
+          method: 'DELETE',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`
+          }
+        });
+        if (!response.ok && response.status !== 404) {
+          throw new Error(`Google Calendar API responded with status ${response.status}`);
+        }
+        console.log("Successfully deleted event from Google Calendar.");
+        return;
+      }
+
+      const parseDateTimeToISO = (dateStr, timeStr, durationStr, isEnd = false) => {
+        try {
+          const [year, month, day] = dateStr.split('-').map(Number);
+          const match = timeStr.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+          let hours = 9;
+          let minutes = 0;
+          if (match) {
+            hours = Number(match[1]);
+            minutes = Number(match[2]);
+            const ampm = match[3].toUpperCase();
+            if (ampm === 'PM' && hours < 12) {
+              hours += 12;
+            } else if (ampm === 'AM' && hours === 12) {
+              hours = 0;
+            }
+          } else {
+            const parts = timeStr.split(':');
+            if (parts.length >= 2) {
+              hours = Number(parts[0]) || 9;
+              minutes = Number(parts[1].replace(/\D/g, '')) || 0;
+              if (timeStr.toLowerCase().includes('pm') && hours < 12) {
+                hours += 12;
+              } else if (timeStr.toLowerCase().includes('am') && hours === 12) {
+                hours = 0;
+              }
+            }
+          }
+
+          let dt = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
+          dt = new Date(dt.getTime() - 8 * 60 * 60 * 1000);
+
+          if (isEnd) {
+            const durationMinutes = parseInt(durationStr) || 60;
+            dt = new Date(dt.getTime() + durationMinutes * 60 * 1000);
+          }
+
+          return dt.toISOString();
+        } catch (e) {
+          return new Date().toISOString();
+        }
+      };
+
+      const startISO = parseDateTimeToISO(sessionData.date, sessionData.time, sessionData.duration, false);
+      const endISO = parseDateTimeToISO(sessionData.date, sessionData.time, sessionData.duration, true);
+
+      const eventPayload = {
+        id: googleEventId,
+        summary: sessionData.title || 'Group Class',
+        location: sessionData.location || 'TrackPoint HQ',
+        description: `Type: ${sessionData.type || 'Group Class'}\nDuration: ${sessionData.duration || '60 min'}\nCapacity: ${sessionData.capacity || 10}`,
+        start: {
+          dateTime: startISO,
+          timeZone: 'Asia/Kuala_Lumpur'
+        },
+        end: {
+          dateTime: endISO,
+          timeZone: 'Asia/Kuala_Lumpur'
+        },
+        status: 'confirmed'
+      };
+
+      if (action === 'CREATE') {
+        const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(eventPayload)
+        });
+
+        if (!response.ok) {
+          if (response.status === 409) {
+            await syncToGoogleCalendar('UPDATE', sessionData);
+          } else {
+            const errData = await response.json();
+            throw new Error(`Google Calendar API error: ${errData.error?.message || response.statusText}`);
+          }
+        } else {
+          console.log("Successfully created event in Google Calendar.");
+        }
+      } else if (action === 'UPDATE') {
+        const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
+          method: 'PUT',
+          headers: {
+            'Authorization': `Bearer ${accessToken}`,
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(eventPayload)
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            await syncToGoogleCalendar('CREATE', sessionData);
+          } else {
+            const errData = await response.json();
+            throw new Error(`Google Calendar API error: ${errData.error?.message || response.statusText}`);
+          }
+        } else {
+          console.log("Successfully updated event in Google Calendar.");
+        }
+      }
+    } catch (err) {
+      console.error("Failed to sync to Google Calendar: ", err);
+    }
   };
 
   const handleCopyFeedLink = () => {
@@ -996,9 +1176,16 @@ export default function Dashboard() {
         }
       }
 
-      const { error } = await supabase.from('sessions').insert(sessionsToInsert);
+      const { data: insertedData, error } = await supabase.from('sessions').insert(sessionsToInsert).select();
 
       if (error) throw error;
+
+      // Direct Google Calendar Live Sync push (NEW!)
+      if (insertedData && insertedData.length > 0) {
+        insertedData.forEach(session => {
+          syncToGoogleCalendar('CREATE', session);
+        });
+      }
       setShowEventModal(false);
       setNewEventData({ 
         title: '', 
@@ -1060,6 +1247,18 @@ export default function Dashboard() {
       }).eq('id', editEventData.id);
 
       if (error) throw error;
+
+      // Direct Google Calendar Live Sync update (NEW!)
+      syncToGoogleCalendar('UPDATE', {
+        id: editEventData.id,
+        title: editEventData.title,
+        date: editEventData.date,
+        time: editEventData.time,
+        duration: editEventData.duration,
+        type: editEventData.type,
+        location: fullLocation,
+        capacity: capacityVal
+      });
 
       // Update local state
       const updatedSession = {
@@ -1866,6 +2065,9 @@ export default function Dashboard() {
       // 2. Delete the session
       const { error } = await supabase.from('sessions').delete().eq('id', id);
       if (error) throw error;
+      
+      // Direct Google Calendar Live Sync delete (NEW!)
+      syncToGoogleCalendar('DELETE', { id: id });
       
       // 3. Update UI states
       setSessions(curr => curr.filter(s => s.id !== id));
@@ -4911,21 +5113,49 @@ export default function Dashboard() {
             <div className="space-y-6 mt-8">
               {/* Option A: Direct Sync */}
               <div className="bg-[#F9F7F2] rounded-3xl p-6 border border-gray-100">
-                <h3 className="text-lg font-bold text-[#0B4550] mb-2">Option A: Link Google Account</h3>
-                <p className="text-sm text-[#898A8D] mb-4">Authorize TrackPoint to sync and push classes/appointments directly into your Google Calendar.</p>
+                <div className="flex justify-between items-start mb-2">
+                  <h3 className="text-lg font-bold text-[#0B4550]">Option A: Direct Google Sync</h3>
+                  {isGcalConnected && (
+                    <span className="px-2.5 py-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-100 rounded-full animate-pulse">
+                      ● Live Sync Active
+                    </span>
+                  )}
+                  {isGcalExpired && (
+                    <span className="px-2.5 py-0.5 text-[10px] font-bold text-amber-700 bg-amber-100 rounded-full">
+                      ⚠️ Link Expired
+                    </span>
+                  )}
+                </div>
+                <p className="text-sm text-[#898A8D] mb-4">Authorize TrackPoint to push and synchronize your schedule events directly into your Google Calendar instantly.</p>
                 
+                {isGcalExpired && (
+                  <div className="mb-4 bg-amber-50 border border-amber-100 rounded-xl p-3 text-[11px] text-amber-800 leading-relaxed font-medium">
+                    <strong>⚠️ Connection Expired:</strong> Your secure browser session token has expired. Click the button below to instantly re-authenticate and restore live syncing!
+                  </div>
+                )}
+
                 <button
                   onClick={handleLinkGoogleCalendar}
                   disabled={isLinkingGoogle}
-                  className={`w-full py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${isGoogleCalendarConnected ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-[#0B4550] text-white hover:bg-opacity-90'}`}
+                  className={`w-full py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
+                    isGcalConnected 
+                      ? 'bg-red-50 text-red-600 border border-red-100 hover:bg-red-100/50' 
+                      : isGcalExpired
+                      ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-md animate-bounce'
+                      : 'bg-[#0B4550] text-white hover:bg-opacity-90'
+                  }`}
                 >
                   {isLinkingGoogle ? (
                     <>
-                      <RotateCw size={18} className="animate-spin" /> Connecting Account...
+                      <RotateCw size={18} className="animate-spin" /> Requesting Consent...
                     </>
-                  ) : isGoogleCalendarConnected ? (
+                  ) : isGcalConnected ? (
                     <>
-                      <Check size={18} /> Account Connected! (Click to Unlink)
+                      Disconnect Google Calendar
+                    </>
+                  ) : isGcalExpired ? (
+                    <>
+                      Reconnect Google Calendar
                     </>
                   ) : (
                     <>
