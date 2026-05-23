@@ -907,11 +907,8 @@ export default function Dashboard() {
 
   const fetchSessions = async () => {
     const { data: { user } } = await supabase.auth.getUser();
-    const { data } = await supabase.from('sessions').select('*').eq('trainer_id', user.id).order('date', { ascending: true }).order('time', { ascending: true });
-    if (data) {
-      const formattedSessions = data.map(s => ({ ...s, attendees: [] }));
-      setSessions(formattedSessions);
-      if (!selectedSession && formattedSessions.length > 0) setSelectedSession(formattedSessions[0]);
+    if (user) {
+      await fetchLiveSchedule(user.id);
     }
   };
 
@@ -1443,7 +1440,17 @@ export default function Dashboard() {
         };
       });
       setSessions(formattedSessions);
-      if (formattedSessions.length > 0 && !selectedSession) setSelectedSession(formattedSessions[0]);
+      
+      if (selectedSession) {
+        const updated = formattedSessions.find(s => s.id === selectedSession.id);
+        if (updated) {
+          setSelectedSession(updated);
+        } else {
+          setSelectedSession(formattedSessions[0] || null);
+        }
+      } else if (formattedSessions.length > 0) {
+        setSelectedSession(formattedSessions[0]);
+      }
     }
   };
 
