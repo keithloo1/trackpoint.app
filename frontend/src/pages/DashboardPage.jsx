@@ -4960,6 +4960,9 @@ export default function Dashboard() {
                   <p>1. Open Google Calendar on desktop.</p>
                   <p>2. Next to "Other calendars" on the left, click **+** &rarr; **From URL**.</p>
                   <p>3. Paste this feed link and click **Add Calendar**.</p>
+                  <div className="mt-2 pt-2 border-t border-gray-100 text-amber-700 bg-amber-50/50 p-2.5 rounded-lg text-[10px] leading-relaxed">
+                    <span className="font-bold">⚡ PRO-TIP (Force Sync):</span> Google Calendar caches feed links for up to 24 hours. If your calendar updates slowly, append <code className="font-mono bg-white px-1 py-0.5 rounded border border-amber-200">&amp;v=2</code> (or increase to <code className="font-mono bg-white px-1 py-0.5 rounded border border-amber-200">&amp;v=3</code> etc.) to the end of the URL to force Google Calendar to sync instantly!
+                  </div>
                 </div>
               </div>
             </div>

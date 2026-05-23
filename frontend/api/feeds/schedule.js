@@ -32,8 +32,8 @@ export default async function handler(req, res) {
 
     const sessions = await response.json();
 
-    // Helper functions for iCal parsing
-    function parseDateTime(dateStr, timeStr) {
+    // Helper functions for iCal parsing (UTC+8 shift for Malaysia time zone)
+    function parseDateTimeToUTC(dateStr, timeStr) {
       try {
         const [year, month, day] = dateStr.split('-').map(Number);
         const match = timeStr.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);
@@ -60,30 +60,33 @@ export default async function handler(req, res) {
             }
           }
         }
-        return new Date(year, month - 1, day, hours, minutes, 0);
+        
+        // Malaysia is UTC+8, so UTC time = Local numbers - 8 hours
+        const utcMs = Date.UTC(year, month - 1, day, hours, minutes, 0);
+        return new Date(utcMs - 8 * 60 * 60 * 1000);
       } catch (e) {
         return new Date();
       }
     }
 
-    function getEndTime(startDate, durationStr) {
+    function getEndTimeUTC(startDateUTC, durationStr) {
       const durationMinutes = parseInt(durationStr) || 60;
-      return new Date(startDate.getTime() + durationMinutes * 60 * 1000);
+      return new Date(startDateUTC.getTime() + durationMinutes * 60 * 1000);
     }
 
-    function formatICalDate(date) {
-      const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
-      const hours = String(date.getHours()).padStart(2, '0');
-      const minutes = String(date.getMinutes()).padStart(2, '0');
-      const seconds = String(date.getSeconds()).padStart(2, '0');
-      return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+    function formatICalUTC(date) {
+      const year = date.getUTCFullYear();
+      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
+      const day = String(date.getUTCDate()).padStart(2, '0');
+      const hours = String(date.getUTCHours()).padStart(2, '0');
+      const minutes = String(date.getUTCMinutes()).padStart(2, '0');
+      const seconds = String(date.getUTCSeconds()).padStart(2, '0');
+      return `${year}${month}${day}T${hours}${minutes}${seconds}Z`;
     }
 
     // Build the iCal feed string
     const now = new Date();
-    const stampStr = formatICalDate(now) + 'Z';
+    const stampStr = formatICalUTC(now);
 
     let icalLines = [
       'BEGIN:VCALENDAR',
@@ -99,11 +102,11 @@ export default async function handler(req, res) {
       const isBlocked = session.type === 'Blocked';
       const summary = isBlocked ? `[Blocked] ${session.title || 'Busy Time'}` : session.title;
 
-      const startDate = parseDateTime(session.date, session.time);
-      const endDate = getEndTime(startDate, session.duration);
+      const startDateUTC = parseDateTimeToUTC(session.date, session.time);
+      const endDateUTC = getEndTimeUTC(startDateUTC, session.duration);
 
-      const startStr = formatICalDate(startDate);
-      const endStr = formatICalDate(endDate);
+      const startStr = formatICalUTC(startDateUTC);
+      const endStr = formatICalUTC(endDateUTC);
 
       // Escape special characters in text strings for RFC 5545
       const escapeText = (text) => {
@@ -131,6 +134,8 @@ export default async function handler(req, res) {
       icalLines.push(`SUMMARY:${cleanSummary}`);
       icalLines.push(`LOCATION:${cleanLocation}`);
       icalLines.push(`DESCRIPTION:${cleanDesc}`);
+      icalLines.push('STATUS:CONFIRMED');
+      icalLines.push('TRANSP:OPAQUE');
       icalLines.push('END:VEVENT');
     });
 
