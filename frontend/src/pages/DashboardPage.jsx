@@ -721,6 +721,39 @@ export default function Dashboard() {
     });
   }, [transactions, activeRevenuePeriod]);
 
+  const groupedTransactions = useMemo(() => {
+    const years = {};
+    filteredTransactions.forEach(t => {
+      const date = new Date(t.created_at);
+      const year = date.getFullYear();
+      const monthName = date.toLocaleDateString('en-US', { month: 'long' });
+      
+      if (!years[year]) {
+        years[year] = {
+          year: year,
+          totalEarned: 0,
+          months: {}
+        };
+      }
+      
+      if (!years[year].months[monthName]) {
+        years[year].months[monthName] = {
+          monthName: monthName,
+          monthYear: `Rev-${monthName}-${year}`,
+          items: [],
+          totalEarned: 0,
+          maxTimestamp: date.getTime()
+        };
+      }
+      
+      years[year].months[monthName].items.push(t);
+      const amt = Number(t.amount);
+      years[year].months[monthName].totalEarned += amt;
+      years[year].totalEarned += amt;
+    });
+    return years;
+  }, [filteredTransactions]);
+
   useEffect(() => {
     const fetchPackages = async () => {
       const { data, error } = await supabase.from('packages').select('*').order('price', { ascending: true });
@@ -2680,40 +2713,99 @@ export default function Dashboard() {
             </div>
 
             <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-              <h3 className="font-medium text-2xl text-[#0B4550] mb-4 border-b-2 border-gray-100 pb-4">Recent Transactions</h3>
+              <h3 className="font-medium text-2xl text-[#0B4550] mb-6 border-b-2 border-gray-100 pb-4">Recent Transactions</h3>
               {filteredTransactions.length === 0 ? (
                 <div className="text-center py-10 text-[#898A8D] font-medium">No transactions found for this period.</div>
               ) : (
-                <table className="w-full text-left border-collapse mb-10">
-                  <thead>
-                    <tr className="text-base font-medium text-[#898A8D] uppercase tracking-wider border-b border-gray-100">
-                      <th className="pb-4 pt-2">Date</th>
-                      <th className="pb-4 pt-2">Client Name</th>
-                      <th className="pb-4 pt-2">Description</th>
-                      <th className="pb-4 pt-2">Amount</th>
-                      <th className="pb-4 pt-2 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="text-lg font-medium text-[#0B4550]">
-                    {filteredTransactions.map(t => (
-                      <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="py-4 text-sm">{new Date(t.created_at).toLocaleDateString()}</td>
-                        <td className="py-4 font-bold">{clients.find(c => c.id === t.client_name)?.name || t.client_name}</td>
-                        <td className="py-4 text-sm">{t.description}</td>
-                        <td className="py-4 font-black text-emerald-600">+RM {Number(t.amount).toFixed(2)}</td>
-                        <td className="py-4 text-right">
-                          <button 
-                            onClick={() => handleDeleteTransaction(t.id)} 
-                            className="p-2 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" 
-                            title="Delete Transaction"
-                          >
-                            <Trash2 size={16} />
-                          </button>
-                        </td>
-                      </tr>
+                <div className="space-y-8">
+                  {Object.values(groupedTransactions)
+                    .sort((a, b) => b.year - a.year)
+                    .map((yearData) => (
+                      <div key={yearData.year} className="space-y-6">
+                        {/* YEAR HEADER */}
+                        <div className="flex justify-between items-center border-b border-gray-100 pb-3 mt-4">
+                          <h4 className="text-base font-extrabold text-[#0B4550] flex items-center gap-2">
+                            <Calendar size={18} /> {yearData.year}
+                          </h4>
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                            Yearly Collected: <span className="text-emerald-600 font-extrabold">RM {yearData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+
+                        {/* MONTHS LIST */}
+                        <div className="space-y-4">
+                          {Object.values(yearData.months)
+                            .sort((a, b) => b.maxTimestamp - a.maxTimestamp)
+                            .map((monthData) => {
+                              const monthYearKey = monthData.monthYear;
+                              const expanded = expandedMonths[monthYearKey] !== false; // Default to open!
+                              
+                              return (
+                                <div key={monthYearKey} className="space-y-4">
+                                  {/* COLLAPSIBLE HEADER BAR */}
+                                  <div 
+                                    onClick={() => {
+                                      setExpandedMonths(prev => ({
+                                        ...prev,
+                                        [monthYearKey]: !expanded
+                                      }));
+                                    }}
+                                    className="flex justify-between items-center bg-[#F9F7F2] p-4 rounded-2xl border border-gray-100 shadow-sm sticky top-0 z-10 cursor-pointer hover:bg-gray-100 transition-colors group/header"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <ChevronRight size={18} className={`text-[#0B4550] transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`} />
+                                      <h4 className="font-bold text-[#0B4550] text-sm uppercase tracking-wider">{monthData.monthName}</h4>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[10px] font-bold text-[#898A8D] uppercase">Collected</p>
+                                      <p className="text-sm font-bold text-emerald-600">RM {monthData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                    </div>
+                                  </div>
+
+                                  {/* MONTH TABLE CONTENT */}
+                                  {expanded && (
+                                    <div className="overflow-x-auto pr-2 no-scrollbar animate-in slide-in-from-top-2 duration-300">
+                                      <table className="w-full text-left border-collapse mb-2">
+                                        <thead>
+                                          <tr className="text-xs font-bold text-[#898A8D] uppercase tracking-wider border-b border-gray-100">
+                                            <th className="pb-3 pt-1 pl-4">Date</th>
+                                            <th className="pb-3 pt-1">Client Name</th>
+                                            <th className="pb-3 pt-1">Description</th>
+                                            <th className="pb-3 pt-1">Amount</th>
+                                            <th className="pb-3 pt-1 pr-4 text-right">Actions</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody className="text-base font-semibold text-[#0B4550]">
+                                          {monthData.items
+                                            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                                            .map((t) => (
+                                              <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                                <td className="py-3 pl-4 text-xs font-semibold text-gray-500">{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
+                                                <td className="py-3 font-bold">{clients.find(c => c.id === t.client_name)?.name || t.client_name}</td>
+                                                <td className="py-3 text-xs text-gray-500 font-semibold">{t.description}</td>
+                                                <td className="py-3 font-black text-emerald-600">+RM {Number(t.amount).toFixed(2)}</td>
+                                                <td className="py-3 pr-4 text-right">
+                                                  <button 
+                                                    onClick={() => handleDeleteTransaction(t.id)} 
+                                                    className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" 
+                                                    title="Delete Transaction"
+                                                  >
+                                                    <Trash2 size={14} />
+                                                  </button>
+                                                </td>
+                                              </tr>
+                                            ))}
+                                        </tbody>
+                                      </table>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
                     ))}
-                  </tbody>
-                </table>
+                </div>
               )}
             </div>
           </div>
@@ -4470,9 +4562,20 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Start Time</label>
-                  <select required value={newEventData.time} onChange={(e) => setNewEventData({...newEventData, time: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
-                    {["06:00 AM", "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", "12:00 PM", "03:00 PM", "04:30 PM", "05:00 PM", "06:00 PM", "07:00 PM"].map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  <input 
+                    type="text" 
+                    required 
+                    list="start-times-list"
+                    value={newEventData.time} 
+                    onChange={(e) => setNewEventData({...newEventData, time: e.target.value})} 
+                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" 
+                    placeholder="e.g. 09:00 AM or 09:30 AM"
+                  />
+                  <datalist id="start-times-list">
+                    {["06:00 AM", "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "04:30 PM", "05:00 PM", "06:00 PM", "07:00 PM", "08:00 PM"].map(t => (
+                      <option key={t} value={t} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
@@ -4544,9 +4647,20 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Start Time</label>
-                  <select required value={editEventData.time} onChange={(e) => setEditEventData({...editEventData, time: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
-                    {["06:00 AM", "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", "12:00 PM", "03:00 PM", "04:30 PM", "05:00 PM", "06:00 PM", "07:00 PM"].map(t => <option key={t} value={t}>{t}</option>)}
-                  </select>
+                  <input 
+                    type="text" 
+                    required 
+                    list="edit-start-times-list"
+                    value={editEventData.time} 
+                    onChange={(e) => setEditEventData({...editEventData, time: e.target.value})} 
+                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" 
+                    placeholder="e.g. 09:00 AM or 09:30 AM"
+                  />
+                  <datalist id="edit-start-times-list">
+                    {["06:00 AM", "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "04:30 PM", "05:00 PM", "06:00 PM", "07:00 PM", "08:00 PM"].map(t => (
+                      <option key={t} value={t} />
+                    ))}
+                  </datalist>
                 </div>
               </div>
 
