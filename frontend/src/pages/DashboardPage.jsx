@@ -130,8 +130,25 @@ const getCalendarDays = (date) => {
 };
 
 const parseNotesAndMetadata = (rawNotes) => {
-  if (!rawNotes) return { notes: '', trialMeta: { checklist: [false, false, false, false], status: 'Pending' } };
-  const parts = rawNotes.split('---TRIAL_META---');
+  if (!rawNotes) return { 
+    notes: '', 
+    trialMeta: { checklist: [false, false, false, false], status: 'Pending' },
+    sessionNotes: {} 
+  };
+  
+  // Split session notes first
+  const sessionParts = rawNotes.split('---SESSION_NOTES---');
+  const mainNotesAndTrial = sessionParts[0].trim();
+  let sessionNotes = {};
+  if (sessionParts[1]) {
+    try {
+      sessionNotes = JSON.parse(sessionParts[1].trim());
+    } catch (e) {
+      console.error("Error parsing session notes: ", e);
+    }
+  }
+
+  const parts = mainNotesAndTrial.split('---TRIAL_META---');
   const notes = parts[0].trim();
   let trialMeta = { checklist: [false, false, false, false], status: 'Pending' };
   if (parts[1]) {
@@ -141,11 +158,14 @@ const parseNotesAndMetadata = (rawNotes) => {
       console.error("Error parsing trial metadata: ", e);
     }
   }
-  return { notes, trialMeta };
+  return { notes, trialMeta, sessionNotes };
 };
 
-const serializeNotesAndMetadata = (notes, trialMeta) => {
-  return `${notes.trim()}\n\n---TRIAL_META---\n${JSON.stringify(trialMeta)}`;
+const serializeNotesAndMetadata = (notes, trialMeta, sessionNotes = {}) => {
+  let result = `${notes.trim()}`;
+  result += `\n\n---TRIAL_META---\n${JSON.stringify(trialMeta)}`;
+  result += `\n\n---SESSION_NOTES---\n${JSON.stringify(sessionNotes)}`;
+  return result;
 };
 
 const getLiveClientStatus = (client) => {
@@ -444,6 +464,13 @@ export default function Dashboard() {
   const [selectedStudentIds, setSelectedStudentIds] = useState([]);
   const [searchStudentQuery, setSearchStudentQuery] = useState('');
   const [showStudentDropdown, setShowStudentDropdown] = useState(false);
+
+  // SESSION NOTE EDIT STATES
+  const [editingSessionNoteBookingId, setEditingSessionNoteBookingId] = useState(null);
+  const [editingSessionNoteTitle, setEditingSessionNoteTitle] = useState('');
+  const [sessionNoteText, setSessionNoteText] = useState('');
+  const [showSessionNoteModal, setShowSessionNoteModal] = useState(false);
+  const [isSavingSessionNote, setIsSavingSessionNote] = useState(false);
 
   const greeting = getGreeting();
   const quote = getDailyQuote();
@@ -1266,9 +1293,8 @@ export default function Dashboard() {
 
   const handleSaveNotes = async () => {
     setIsSavingNotes(true);
-    const notesToSave = selectedClient.member_status === 'Trial' 
-      ? serializeNotesAndMetadata(clientNotes, trialMeta)
-      : clientNotes;
+    const parsed = parseNotesAndMetadata(selectedClient.notes);
+    const notesToSave = serializeNotesAndMetadata(clientNotes, parsed.trialMeta, parsed.sessionNotes);
 
     const { error } = await supabase.from('clients').update({ notes: notesToSave }).eq('id', selectedClient.id);
     setIsSavingNotes(false);
@@ -1284,7 +1310,8 @@ export default function Dashboard() {
 
   const handleSaveTrialMeta = async (newMeta) => {
     setTrialMeta(newMeta);
-    const notesToSave = serializeNotesAndMetadata(clientNotes, newMeta);
+    const parsed = parseNotesAndMetadata(selectedClient.notes);
+    const notesToSave = serializeNotesAndMetadata(clientNotes, newMeta, parsed.sessionNotes);
     
     const updatedClient = { ...selectedClient, notes: notesToSave };
     setSelectedClient(updatedClient);
@@ -1928,6 +1955,52 @@ export default function Dashboard() {
       setShowStudentDropdown(false);
     } catch (err) {
       alert("Error assigning students: " + err.message);
+    }
+  };
+
+  const handleOpenSessionNote = (bookingId, classTitle, currentNote) => {
+    setEditingSessionNoteBookingId(bookingId);
+    setEditingSessionNoteTitle(classTitle);
+    setSessionNoteText(currentNote || '');
+    setShowSessionNoteModal(true);
+  };
+
+  const handleSaveSessionNote = async () => {
+    if (!selectedClient || !editingSessionNoteBookingId) return;
+    setIsSavingSessionNote(true);
+
+    try {
+      const parsed = parseNotesAndMetadata(selectedClient.notes);
+      const updatedSessionNotes = {
+        ...parsed.sessionNotes,
+        [editingSessionNoteBookingId]: sessionNoteText
+      };
+
+      // Remove key if empty note
+      if (!sessionNoteText.trim()) {
+        delete updatedSessionNotes[editingSessionNoteBookingId];
+      }
+
+      const notesToSave = serializeNotesAndMetadata(parsed.notes, parsed.trialMeta, updatedSessionNotes);
+
+      const { error } = await supabase
+        .from('clients')
+        .update({ notes: notesToSave })
+        .eq('id', selectedClient.id);
+
+      if (error) throw error;
+
+      const updatedClient = { ...selectedClient, notes: notesToSave };
+      setSelectedClient(updatedClient);
+      setClients(clients.map(c => c.id === selectedClient.id ? updatedClient : c));
+      
+      setShowSessionNoteModal(false);
+      setEditingSessionNoteBookingId(null);
+      alert("Session note saved successfully!");
+    } catch (err) {
+      alert("Error saving session note: " + err.message);
+    } finally {
+      setIsSavingSessionNote(false);
     }
   };
     
@@ -3193,6 +3266,20 @@ export default function Dashboard() {
                                                             <Edit3 size={14} />
                                                           </button>
                                                         )}
+                                                        {item.dbTable === 'bookings' && (
+                                                          <button 
+                                                            onClick={(e) => { 
+                                                              e.stopPropagation(); 
+                                                              const parsed = parseNotesAndMetadata(selectedClient?.notes);
+                                                              const currentNote = parsed.sessionNotes[item.id] || '';
+                                                              handleOpenSessionNote(item.id, item.title, currentNote); 
+                                                            }}
+                                                            className="text-gray-300 hover:text-[#0B4550] opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            title="Add/Edit session workout note"
+                                                          >
+                                                            <Edit3 size={14} />
+                                                          </button>
+                                                        )}
                                                         <button 
                                                           onClick={(e) => { e.stopPropagation(); handleDeleteHistoryEntry(item); }}
                                                           className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -3202,6 +3289,24 @@ export default function Dashboard() {
                                                       </div>
                                                     </div>
                                                     <p className="text-sm font-medium text-[#898A8D] mb-1">{item.detail}</p>
+                                                    
+                                                    {/* DISPLAY WORKOUT NOTE IF PRESENT */}
+                                                    {(() => {
+                                                      if (item.dbTable === 'bookings') {
+                                                        const parsed = parseNotesAndMetadata(selectedClient?.notes);
+                                                        const sessionNote = parsed.sessionNotes[item.id];
+                                                        if (sessionNote) {
+                                                          return (
+                                                            <div className="mt-2 mb-2 bg-[#F9F7F2] border border-gray-100 rounded-2xl p-4 text-[#0B4550] relative">
+                                                              <span className="text-[#898A8D] font-extrabold block text-xs uppercase tracking-wider mb-1.5">Workout Note:</span>
+                                                              <p className="text-xs font-semibold text-[#0B4550] leading-relaxed whitespace-pre-wrap">{sessionNote}</p>
+                                                            </div>
+                                                          );
+                                                        }
+                                                      }
+                                                      return null;
+                                                    })()}
+                                                    
                                                     <span className="text-[10px] font-bold text-gray-400 uppercase">{item.time}</span>
                                                   </div>
                                                 </div>
@@ -4921,6 +5026,55 @@ export default function Dashboard() {
               >
                 {isBulkMode ? `Save ${bulkEntries.length} Records` : (editingLedgerItem ? 'Update Entry' : 'Save Entry')}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: EDIT WORKOUT SESSION NOTE */}
+      {showSessionNoteModal && (
+        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-10 w-full max-w-lg shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 my-auto">
+            <button 
+              onClick={() => { setShowSessionNoteModal(false); setEditingSessionNoteBookingId(null); }} 
+              className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] bg-gray-100 p-2 rounded-full transition-colors"
+            >
+              <X size={24} />
+            </button>
+            <h2 className="text-3xl font-bold text-[#0B4550] mb-2">Session Workout Note</h2>
+            <p className="text-[#898A8D] font-medium mb-6">Add or edit workout notes, client feedback, or progress records for:</p>
+            <div className="bg-[#F9F7F2] border border-gray-100 rounded-2xl p-4 mb-6">
+              <span className="text-[#898A8D] font-extrabold block text-xs uppercase tracking-wider mb-1">Class / Session:</span>
+              <span className="font-bold text-sm text-[#0B4550]">{editingSessionNoteTitle}</span>
+            </div>
+            
+            <div className="space-y-6">
+              <div>
+                <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Workout Note Details</label>
+                <textarea 
+                  value={sessionNoteText} 
+                  onChange={(e) => setSessionNoteText(e.target.value)}
+                  className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl p-5 font-medium text-sm text-[#0B4550] outline-none focus:border-[#0B4550] focus:bg-white transition-all h-36 resize-none"
+                  placeholder="e.g. Completed all sets. Lower back was tight today, focused on lighter technique. Energetic and highly motivated!"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => { setShowSessionNoteModal(false); setEditingSessionNoteBookingId(null); }}
+                  className="flex-1 bg-gray-100 text-[#0B4550] py-4 rounded-2xl font-bold text-base hover:bg-gray-200 transition-all"
+                >
+                  Cancel
+                </button>
+                <button 
+                  onClick={handleSaveSessionNote}
+                  disabled={isSavingSessionNote}
+                  className="flex-1 bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-bold text-base hover:scale-[1.01] transition-all shadow-lg flex items-center justify-center gap-2"
+                >
+                  {isSavingSessionNote ? <RotateCw className="animate-spin" size={18}/> : <Save size={18}/>}
+                  Save Note
+                </button>
+              </div>
             </div>
           </div>
         </div>
