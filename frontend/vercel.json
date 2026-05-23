@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/api/feeds/schedule.ics",
+      "destination": "/api/feeds/schedule"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
