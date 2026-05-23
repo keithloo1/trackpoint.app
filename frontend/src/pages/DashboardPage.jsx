@@ -450,7 +450,7 @@ export default function Dashboard() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [newEventData, setNewEventData] = useState({
-    title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: ''
+    title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: '', recurrence: 'none', recurrenceCount: 4
   });
 
   // EDIT EVENT MODAL STATES
@@ -919,22 +919,77 @@ export default function Dashboard() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const fullLocation = newEventData.coach ? `${newEventData.location} | Coach: ${newEventData.coach}` : newEventData.location;
+      const capacityVal = newEventData.type === '1-on-1' ? 1 : parseInt(newEventData.capacity);
 
-      const { error } = await supabase.from('sessions').insert([{
+      const baseDate = new Date(newEventData.date);
+      const sessionsToInsert = [];
+
+      const baseSession = {
         trainer_id: user.id,
         title: newEventData.title,
-        date: newEventData.date,
         time: newEventData.time,
         duration: newEventData.duration,
         type: newEventData.type,
         location: fullLocation,
-        capacity: newEventData.type === '1-on-1' ? 1 : parseInt(newEventData.capacity)
-      }]);
+        capacity: capacityVal
+      };
+
+      // Push initial instance
+      sessionsToInsert.push({
+        ...baseSession,
+        date: newEventData.date
+      });
+
+      if (newEventData.recurrence && newEventData.recurrence !== 'none') {
+        const repeatsCount = parseInt(newEventData.recurrenceCount) || 1;
+        // Max limit safety cap of 20 to prevent excessive entries
+        const safeRepeats = Math.min(20, Math.max(1, repeatsCount));
+        
+        let currentDate = new Date(baseDate);
+
+        for (let i = 1; i <= safeRepeats; i++) {
+          if (newEventData.recurrence === 'daily') {
+            currentDate.setDate(currentDate.getDate() + 1);
+          } else if (newEventData.recurrence === 'weekly') {
+            currentDate.setDate(currentDate.getDate() + 7);
+          } else if (newEventData.recurrence === 'weekdays') {
+            // Find next weekday (Mon-Fri)
+            do {
+              currentDate.setDate(currentDate.getDate() + 1);
+            } while (currentDate.getDay() === 0 || currentDate.getDay() === 6);
+          }
+
+          // Format as YYYY-MM-DD
+          const year = currentDate.getFullYear();
+          const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+          const day = String(currentDate.getDate()).padStart(2, '0');
+          const dateString = `${year}-${month}-${day}`;
+
+          sessionsToInsert.push({
+            ...baseSession,
+            date: dateString
+          });
+        }
+      }
+
+      const { error } = await supabase.from('sessions').insert(sessionsToInsert);
 
       if (error) throw error;
       setShowEventModal(false);
-      setNewEventData({ title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: '' });
+      setNewEventData({ 
+        title: '', 
+        date: '', 
+        time: '09:00 AM', 
+        duration: '60 min', 
+        type: 'Group Class', 
+        location: 'Main Floor', 
+        capacity: 10, 
+        coach: '',
+        recurrence: 'none',
+        recurrenceCount: 4
+      });
       fetchSessions();
+      alert(`Successfully scheduled ${sessionsToInsert.length} session(s)!`);
     } catch (error) {
       alert("Error adding event: " + error.message);
     } finally {
@@ -4547,7 +4602,7 @@ export default function Dashboard() {
       {/* MODAL OVERLAY: ADD EVENT (NEW!) */}
       {showEventModal && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-8 overflow-hidden">
-          <div className="bg-white rounded-[2.5rem] p-8 md:p-10 w-full max-w-xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-10 w-full max-w-xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
             <button onClick={() => setShowEventModal(false)} className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full">
               <X size={24} />
             </button>
@@ -4618,6 +4673,43 @@ export default function Dashboard() {
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Max Capacity</label>
                   <input type="number" min="1" disabled={newEventData.type === '1-on-1' || newEventData.type === 'Blocked'} value={newEventData.type === '1-on-1' ? 1 : newEventData.capacity} onChange={(e) => setNewEventData({...newEventData, capacity: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50" />
+                </div>
+              </div>
+
+              {/* RECURRENCE RULES (NEW!) */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#0B4550]/5 p-5 rounded-3xl border border-[#0B4550]/10">
+                <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Repeat Event</label>
+                  <select 
+                    value={newEventData.recurrence || 'none'} 
+                    onChange={(e) => setNewEventData({...newEventData, recurrence: e.target.value})} 
+                    className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer"
+                  >
+                    <option value="none">One-time Event</option>
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="weekdays">Every Weekday (Mon-Fri)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">
+                    {newEventData.recurrence === 'none' ? 'No Repeats' : 'Number of Repeats'}
+                  </label>
+                  <input 
+                    type="number" 
+                    min="1" 
+                    max="20"
+                    disabled={newEventData.recurrence === 'none'}
+                    value={newEventData.recurrence === 'none' ? '' : newEventData.recurrenceCount} 
+                    onChange={(e) => setNewEventData({...newEventData, recurrenceCount: Math.min(20, Math.max(1, parseInt(e.target.value) || 1))})} 
+                    className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50"
+                    placeholder="e.g. 4 repeats"
+                  />
+                  {newEventData.recurrence && newEventData.recurrence !== 'none' && (
+                    <span className="text-xs font-semibold text-[#898A8D] mt-1 block">
+                      Total scheduled: {1 + (parseInt(newEventData.recurrenceCount) || 0)} classes
+                    </span>
+                  )}
                 </div>
               </div>
 
