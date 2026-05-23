@@ -674,6 +674,47 @@ export default function Dashboard() {
     }
   };
 
+  const parseTimeToParts = (timeStr) => {
+    const defaultParts = { hour: '09', minute: '00', ampm: 'AM' };
+    if (!timeStr) return defaultParts;
+    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    if (match) {
+      return { 
+        hour: match[1].padStart(2, '0'), 
+        minute: match[2], 
+        ampm: match[3].toUpperCase() 
+      };
+    }
+    const parts = timeStr.split(':');
+    if (parts.length >= 2) {
+      const hour = parts[0].padStart(2, '0');
+      const minAmpm = parts[1].trim();
+      const minMatch = minAmpm.match(/^(\d{2})/);
+      const minute = minMatch ? minMatch[1] : '00';
+      const ampm = minAmpm.toUpperCase().includes('PM') ? 'PM' : 'AM';
+      return { hour, minute, ampm };
+    }
+    return defaultParts;
+  };
+
+  const handleNewEventTimeChange = (part, value) => {
+    const parts = parseTimeToParts(newEventData.time || '09:00 AM');
+    parts[part] = value;
+    setNewEventData(prev => ({
+      ...prev,
+      time: `${parts.hour}:${parts.minute} ${parts.ampm}`
+    }));
+  };
+
+  const handleEditEventTimeChange = (part, value) => {
+    const parts = parseTimeToParts(editEventData.time || '09:00 AM');
+    parts[part] = value;
+    setEditEventData(prev => ({
+      ...prev,
+      time: `${parts.hour}:${parts.minute} ${parts.ampm}`
+    }));
+  };
+
   const handleCopyFeedLink = () => {
     const feedUrl = `${window.location.origin}/api/feeds/schedule.ics?trainer_id=${userId}`;
     navigator.clipboard.writeText(feedUrl);
@@ -4862,20 +4903,34 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Start Time</label>
-                  <input 
-                    type="text" 
-                    required 
-                    list="start-times-list"
-                    value={newEventData.time} 
-                    onChange={(e) => setNewEventData({...newEventData, time: e.target.value})} 
-                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" 
-                    placeholder="e.g. 09:00 AM or 09:30 AM"
-                  />
-                  <datalist id="start-times-list">
-                    {["06:00 AM", "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "04:30 PM", "05:00 PM", "06:00 PM", "07:00 PM", "08:00 PM"].map(t => (
-                      <option key={t} value={t} />
-                    ))}
-                  </datalist>
+                  <div className="flex gap-2">
+                    <select 
+                      value={parseTimeToParts(newEventData.time || '09:00 AM').hour} 
+                      onChange={(e) => handleNewEventTimeChange('hour', e.target.value)}
+                      className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <select 
+                      value={parseTimeToParts(newEventData.time || '09:00 AM').minute} 
+                      onChange={(e) => handleNewEventTimeChange('minute', e.target.value)}
+                      className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')).map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    <select 
+                      value={parseTimeToParts(newEventData.time || '09:00 AM').ampm} 
+                      onChange={(e) => handleNewEventTimeChange('ampm', e.target.value)}
+                      className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
@@ -5042,20 +5097,34 @@ export default function Dashboard() {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Start Time</label>
-                  <input 
-                    type="text" 
-                    required 
-                    list="edit-start-times-list"
-                    value={editEventData.time} 
-                    onChange={(e) => setEditEventData({...editEventData, time: e.target.value})} 
-                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" 
-                    placeholder="e.g. 09:00 AM or 09:30 AM"
-                  />
-                  <datalist id="edit-start-times-list">
-                    {["06:00 AM", "07:00 AM", "08:00 AM", "09:00 AM", "10:00 AM", "11:00 AM", "12:00 PM", "01:00 PM", "02:00 PM", "03:00 PM", "04:00 PM", "04:30 PM", "05:00 PM", "06:00 PM", "07:00 PM", "08:00 PM"].map(t => (
-                      <option key={t} value={t} />
-                    ))}
-                  </datalist>
+                  <div className="flex gap-2">
+                    <select 
+                      value={parseTimeToParts(editEventData.time || '09:00 AM').hour} 
+                      onChange={(e) => handleEditEventTimeChange('hour', e.target.value)}
+                      className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
+                        <option key={h} value={h}>{h}</option>
+                      ))}
+                    </select>
+                    <select 
+                      value={parseTimeToParts(editEventData.time || '09:00 AM').minute} 
+                      onChange={(e) => handleEditEventTimeChange('minute', e.target.value)}
+                      className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
+                    >
+                      {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')).map(m => (
+                        <option key={m} value={m}>{m}</option>
+                      ))}
+                    </select>
+                    <select 
+                      value={parseTimeToParts(editEventData.time || '09:00 AM').ampm} 
+                      onChange={(e) => handleEditEventTimeChange('ampm', e.target.value)}
+                      className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
+                    >
+                      <option value="AM">AM</option>
+                      <option value="PM">PM</option>
+                    </select>
+                  </div>
                 </div>
               </div>
 
