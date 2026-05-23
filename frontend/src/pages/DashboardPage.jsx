@@ -3718,12 +3718,23 @@ export default function Dashboard() {
               </div>
               <button 
                 onClick={() => setShowGoogleSyncModal(true)} 
-                className={`border-2 px-6 py-3 rounded-2xl font-bold flex items-center gap-3 transition-all ${isGoogleCalendarConnected ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' : 'bg-white border-gray-100 text-[#0B4550] hover:border-[#0B4550] hover:shadow-md'}`}
+                className={`border-2 px-6 py-3 rounded-2xl font-bold flex items-center gap-3 transition-all ${
+                  isGcalConnected 
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
+                    : isGcalExpired
+                    ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm'
+                    : 'bg-white border-gray-100 text-[#0B4550] hover:border-[#0B4550] hover:shadow-md'
+                }`}
               >
-                {isGoogleCalendarConnected ? (
+                {isGcalConnected ? (
                   <>
                     <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">✓</div>
                     Google Calendar Connected
+                  </>
+                ) : isGcalExpired ? (
+                  <>
+                    <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">⚠️</div>
+                    Calendar Link Expired
                   </>
                 ) : (
                   <>
