@@ -450,7 +450,7 @@ export default function Dashboard() {
   const [showEventModal, setShowEventModal] = useState(false);
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [newEventData, setNewEventData] = useState({
-    title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: '', recurrence: 'none', recurrenceCount: 4
+    title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: '', recurrence: 'none', recurrenceCount: 4, recurrenceDays: []
   });
 
   // EDIT EVENT MODAL STATES
@@ -941,34 +941,58 @@ export default function Dashboard() {
       });
 
       if (newEventData.recurrence && newEventData.recurrence !== 'none') {
-        const repeatsCount = parseInt(newEventData.recurrenceCount) || 1;
-        // Max limit safety cap of 20 to prevent excessive entries
-        const safeRepeats = Math.min(20, Math.max(1, repeatsCount));
-        
         let currentDate = new Date(baseDate);
 
-        for (let i = 1; i <= safeRepeats; i++) {
-          if (newEventData.recurrence === 'daily') {
-            currentDate.setDate(currentDate.getDate() + 1);
-          } else if (newEventData.recurrence === 'weekly') {
-            currentDate.setDate(currentDate.getDate() + 7);
-          } else if (newEventData.recurrence === 'weekdays') {
-            // Find next weekday (Mon-Fri)
-            do {
+        if (newEventData.recurrence === 'custom') {
+          const weeksCount = parseInt(newEventData.recurrenceCount) || 1;
+          // Cap custom scan to a maximum of 6 weeks to keep performance extremely high
+          const safeWeeks = Math.min(6, Math.max(1, weeksCount));
+          const selectedDays = newEventData.recurrenceDays || [];
+
+          if (selectedDays.length > 0) {
+            const totalDaysToScan = safeWeeks * 7;
+            for (let i = 1; i <= totalDaysToScan; i++) {
               currentDate.setDate(currentDate.getDate() + 1);
-            } while (currentDate.getDay() === 0 || currentDate.getDay() === 6);
+              const dayIndex = currentDate.getDay();
+
+              if (selectedDays.includes(dayIndex)) {
+                const year = currentDate.getFullYear();
+                const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+                const day = String(currentDate.getDate()).padStart(2, '0');
+                const dateString = `${year}-${month}-${day}`;
+
+                sessionsToInsert.push({
+                  ...baseSession,
+                  date: dateString
+                });
+              }
+            }
           }
+        } else {
+          const repeatsCount = parseInt(newEventData.recurrenceCount) || 1;
+          const safeRepeats = Math.min(20, Math.max(1, repeatsCount));
 
-          // Format as YYYY-MM-DD
-          const year = currentDate.getFullYear();
-          const month = String(currentDate.getMonth() + 1).padStart(2, '0');
-          const day = String(currentDate.getDate()).padStart(2, '0');
-          const dateString = `${year}-${month}-${day}`;
+          for (let i = 1; i <= safeRepeats; i++) {
+            if (newEventData.recurrence === 'daily') {
+              currentDate.setDate(currentDate.getDate() + 1);
+            } else if (newEventData.recurrence === 'weekly') {
+              currentDate.setDate(currentDate.getDate() + 7);
+            } else if (newEventData.recurrence === 'weekdays') {
+              do {
+                currentDate.setDate(currentDate.getDate() + 1);
+              } while (currentDate.getDay() === 0 || currentDate.getDay() === 6);
+            }
 
-          sessionsToInsert.push({
-            ...baseSession,
-            date: dateString
-          });
+            const year = currentDate.getFullYear();
+            const month = String(currentDate.getMonth() + 1).padStart(2, '0');
+            const day = String(currentDate.getDate()).padStart(2, '0');
+            const dateString = `${year}-${month}-${day}`;
+
+            sessionsToInsert.push({
+              ...baseSession,
+              date: dateString
+            });
+          }
         }
       }
 
@@ -986,7 +1010,8 @@ export default function Dashboard() {
         capacity: 10, 
         coach: '',
         recurrence: 'none',
-        recurrenceCount: 4
+        recurrenceCount: 4,
+        recurrenceDays: []
       });
       fetchSessions();
       alert(`Successfully scheduled ${sessionsToInsert.length} session(s)!`);
@@ -4677,41 +4702,99 @@ export default function Dashboard() {
               </div>
 
               {/* RECURRENCE RULES (NEW!) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 bg-[#0B4550]/5 p-5 rounded-3xl border border-[#0B4550]/10">
-                <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Repeat Event</label>
-                  <select 
-                    value={newEventData.recurrence || 'none'} 
-                    onChange={(e) => setNewEventData({...newEventData, recurrence: e.target.value})} 
-                    className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer"
-                  >
-                    <option value="none">One-time Event</option>
-                    <option value="daily">Daily</option>
-                    <option value="weekly">Weekly</option>
-                    <option value="weekdays">Every Weekday (Mon-Fri)</option>
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">
-                    {newEventData.recurrence === 'none' ? 'No Repeats' : 'Number of Repeats'}
-                  </label>
-                  <input 
-                    type="number" 
-                    min="1" 
-                    max="20"
-                    disabled={newEventData.recurrence === 'none'}
-                    value={newEventData.recurrence === 'none' ? '' : newEventData.recurrenceCount} 
-                    onChange={(e) => setNewEventData({...newEventData, recurrenceCount: Math.min(20, Math.max(1, parseInt(e.target.value) || 1))})} 
-                    className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50"
-                    placeholder="e.g. 4 repeats"
-                  />
-                  {newEventData.recurrence && newEventData.recurrence !== 'none' && (
-                    <span className="text-xs font-semibold text-[#898A8D] mt-1 block">
-                      Total scheduled: {1 + (parseInt(newEventData.recurrenceCount) || 0)} classes
-                    </span>
-                  )}
-                </div>
-              </div>
+              {(() => {
+                const getCustomScheduledCount = () => {
+                  if (!newEventData.date) return 1;
+                  const baseDate = new Date(newEventData.date);
+                  const selectedDays = newEventData.recurrenceDays || [];
+                  if (selectedDays.length === 0) return 1;
+
+                  const weeksCount = parseInt(newEventData.recurrenceCount) || 1;
+                  const safeWeeks = Math.min(6, Math.max(1, weeksCount));
+                  
+                  let count = 1; // Base class
+                  let currentDate = new Date(baseDate);
+                  const totalDaysToScan = safeWeeks * 7;
+                  
+                  for (let i = 1; i <= totalDaysToScan; i++) {
+                    currentDate.setDate(currentDate.getDate() + 1);
+                    if (selectedDays.includes(currentDate.getDay())) {
+                      count++;
+                    }
+                  }
+                  return count;
+                };
+
+                return (
+                  <div className="space-y-4 bg-[#0B4550]/5 p-5 rounded-3xl border border-[#0B4550]/10">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div>
+                        <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Repeat Event</label>
+                        <select 
+                          value={newEventData.recurrence || 'none'} 
+                          onChange={(e) => setNewEventData({...newEventData, recurrence: e.target.value})} 
+                          className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer"
+                        >
+                          <option value="none">One-time Event</option>
+                          <option value="daily">Daily</option>
+                          <option value="weekly">Weekly</option>
+                          <option value="weekdays">Every Weekday (Mon-Fri)</option>
+                          <option value="custom">Custom Days (Weekly)</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">
+                          {newEventData.recurrence === 'none' ? 'No Repeats' : newEventData.recurrence === 'custom' ? 'Number of Weeks' : 'Number of Repeats'}
+                        </label>
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max={newEventData.recurrence === 'custom' ? 6 : 20}
+                          disabled={newEventData.recurrence === 'none'}
+                          value={newEventData.recurrence === 'none' ? '' : newEventData.recurrenceCount} 
+                          onChange={(e) => setNewEventData({...newEventData, recurrenceCount: e.target.value})} 
+                          className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50"
+                          placeholder={newEventData.recurrence === 'custom' ? "e.g. 4 weeks" : "e.g. 4 repeats"}
+                        />
+                        {newEventData.recurrence && newEventData.recurrence !== 'none' && (
+                          <span className="text-xs font-semibold text-[#898A8D] mt-1 block">
+                            Total scheduled: {newEventData.recurrence === 'custom' ? getCustomScheduledCount() : (1 + (parseInt(newEventData.recurrenceCount) || 0))} classes
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* CUSTOM DAYS SELECTOR (NEW!) */}
+                    {newEventData.recurrence === 'custom' && (
+                      <div className="pt-2 border-t border-[#0B4550]/10 animate-in fade-in slide-in-from-top-3 duration-200">
+                        <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Select Weekly Days</label>
+                        <div className="grid grid-cols-7 gap-1.5 mt-2">
+                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((label, index) => {
+                            const isSelected = (newEventData.recurrenceDays || []).includes(index);
+                            return (
+                              <button
+                                type="button"
+                                key={index}
+                                onClick={() => {
+                                  const days = newEventData.recurrenceDays ? [...newEventData.recurrenceDays] : [];
+                                  if (days.includes(index)) {
+                                    setNewEventData({...newEventData, recurrenceDays: days.filter(d => d !== index)});
+                                  } else {
+                                    setNewEventData({...newEventData, recurrenceDays: [...days, index]});
+                                  }
+                                }}
+                                className={`py-2 rounded-xl font-bold text-xs transition-all border text-center ${isSelected ? 'bg-[#0B4550] text-[#E6FF2B] border-[#0B4550] shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                              >
+                                {label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
 
               <button type="submit" disabled={isAddingEvent} className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-medium text-xl hover:bg-[#0B4550]/90 transition-all shadow-md mt-4 flex justify-center">
                 {isAddingEvent ? <RotateCw className="animate-spin" size={28} /> : 'Save to Schedule'}
