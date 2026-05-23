@@ -3,7 +3,7 @@ import { supabase } from '../supabaseClient';
 import { 
   Home, Users, Calendar, CalendarSearch, BarChart2, Package,
   Settings, LogOut, Search, Bell,
-  ChevronLeft, ChevronRight, TrendingUp, TrendingDown, ArrowUpRight, RotateCw,
+  ChevronLeft, ChevronRight, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, RotateCw,
   DollarSign, Download, FileText, Plus, ArrowLeft, Copy, Check, Clock, MapPin, CheckSquare, X, Square, ArrowRight, Save, Trash2, Upload, Minus, LayoutGrid, List, Edit3, Lock, Monitor, Unlock, Sparkles, Send, Bot, MessageSquare
 } from 'lucide-react';
 import newLogo from '../assets/logo.svg';
@@ -15,6 +15,16 @@ const getGreeting = () => {
   if (hour < 12) return 'Good morning';
   if (hour < 18) return 'Good afternoon';
   return 'Good evening';
+};
+
+const formatExpiryDate = (expiryStr) => {
+  if (!expiryStr) return 'No expiry';
+  try {
+    const d = new Date(expiryStr);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch (e) {
+    return expiryStr;
+  }
 };
 
 const getDailyQuote = () => {
@@ -429,6 +439,11 @@ export default function Dashboard() {
   const [editEventData, setEditEventData] = useState({
     id: '', title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: ''
   });
+
+  // ROSTER MULTI-SELECT CLIENT STATES
+  const [selectedStudentIds, setSelectedStudentIds] = useState([]);
+  const [searchStudentQuery, setSearchStudentQuery] = useState('');
+  const [showStudentDropdown, setShowStudentDropdown] = useState(false);
 
   const greeting = getGreeting();
   const quote = getDailyQuote();
@@ -1837,6 +1852,82 @@ export default function Dashboard() {
       alert("Student removed successfully and session package refunded (if applicable).");
     } catch (err) {
       alert("Error removing student: " + err.message);
+    }
+  };
+
+  const handleAssignMultipleClients = async () => {
+    if (!selectedSession || selectedStudentIds.length === 0) return;
+
+    try {
+      const successfulAssignments = [];
+      const updatedClients = [...clients];
+
+      for (const clientId of selectedStudentIds) {
+        // Skip if already booked
+        const alreadyBooked = selectedSession.attendees.some(a => a.client_id === clientId);
+        if (alreadyBooked) continue;
+
+        const client = updatedClients.find(c => c.id === clientId);
+        if (!client) continue;
+
+        const { data, error } = await supabase.from('bookings').insert([{
+          client_id: clientId,
+          session_id: selectedSession.id,
+          session_date: selectedSession.date,
+          time_slot: selectedSession.time,
+          status: 'Booked'
+        }]).select('id');
+
+        if (error) {
+          console.error(`Error booking client ${client.name}:`, error);
+          continue;
+        }
+
+        // Deduct session if not unlimited
+        if (!client.unlimited) {
+          const newRemaining = Math.max(0, (client.remaining_package || 0) - 1);
+          const newUsed = (client.used_sessions || 0) + 1;
+
+          const { error: clientErr } = await supabase.from('clients')
+            .update({ remaining_package: newRemaining, used_sessions: newUsed })
+            .eq('id', clientId);
+
+          if (clientErr) console.error("Error updating client sessions remaining:", clientErr);
+
+          client.remaining_package = newRemaining;
+          client.used_sessions = newUsed;
+        }
+
+        const newBookingId = data[0].id;
+        successfulAssignments.push({
+          booking_id: newBookingId,
+          client_id: clientId,
+          name: client.name,
+          status: 'Booked'
+        });
+      }
+
+      if (successfulAssignments.length > 0) {
+        setClients(updatedClients);
+
+        const updatedAttendees = [...(selectedSession.attendees || []), ...successfulAssignments];
+        const updatedSessions = sessions.map(s => {
+          if (s.id === selectedSession.id) {
+            return { ...s, attendees: updatedAttendees };
+          }
+          return s;
+        });
+
+        setSessions(updatedSessions);
+        setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
+        
+        alert(`Successfully assigned ${successfulAssignments.length} student(s) to ${selectedSession.title}!`);
+      }
+
+      setSelectedStudentIds([]);
+      setShowStudentDropdown(false);
+    } catch (err) {
+      alert("Error assigning students: " + err.message);
     }
   };
     
@@ -3389,31 +3480,111 @@ export default function Dashboard() {
                         </div>
 
                         {/* ASSIGN STUDENT DROPDOWN */}
-                        <div className="mb-6 p-4 bg-[#F9F7F2] rounded-2xl border border-gray-100">
-                          <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider mb-2">Book / Assign Student</p>
-                          <div className="flex gap-2">
-                            <select 
-                              id="assign-student-select"
-                              defaultValue=""
-                              onChange={(e) => {
-                                if (e.target.value) {
-                                  handleAssignClient(e.target.value);
-                                  e.target.value = ""; // Reset
-                                }
+                        <div className="mb-6 p-4 bg-[#F9F7F2] rounded-2xl border border-gray-100 relative">
+                          <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider mb-2">Book / Assign Students</p>
+                          <div className="relative">
+                            <button 
+                              type="button"
+                              onClick={() => {
+                                setShowStudentDropdown(!showStudentDropdown);
+                                setSearchStudentQuery('');
                               }}
-                              className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-sm text-[#0B4550] font-medium outline-none focus:border-[#0B4550]"
+                              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-[#0B4550] font-bold flex justify-between items-center outline-none focus:border-[#0B4550] shadow-sm hover:bg-gray-50 transition-colors"
                             >
-                              <option value="" disabled>Select student to book...</option>
-                              {clients
-                                .filter(c => c.status !== 'Archived')
-                                .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
-                                .map(c => (
-                                  <option key={c.id} value={c.id}>
-                                    {c.name} ({c.unlimited ? 'Unlimited' : `${c.remaining_package || 0} sessions left`})
-                                  </option>
-                                ))
-                              }
-                            </select>
+                              <span>
+                                {selectedStudentIds.length === 0 
+                                  ? 'Select students to book...' 
+                                  : `${selectedStudentIds.length} student(s) selected`}
+                              </span>
+                              <ChevronDown size={18} className={`transition-transform duration-200 ${showStudentDropdown ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {showStudentDropdown && (
+                              <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200 max-h-80 flex flex-col">
+                                {/* SEARCH BAR */}
+                                <div className="relative mb-3 shrink-0">
+                                  <input 
+                                    type="text" 
+                                    placeholder="Search clients..." 
+                                    value={searchStudentQuery}
+                                    onChange={(e) => setSearchStudentQuery(e.target.value)}
+                                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2.5 pl-9 pr-4 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                                  />
+                                  <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+                                </div>
+
+                                {/* CLIENTS CHECKBOX LIST */}
+                                <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
+                                  {(() => {
+                                    const filtered = clients
+                                      .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(searchStudentQuery.toLowerCase()))
+                                      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                                    if (filtered.length === 0) {
+                                      return <p className="text-sm text-gray-400 text-center py-4">No clients found.</p>;
+                                    }
+
+                                    return filtered.map(c => {
+                                      const isSelected = selectedStudentIds.includes(c.id);
+                                      const isAlreadyRostered = selectedSession.attendees?.some(a => a.client_id === c.id);
+
+                                      return (
+                                        <label 
+                                          key={c.id} 
+                                          className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-[#F9F7F2]'}`}
+                                        >
+                                          <input 
+                                            type="checkbox"
+                                            disabled={isAlreadyRostered}
+                                            checked={isAlreadyRostered || isSelected}
+                                            onChange={() => {
+                                              if (isAlreadyRostered) return;
+                                              setSelectedStudentIds(prev => 
+                                                prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                              );
+                                            }}
+                                            className="w-5 h-5 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550] cursor-pointer"
+                                          />
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-bold text-[#0B4550] truncate">{c.name}</p>
+                                            <p className="text-[11px] text-[#898A8D] font-medium">
+                                              {c.unlimited 
+                                                ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}` 
+                                                : `${c.remaining_package || 0} sessions left`}
+                                            </p>
+                                          </div>
+                                          {isAlreadyRostered && (
+                                            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Booked</span>
+                                          )}
+                                        </label>
+                                      );
+                                    });
+                                  })()}
+                                </div>
+
+                                {/* SUBMIT BATCH BUTTON */}
+                                <div className="border-t border-gray-100 pt-3 mt-3 flex gap-2 shrink-0">
+                                  <button 
+                                    type="button"
+                                    onClick={() => {
+                                      setSelectedStudentIds([]);
+                                      setShowStudentDropdown(false);
+                                    }}
+                                    className="flex-1 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button 
+                                    type="button"
+                                    disabled={selectedStudentIds.length === 0}
+                                    onClick={handleAssignMultipleClients}
+                                    className="flex-[2] py-2 rounded-xl text-xs font-extrabold text-[#E6FF2B] bg-[#0B4550] hover:bg-[#0B4550]/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                  >
+                                    Assign Selected ({selectedStudentIds.length})
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         </div>
 
