@@ -3169,14 +3169,14 @@ export default function Dashboard() {
                                   {/* MONTH TABLE CONTENT */}
                                   {expanded && (
                                     <div className="overflow-x-auto pr-2 no-scrollbar animate-in slide-in-from-top-2 duration-300">
-                                      <table className="w-full text-left border-collapse mb-2">
+                                      <table className="w-full text-left border-collapse mb-2 table-fixed">
                                         <thead>
                                           <tr className="text-xs font-bold text-[#898A8D] uppercase tracking-wider border-b border-gray-100">
-                                            <th className="pb-3 pt-1 pl-4">Date</th>
-                                            <th className="pb-3 pt-1">Client Name</th>
-                                            <th className="pb-3 pt-1">Description</th>
-                                            <th className="pb-3 pt-1">Amount</th>
-                                            <th className="pb-3 pt-1 pr-4 text-right">Actions</th>
+                                            <th className="pb-3 pt-1 pl-4 w-[12%]">Date</th>
+                                            <th className="pb-3 pt-1 w-[23%]">Client Name</th>
+                                            <th className="pb-3 pt-1 w-[45%]">Description</th>
+                                            <th className="pb-3 pt-1 w-[12%] text-right">Amount</th>
+                                            <th className="pb-3 pt-1 pr-4 w-[8%] text-right">Actions</th>
                                           </tr>
                                         </thead>
                                         <tbody className="text-base font-semibold text-[#0B4550]">
@@ -3184,11 +3184,11 @@ export default function Dashboard() {
                                             .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
                                             .map((t) => (
                                               <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                                <td className="py-3 pl-4 text-xs font-semibold text-gray-500">{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
-                                                <td className="py-3 font-bold">{clients.find(c => c.id === t.client_name)?.name || t.client_name}</td>
-                                                <td className="py-3 text-xs text-gray-500 font-semibold">{t.description}</td>
-                                                <td className="py-3 font-black text-emerald-600">+RM {Number(t.amount).toFixed(2)}</td>
-                                                <td className="py-3 pr-4 text-right">
+                                                <td className="py-3 pl-4 text-xs font-semibold text-gray-500 w-[12%]">{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
+                                                <td className="py-3 font-bold w-[23%]">{clients.find(c => c.id === t.client_name)?.name || t.client_name}</td>
+                                                <td className="py-3 text-xs text-gray-500 font-semibold w-[45%]">{t.description}</td>
+                                                <td className="py-3 font-black text-emerald-600 text-right w-[12%]">+RM {Number(t.amount).toFixed(2)}</td>
+                                                <td className="py-3 pr-4 text-right w-[8%]">
                                                    <div className="flex items-center justify-end gap-2">
                                                      {t.amount > 0 && !t.is_backlog && (
                                                        <button 
