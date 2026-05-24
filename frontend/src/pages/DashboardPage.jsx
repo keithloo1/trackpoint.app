@@ -186,6 +186,46 @@ const getLiveClientStatus = (client) => {
   return 'Active';
 };
 
+const parseTimeToMinutes = (timeString) => {
+  if (!timeString) return 0;
+  const match = timeString.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!match) return 0;
+  
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const ampm = match[3].toUpperCase();
+  
+  if (ampm === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (ampm === 'AM' && hours === 12) {
+    hours = 0;
+  }
+  
+  return hours * 60 + minutes;
+};
+
+const isSessionPast = (session) => {
+  if (!session?.date || !session?.time) return false;
+  
+  const match = session.time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  if (!match) return false;
+  
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const ampm = match[3].toUpperCase();
+  
+  if (ampm === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (ampm === 'AM' && hours === 12) {
+    hours = 0;
+  }
+  
+  const [year, month, day] = session.date.split('-').map(num => parseInt(num, 10));
+  const sessionDateObj = new Date(year, month - 1, day, hours, minutes, 0, 0);
+  
+  return sessionDateObj < new Date();
+};
+
 export default function Dashboard({ session }) {
   const [activePage, setActivePage] = useState('Dashboard');
   const [isArchiveMode, setIsArchiveMode] = useState(false);
@@ -3055,10 +3095,22 @@ export default function Dashboard({ session }) {
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {sessions.length === 0 ? (
-                  <div className="col-span-3 text-center py-10 text-[#898A8D] font-medium">No upcoming sessions. Head to the Schedule tab to add some!</div>
-                ) : (
-                  sessions.slice(0, 3).map((session) => (
+                {(() => {
+                  const upcomingSessions = sessions
+                    .filter(s => !isSessionPast(s))
+                    .sort((a, b) => {
+                      const dateDiff = new Date(a.date) - new Date(b.date);
+                      if (dateDiff !== 0) return dateDiff;
+                      return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
+                    });
+
+                  if (upcomingSessions.length === 0) {
+                    return (
+                      <div className="col-span-3 text-center py-10 text-[#898A8D] font-medium">No upcoming sessions. Head to the Schedule tab to add some!</div>
+                    );
+                  }
+
+                  return upcomingSessions.slice(0, 3).map((session) => (
                     <div key={session.id} className="bg-[#F9F7F2] rounded-2xl p-5 border border-gray-100 hover:border-[#E6FF2B] transition-colors cursor-pointer group" onClick={() => setActivePage('Schedule')}>
                       <div className="flex justify-between items-start mb-4">
                         <span className={`inline-block px-3 py-1 rounded-lg text-xs font-medium ${session.type === '1-on-1' ? 'bg-[#0B4550] text-white' : 'bg-white text-[#0B4550]'}`}>
@@ -3079,8 +3131,8 @@ export default function Dashboard({ session }) {
                         <span className="text-xs font-medium text-[#898A8D]">{session.attendees ? session.attendees.length : 0} / {session.capacity} Booked</span>
                       </div>
                     </div>
-                  ))
-                )}
+                  ));
+                })()}
               </div>
             </div>
           </div>
@@ -3936,11 +3988,13 @@ export default function Dashboard({ session }) {
                   
                   // Find sessions for this specific day to plot on the calendar
                   const daySessions = sessions.filter(s => {
-                    const sDate = new Date(s.date);
+                    if (!s.date) return false;
+                    const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
+                    const sDate = new Date(yr, mo - 1, dy);
                     return sDate.getDate() === day && 
                            sDate.getMonth() === dateObj.getMonth() && 
                            sDate.getFullYear() === dateObj.getFullYear();
-                  });
+                  }).sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
                   
                   const isToday = new Date().toDateString() === dateObj.toDateString();
                   
@@ -3960,8 +4014,9 @@ export default function Dashboard({ session }) {
                       <div className="flex-1 flex flex-col gap-1 overflow-y-auto no-scrollbar">
                         {daySessions.map(s => {
                           const coachName = s.location && s.location.includes(' | Coach: ') ? s.location.split(' | Coach: ')[1] : '';
+                          const isPast = isSessionPast(s);
                           return (
-                            <div key={s.id} className="bg-[#F9F7F2] text-[#0B4550] text-[15px] font-bold px-2 py-1.5 rounded-lg truncate group-hover:bg-[#E6FF2B] transition-colors" title={coachName ? `${s.title} (Coach: ${coachName})` : s.title}>
+                            <div key={s.id} className={`bg-[#F9F7F2] text-[#0B4550] text-[15px] font-bold px-2 py-1.5 rounded-lg truncate group-hover:bg-[#E6FF2B] transition-colors ${isPast ? 'line-through opacity-50' : ''}`} title={coachName ? `${s.title} (Coach: ${coachName})` : s.title}>
                               {s.time} - {s.title}
                             </div>
                           );
@@ -4035,11 +4090,12 @@ export default function Dashboard({ session }) {
                   {(() => {
                     const daySessions = sessions.filter(session => {
                       if (!session.date) return false;
-                      const sDate = new Date(session.date);
+                      const [yr, mo, dy] = session.date.split('-').map(num => parseInt(num, 10));
+                      const sDate = new Date(yr, mo - 1, dy);
                       return sDate.getDate() === selectedScheduleDate.getDate() &&
                              sDate.getMonth() === selectedScheduleDate.getMonth() &&
                              sDate.getFullYear() === selectedScheduleDate.getFullYear();
-                    });
+                    }).sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
 
                     if (daySessions.length === 0) {
                       return (
@@ -4055,15 +4111,16 @@ export default function Dashboard({ session }) {
                       const isSelected = selectedSession?.id === session.id;
                       const is1on1 = session.type === '1-on-1';
                       const isBlocked = session.type === 'Blocked';
+                      const isPast = isSessionPast(session);
 
                       const locationParts = session.location ? session.location.split(' | Coach: ') : [];
                       const displayLocation = locationParts[0] || 'Main Floor';
                       const displayCoach = locationParts[1] || '';
 
                       return (
-                        <div key={session.id} onClick={() => setSelectedSession(session)} className={`flex gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''}`}>
+                        <div key={session.id} onClick={() => setSelectedSession(session)} className={`flex gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-70 hover:opacity-100' : ''}`}>
                           <div className="w-24 text-right shrink-0">
-                            <p className={`text-xl font-medium ${isSelected ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>{session.time}</p>
+                            <p className={`text-xl font-medium ${isSelected ? 'text-[#0B4550]' : 'text-[#898A8D]'} ${isPast ? 'line-through opacity-60' : ''}`}>{session.time}</p>
                             <p className="text-sm font-medium text-[#898A8D]">{session.duration}</p>
                           </div>
                           <div className={`flex-1 rounded-3xl p-6 shadow-sm border transition-all ${isSelected ? 'scale-[1.02] shadow-md' : ''} ${is1on1 ? 'bg-[#0B4550] border-[#0B4550] text-white' : isBlocked ? 'bg-transparent border-dashed border-2 border-gray-300' : 'bg-white border-gray-100 hover:border-[#E6FF2B]'}`}>
@@ -4072,7 +4129,7 @@ export default function Dashboard({ session }) {
                                 <span className={`inline-block px-3 py-1 rounded-lg text-sm font-medium mb-3 ${is1on1 ? 'bg-[#E6FF2B] text-[#0B4550]' : 'bg-gray-100 text-[#898A8D]'}`}>
                                   {session.type}
                                 </span>
-                                <h3 className={`text-2xl font-medium mb-1 ${is1on1 ? 'text-white' : 'text-[#0B4550]'}`}>{session.title}</h3>
+                                <h3 className={`text-2xl font-medium mb-1 ${is1on1 ? 'text-white' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-60' : ''}`}>{session.title}</h3>
                                 <div className={`flex items-center gap-2 text-lg font-medium ${is1on1 ? 'text-white/70' : 'text-[#898A8D]'}`}>
                                   <MapPin size={18} /> 
                                   <span>{displayLocation} {displayCoach && `• Coach: ${displayCoach}`} • {formatDbDate(session.date)}</span>
