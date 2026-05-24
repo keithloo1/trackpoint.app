@@ -4,7 +4,7 @@ import {
   Home, Users, Calendar, CalendarSearch, BarChart2, Package,
   Settings, LogOut, Search, Bell,
   ChevronLeft, ChevronRight, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, RotateCw,
-  DollarSign, Download, FileText, Plus, ArrowLeft, Copy, Check, Clock, MapPin, CheckSquare, X, Square, ArrowRight, Save, Trash2, Upload, Minus, LayoutGrid, List, Edit3, Lock, Monitor, Unlock, Sparkles, Send, Bot, MessageSquare, Award, Camera
+  DollarSign, Download, FileText, Plus, ArrowLeft, Copy, Check, Clock, MapPin, CheckSquare, X, Square, ArrowRight, Save, Trash2, Upload, Minus, LayoutGrid, List, Edit3, Lock, Monitor, Unlock, Sparkles, Send, Bot, MessageSquare, Award, Camera, CreditCard
 } from 'lucide-react';
 import newLogo from '../assets/logo.svg';
 import Papa from 'papaparse';
