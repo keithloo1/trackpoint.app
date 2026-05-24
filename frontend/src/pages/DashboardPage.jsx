@@ -201,6 +201,21 @@ export default function Dashboard() {
   const [editValue, setEditValue] = useState("");
   const [packages, setPackages] = useState([]);
   const [transactions, setTransactions] = useState([]);
+  const transactionsWithInvoices = useMemo(() => {
+    // Sort transactions chronologically to calculate sequential invoice numbers
+    const sortedAsc = [...transactions].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+    const invoiceNumMap = {};
+    let invoiceCounter = 101;
+    sortedAsc.forEach((t) => {
+      if (t.amount > 0 && !t.is_backlog) {
+        invoiceNumMap[t.id] = invoiceCounter++;
+      }
+    });
+    return transactions.map(t => ({
+      ...t,
+      invoiceNumber: invoiceNumMap[t.id] ? `INV-${invoiceNumMap[t.id]}` : null
+    }));
+  }, [transactions]);
   const [packagesList, setPackagesList] = useState([]);
   const [isPackageModalOpen, setIsPackageModalOpen] = useState(false);
   const [editingPackage, setEditingPackage] = useState(null);
@@ -349,7 +364,19 @@ export default function Dashboard() {
   // --- TRAINER PROFILE ---
   const [trainerName, setTrainerName] = useState('Trainer');
   const [companyName, setCompanyName] = useState('TrackPoint');
-  const [settingsForm, setSettingsForm] = useState({ full_name: '', company_name: '' });
+  const [companyLogo, setCompanyLogo] = useState('');
+  const [trainerProfile, setTrainerProfile] = useState(null);
+  const [settingsForm, setSettingsForm] = useState({
+    full_name: '',
+    company_name: '',
+    company_address: '',
+    company_phone: '',
+    company_email: '',
+    company_logo: '',
+    bank_name: '',
+    bank_account_name: '',
+    bank_account_number: ''
+  });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState(null);
 
@@ -439,8 +466,10 @@ export default function Dashboard() {
   // MEGA ADD CLIENT MODAL STATES
   const [showAddModal, setShowAddModal] = useState(false);
   const [isAddingClient, setIsAddingClient] = useState(false);
+  const [selectedInvoiceTransaction, setSelectedInvoiceTransaction] = useState(null);
+  const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [newClientData, setNewClientData] = useState({
-    name: '', email: '', phone: '', dob: '', 
+    name: '', email: '', phone: '', dob: '', address: '',
     package: '10 Class Pack', expiry_date: '', unlimited: false, 
     client_type: 'Group', member_status: 'Member', 
     initial_package: '', remaining_package: '', date_paid: ''
@@ -923,7 +952,7 @@ export default function Dashboard() {
   const filteredTransactions = useMemo(() => {
     const today = new Date();
     // Filter transactions to only those with non-zero financial amount
-    const revenueOnly = transactions.filter(t => Number(t.amount) !== 0);
+    const revenueOnly = transactionsWithInvoices.filter(t => Number(t.amount) !== 0);
 
     return revenueOnly.filter(t => {
       const d = new Date(t.created_at);
@@ -940,7 +969,7 @@ export default function Dashboard() {
       }
       return true; // 'All Time'
     });
-  }, [transactions, activeRevenuePeriod]);
+  }, [transactionsWithInvoices, activeRevenuePeriod]);
 
   const groupedTransactions = useMemo(() => {
     const years = {};
@@ -1014,7 +1043,8 @@ export default function Dashboard() {
         initial_package: selectedClient.initial_package || 0,
         remaining_package: selectedClient.remaining_package || 0,
         dob: selectedClient.dob || '',
-        date_paid: selectedClient.date_paid || ''
+        date_paid: selectedClient.date_paid || '',
+        address: selectedClient.address || ''
       });
       setIsEditingClient(false); // Reset to read-only when clicking a new client
       fetchClientHistory(selectedClient);
@@ -1101,7 +1131,19 @@ export default function Dashboard() {
       if (profileData) {
         setTrainerName(profileData.full_name || 'Trainer');
         setCompanyName(profileData.company_name || 'TrackPoint');
-        setSettingsForm({ full_name: profileData.full_name || '', company_name: profileData.company_name || '' });
+        setCompanyLogo(profileData.company_logo || '');
+        setTrainerProfile(profileData);
+        setSettingsForm({
+          full_name: profileData.full_name || '',
+          company_name: profileData.company_name || '',
+          company_address: profileData.company_address || '',
+          company_phone: profileData.company_phone || '',
+          company_email: profileData.company_email || '',
+          company_logo: profileData.company_logo || '',
+          bank_name: profileData.bank_name || '',
+          bank_account_name: profileData.bank_account_name || '',
+          bank_account_number: profileData.bank_account_number || ''
+        });
       } else if (profileError && profileError.code === 'PGRST116') {
         await supabase.from('profiles').insert([{ id: user.id }]);
       }
@@ -1324,18 +1366,49 @@ export default function Dashboard() {
     }
   };
 
+  const handleLogoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setSettingsForm(prev => ({ ...prev, company_logo: reader.result }));
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleSaveSettings = async (e) => {
     e.preventDefault();
     setIsSavingSettings(true);
     setSettingsMessage(null);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      const updatedFields = {
+        full_name: settingsForm.full_name,
+        company_name: settingsForm.company_name,
+        company_address: settingsForm.company_address,
+        company_phone: settingsForm.company_phone,
+        company_email: settingsForm.company_email,
+        company_logo: settingsForm.company_logo,
+        bank_name: settingsForm.bank_name,
+        bank_account_name: settingsForm.bank_account_name,
+        bank_account_number: settingsForm.bank_account_number,
+        updated_at: new Date()
+      };
+      
       const { error } = await supabase.from('profiles')
-        .update({ full_name: settingsForm.full_name, company_name: settingsForm.company_name, updated_at: new Date() })
+        .update(updatedFields)
         .eq('id', user.id);
+        
       if (error) throw error;
+      
       setTrainerName(settingsForm.full_name);
       setCompanyName(settingsForm.company_name);
+      setCompanyLogo(settingsForm.company_logo);
+      setTrainerProfile({
+        id: user.id,
+        ...updatedFields
+      });
+      
       setSettingsMessage("Profile updated successfully!");
       setTimeout(() => setSettingsMessage(null), 3000);
     } catch (error) {
@@ -1358,6 +1431,7 @@ export default function Dashboard() {
             email: newClientData.email,
             phone: newClientData.phone,
             dob: newClientData.dob || null,
+            address: newClientData.address || null,
             package: newClientData.package,
             expiry: newClientData.expiry_date || null,
             unlimited: newClientData.unlimited,
@@ -1373,7 +1447,7 @@ export default function Dashboard() {
 
       if (error) throw error;
       setShowAddModal(false);
-      setNewClientData({ name: '', email: '', phone: '', dob: '', package: '10 Class Pack', expiry_date: '', unlimited: false, client_type: 'Group', member_status: 'Member', initial_package: '', remaining_package: '', date_paid: '' });
+      setNewClientData({ name: '', email: '', phone: '', dob: '', address: '', package: '10 Class Pack', expiry_date: '', unlimited: false, client_type: 'Group', member_status: 'Member', initial_package: '', remaining_package: '', date_paid: '' });
       fetchClients();
     } catch (error) {
       alert("Error adding client: " + error.message);
@@ -2644,9 +2718,9 @@ export default function Dashboard() {
             className="hover:opacity-70 transition-opacity cursor-pointer focus:outline-none"
           >
             <img 
-              src={newLogo} 
+              src={companyLogo || newLogo} 
               alt={companyName} 
-              className="h-20 w-auto object-contain" 
+              className="h-20 w-auto object-contain max-h-[80px]" 
               onError={(e) => { e.target.style.display = 'none' }} 
             />
           </button>
@@ -3115,13 +3189,27 @@ export default function Dashboard() {
                                                 <td className="py-3 text-xs text-gray-500 font-semibold">{t.description}</td>
                                                 <td className="py-3 font-black text-emerald-600">+RM {Number(t.amount).toFixed(2)}</td>
                                                 <td className="py-3 pr-4 text-right">
-                                                  <button 
-                                                    onClick={() => handleDeleteTransaction(t.id)} 
-                                                    className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all" 
-                                                    title="Delete Transaction"
-                                                  >
-                                                    <Trash2 size={14} />
-                                                  </button>
+                                                   <div className="flex items-center justify-end gap-2">
+                                                     {t.amount > 0 && !t.is_backlog && (
+                                                       <button 
+                                                         onClick={() => {
+                                                           setSelectedInvoiceTransaction(t);
+                                                           setIsInvoiceModalOpen(true);
+                                                         }}
+                                                         className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center justify-center" 
+                                                         title="Download Invoice PDF"
+                                                       >
+                                                         <FileText size={14} />
+                                                       </button>
+                                                     )}
+                                                     <button 
+                                                       onClick={() => handleDeleteTransaction(t.id)} 
+                                                       className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex items-center justify-center" 
+                                                       title="Delete Transaction"
+                                                     >
+                                                       <Trash2 size={14} />
+                                                     </button>
+                                                   </div>
                                                 </td>
                                               </tr>
                                             ))}
@@ -3380,6 +3468,8 @@ export default function Dashboard() {
                             <div><label className="text-xs font-bold text-[#898A8D] uppercase">Name</label><input type="text" value={editClientForm.name || ''} onChange={e => setEditClientForm({...editClientForm, name: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
                             <div><label className="text-xs font-bold text-[#898A8D] uppercase">Email</label><input type="email" value={editClientForm.email || ''} onChange={e => setEditClientForm({...editClientForm, email: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
                             
+                            <div><label className="text-xs font-bold text-[#898A8D] uppercase">Billing Address</label><input type="text" value={editClientForm.address || ''} onChange={e => setEditClientForm({...editClientForm, address: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" placeholder="e.g. 123 Main St, Kuala Lumpur" /></div>
+
                             <div className="grid grid-cols-2 gap-2">
                               <div>
                                 <label className="text-xs font-bold text-[#898A8D] uppercase">Phone</label>
@@ -3441,6 +3531,7 @@ export default function Dashboard() {
                           <div className="grid grid-cols-2 gap-4 animate-in fade-in duration-300">
                             <div className="col-span-2"><p className="text-sm font-medium text-[#898A8D]">Full Name</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.name || 'N/A'}</p></div>
                             <div className="col-span-2"><p className="text-sm font-medium text-[#898A8D]">Email</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.email || 'N/A'}</p></div>
+                            <div className="col-span-2"><p className="text-sm font-medium text-[#898A8D]">Billing Address</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.address || 'N/A'}</p></div>
                             <div><p className="text-sm font-medium text-[#898A8D]">Phone</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.phone || 'N/A'}</p></div>
                             <div><p className="text-sm font-medium text-[#898A8D]">Date of Birth</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.dob || 'N/A'}</p></div>
                             <div><p className="text-sm font-medium text-[#898A8D]">Client Type</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.client_type || 'N/A'}</p></div>
@@ -4377,28 +4468,105 @@ export default function Dashboard() {
 
         {/* VIEW: SETTINGS */}
         {activePage === 'Settings' && (
-          <div className="animate-in fade-in duration-500 max-w-3xl">
-            <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-              <h3 className="font-medium text-2xl text-[#0B4550] mb-6 border-b border-gray-100 pb-4">Personal Information</h3>
-              {settingsMessage && (
-                <div className="mb-6 bg-emerald-50 text-emerald-600 p-4 rounded-xl text-base font-medium flex items-center gap-2">
-                  <Check size={20} /> {settingsMessage}
+          <div className="animate-in fade-in duration-500 max-w-4xl space-y-8">
+            {settingsMessage && (
+              <div className="bg-emerald-50 border border-emerald-100 text-emerald-600 p-5 rounded-2xl text-base font-semibold flex items-center gap-3 shadow-sm">
+                <Check size={22} className="stroke-[3px]" /> {settingsMessage}
+              </div>
+            )}
+            
+            <form onSubmit={handleSaveSettings} className="space-y-8">
+              {/* BRANDING SECTION */}
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+                <h3 className="font-bold text-2xl text-[#0B4550] mb-6 pb-3 border-b border-gray-50 flex items-center gap-2">
+                  <Award size={24} /> Gym Branding & Identity
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-6">
+                    <div>
+                      <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Full Name</label>
+                      <input type="text" value={settingsForm.full_name} onChange={(e) => setSettingsForm({...settingsForm, full_name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="Your Name" />
+                    </div>
+                    <div>
+                      <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Gym / Business Name</label>
+                      <input type="text" value={settingsForm.company_name} onChange={(e) => setSettingsForm({...settingsForm, company_name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Backyard Performance" />
+                    </div>
+                  </div>
+                  
+                  {/* LOGO IMAGE FILE UPLOADER */}
+                  <div className="flex flex-col justify-center items-center p-6 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors">
+                    {settingsForm.company_logo ? (
+                      <div className="text-center space-y-4">
+                        <div className="relative group w-32 h-32 bg-white rounded-2xl shadow-md border border-gray-100 flex items-center justify-center p-3">
+                          <img src={settingsForm.company_logo} alt="Custom Logo" className="max-w-full max-h-full object-contain rounded-lg" />
+                          <button type="button" onClick={() => setSettingsForm({...settingsForm, company_logo: ''})} className="absolute -top-3 -right-3 w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-full flex items-center justify-center shadow-sm transition-all focus:outline-none"><X size={16} /></button>
+                        </div>
+                        <p className="text-xs font-bold text-[#898A8D]">Gym Logo Active</p>
+                      </div>
+                    ) : (
+                      <label className="cursor-pointer text-center space-y-3 group focus-within:outline-none">
+                        <div className="w-16 h-16 rounded-full bg-white flex items-center justify-center text-[#898A8D] group-hover:text-[#0B4550] group-hover:scale-105 shadow-sm border border-gray-100 transition-all mx-auto"><Camera size={26} /></div>
+                        <div>
+                          <p className="text-sm font-bold text-[#0B4550]">Upload Custom Logo</p>
+                          <p className="text-xs text-[#898A8D] mt-1">PNG, JPG or SVG (Base64)</p>
+                        </div>
+                        <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
+                      </label>
+                    )}
+                  </div>
                 </div>
-              )}
-              <form onSubmit={handleSaveSettings} className="space-y-6">
-                <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Full Name</label>
-                  <input type="text" value={settingsForm.full_name} onChange={(e) => setSettingsForm({...settingsForm, full_name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-3 px-4 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="Your Name" />
+              </div>
+
+              {/* INVOICE BILL FROM DETAILS */}
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+                <h3 className="font-bold text-2xl text-[#0B4550] mb-6 pb-3 border-b border-gray-50 flex items-center gap-2">
+                  <FileText size={24} /> Company Billing Details
+                </h3>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Gym Billing Email Address</label>
+                      <input type="email" value={settingsForm.company_email} onChange={(e) => setSettingsForm({...settingsForm, company_email: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="billing@yourgym.com" />
+                    </div>
+                    <div>
+                      <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Gym Contact Phone Number</label>
+                      <input type="tel" value={settingsForm.company_phone} onChange={(e) => setSettingsForm({...settingsForm, company_phone: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="014-2279216" />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Gym Business Physical Address</label>
+                    <textarea rows="3" value={settingsForm.company_address} onChange={(e) => setSettingsForm({...settingsForm, company_address: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] resize-none" placeholder="Room 9, 6-1-1, Jalan Jalil Perkasa 14, Kuala Lumpur 57000" />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Company / Business Name</label>
-                  <input type="text" value={settingsForm.company_name} onChange={(e) => setSettingsForm({...settingsForm, company_name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-3 px-4 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. XYZ Fitness" />
+              </div>
+
+              {/* BANK PAYMENT SETTINGS */}
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
+                <h3 className="font-bold text-2xl text-[#0B4550] mb-6 pb-3 border-b border-gray-50 flex items-center gap-2">
+                  <CreditCard size={24} /> Bank Account & Payment Instructions
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div>
+                    <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Bank Name</label>
+                    <input type="text" value={settingsForm.bank_name} onChange={(e) => setSettingsForm({...settingsForm, bank_name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Maybank" />
+                  </div>
+                  <div>
+                    <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Account Name</label>
+                    <input type="text" value={settingsForm.bank_account_name} onChange={(e) => setSettingsForm({...settingsForm, bank_account_name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Backyard Coaching" />
+                  </div>
+                  <div>
+                    <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Account Number</label>
+                    <input type="text" value={settingsForm.bank_account_number} onChange={(e) => setSettingsForm({...settingsForm, bank_account_number: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. 564892482390" />
+                  </div>
                 </div>
-                <button type="submit" disabled={isSavingSettings} className="bg-[#0B4550] text-[#E6FF2B] px-8 py-4 rounded-xl font-medium text-lg flex items-center gap-3 hover:brightness-95 transition-all shadow-sm">
-                  {isSavingSettings ? <RotateCw className="animate-spin" size={24} /> : <Save size={24} />} Save Changes
+              </div>
+
+              <div className="flex justify-end">
+                <button type="submit" disabled={isSavingSettings} className="bg-[#0B4550] text-[#E6FF2B] px-10 py-5 rounded-2xl font-bold text-xl flex items-center gap-3 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-md disabled:opacity-50">
+                  {isSavingSettings ? <RotateCw className="animate-spin" size={24} /> : <Save size={24} />} Save Settings
                 </button>
-              </form>
-            </div>
+              </div>
+            </form>
           </div>
         )}
 
@@ -4443,6 +4611,183 @@ export default function Dashboard() {
             </div>
           </div>
         )}
+
+      {/* FULL-SCREEN PREMIUM INVOICE PRINT MODAL */}
+      {isInvoiceModalOpen && selectedInvoiceTransaction && (
+        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-[200] flex justify-center items-start p-4 md:p-8 overflow-y-auto no-scrollbar print:p-0 print:bg-white print:static">
+          <div className="bg-white rounded-[2.5rem] p-8 md:p-12 w-full max-w-4xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 print:shadow-none print:p-0 print:static print:rounded-none">
+            
+            {/* Action Bar (hidden when printing) */}
+            <div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-6 print:hidden">
+              <h3 className="text-2xl font-bold text-[#0B4550]">Invoice Preview</h3>
+              <div className="flex items-center gap-3">
+                <button 
+                  onClick={() => window.print()}
+                  className="bg-[#0B4550] text-[#E6FF2B] px-6 py-3 rounded-xl font-bold text-base flex items-center gap-2 hover:scale-105 transition-all shadow-md"
+                >
+                  <Download size={18} /> Print / Save PDF
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsInvoiceModalOpen(false);
+                    setSelectedInvoiceTransaction(null);
+                  }}
+                  className="w-12 h-12 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* PRINT-ONLY CSS */}
+            <style dangerouslySetInnerHTML={{__html: `
+              @media print {
+                body * {
+                  visibility: hidden;
+                }
+                #printable-invoice-area, #printable-invoice-area * {
+                  visibility: visible;
+                }
+                #printable-invoice-area {
+                  position: absolute;
+                  left: 0;
+                  top: 0;
+                  width: 100%;
+                  margin: 0;
+                  padding: 0;
+                  background: white !important;
+                  color: black !important;
+                }
+                .print\\:hidden {
+                  display: none !important;
+                }
+              }
+            `}} />
+
+            {/* PRINTABLE INVOICE AREA */}
+            <div id="printable-invoice-area" className="bg-white text-gray-800 font-sans leading-relaxed">
+              
+              {/* TOP HEADER */}
+              <div className="flex justify-between items-start mb-12">
+                <div className="space-y-4">
+                  {/* LOGO */}
+                  <div className="h-16 flex items-center">
+                    <img 
+                      src={companyLogo || newLogo} 
+                      alt={companyName} 
+                      className="max-h-16 w-auto object-contain" 
+                    />
+                  </div>
+                  <div className="text-sm font-semibold text-gray-500">
+                    <p className="text-lg font-bold text-[#0B4550]">{companyName}</p>
+                    <p className="whitespace-pre-line mt-1">{trainerProfile?.company_address || 'Address not configured'}</p>
+                    <p className="mt-1">Phone: {trainerProfile?.company_phone || 'N/A'}</p>
+                    <p>Email: {trainerProfile?.company_email || 'N/A'}</p>
+                  </div>
+                </div>
+
+                <div className="text-right">
+                  <h1 className="text-4xl font-extrabold text-[#0B4550] tracking-tight uppercase mb-4">Invoice</h1>
+                  <div className="space-y-1 text-sm font-semibold text-gray-600">
+                    <p>Invoice No: <span className="text-[#0B4550] font-bold">{selectedInvoiceTransaction.invoiceNumber}</span></p>
+                    <p>Date: {new Date(selectedInvoiceTransaction.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                    <p>Payment Term: Due on Receipt</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CLIENT BILL TO */}
+              <div className="grid grid-cols-2 gap-8 border-t border-b border-gray-100 py-8 mb-10">
+                <div>
+                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Bill To</h4>
+                  <div className="text-sm font-semibold text-gray-700">
+                    <p className="text-base font-extrabold text-[#0B4550]">{clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.name || selectedInvoiceTransaction.client_name}</p>
+                    <p className="mt-1 whitespace-pre-line">{clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.address || 'Address not configured'}</p>
+                    <p className="mt-1">Email: {clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.email || 'N/A'}</p>
+                    <p>Phone: {clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.phone || 'N/A'}</p>
+                  </div>
+                </div>
+                
+                <div className="flex flex-col justify-end items-end text-right">
+                  <div className="bg-[#F9F7F2]/50 border border-gray-100 rounded-2xl p-5 w-full max-w-[280px]">
+                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Amount Due</span>
+                    <span className="text-3xl font-black text-[#0B4550]">RM 0.00</span>
+                    <span className="text-xs text-gray-500 font-semibold block mt-1">Paid in full via {selectedInvoiceTransaction.payment_method || 'Cash'}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* DETAILS TABLE */}
+              <table className="w-full text-left border-collapse mb-10">
+                <thead>
+                  <tr className="border-b-2 border-gray-200 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                    <th className="py-3 pl-2">Item & Description</th>
+                    <th className="py-3 text-right">Qty</th>
+                    <th className="py-3 text-right">Unit Price (RM)</th>
+                    <th className="py-3 text-right pr-2">Amount (RM)</th>
+                  </tr>
+                </thead>
+                <tbody className="text-sm font-semibold text-gray-700">
+                  <tr className="border-b border-gray-100">
+                    <td className="py-5 pl-2">
+                      <p className="font-extrabold text-base text-[#0B4550]">{selectedInvoiceTransaction.description || 'Package Purchase'}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">Physical Training & Coaching Session Pack</p>
+                    </td>
+                    <td className="py-5 text-right">1</td>
+                    <td className="py-5 text-right">{Number(selectedInvoiceTransaction.amount).toFixed(2)}</td>
+                    <td className="py-5 text-right pr-2 font-bold text-gray-900">{Number(selectedInvoiceTransaction.amount).toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              {/* TOTALS SUMMARY */}
+              <div className="flex justify-end mb-12">
+                <div className="w-full max-w-sm space-y-3 font-semibold text-gray-600 text-sm">
+                  <div className="flex justify-between">
+                    <span>Subtotal</span>
+                    <span>RM {Number(selectedInvoiceTransaction.amount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Tax (0%)</span>
+                    <span>RM 0.00</span>
+                  </div>
+                  <div className="flex justify-between border-t border-gray-100 pt-3 text-base text-[#0B4550] font-extrabold">
+                    <span>Total Paid</span>
+                    <span>RM {Number(selectedInvoiceTransaction.amount).toFixed(2)}</span>
+                  </div>
+                  <div className="flex justify-between text-xs text-emerald-600 font-extrabold">
+                    <span>Balance Due</span>
+                    <span>RM 0.00</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* PAYMENT BANK DETAILS & FOOTER */}
+              <div className="border-t border-gray-100 pt-8 grid grid-cols-1 md:grid-cols-2 gap-8 text-xs font-semibold text-gray-500">
+                <div className="space-y-2">
+                  <h5 className="font-bold text-[#0B4550] uppercase tracking-wider text-xs">Payment Information</h5>
+                  <p>Thank you for choosing {companyName}. For record purposes, this payment was processed in full.</p>
+                  {trainerProfile?.bank_account_number && (
+                    <div className="bg-[#F9F7F2]/60 rounded-xl p-3 border border-gray-50 text-gray-600 space-y-0.5">
+                      <p className="font-bold text-[#0B4550]">Bank Remittance Instructions:</p>
+                      <p>Bank: <span className="font-bold">{trainerProfile.bank_name}</span></p>
+                      <p>Account Name: <span className="font-bold">{trainerProfile.bank_account_name}</span></p>
+                      <p>Account Number: <span className="font-bold">{trainerProfile.bank_account_number}</span></p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex flex-col justify-end md:items-end md:text-right space-y-1">
+                  <h5 className="font-bold text-[#0B4550] uppercase tracking-wider text-xs mb-1">Terms & Conditions</h5>
+                  <p>All packages are non-refundable and subject to coach policies.</p>
+                  <p>System Generated Invoice — No physical signature required.</p>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
 
         {/* VIEW: CLASS MODE */}
         {activePage === 'ClassMode' && (
@@ -4798,6 +5143,11 @@ export default function Dashboard() {
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Phone</label>
                   <input type="text" value={newClientData.phone} onChange={(e) => setNewClientData({...newClientData, phone: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="+1 (555) 000-0000" />
                 </div>
+              </div>
+              
+              <div>
+                <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Billing Address (for Invoices)</label>
+                <input type="text" value={newClientData.address} onChange={(e) => setNewClientData({...newClientData, address: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. 123 Main St, Apartment 4B, Kuala Lumpur" />
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-4 border-t border-gray-100">

@@ -215,6 +215,8 @@ export default function ClientDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
   const [clientData, setClientData] = useState(null);
+  const [trainerLogo, setTrainerLogo] = useState('');
+  const [trainerCompanyName, setTrainerCompanyName] = useState('TrackPoint');
 
   const [activeNav, setActiveNav] = useState('Home');
   const [isBuilderOpen, setIsBuilderOpen] = useState(false);
@@ -371,6 +373,11 @@ export default function ClientDashboard() {
             { exercise: "Deadlift", weight: "100 kg", reps: 1, date: "Mar 30" }
           ]
         });
+
+        if (profile) {
+          setTrainerLogo(profile.company_logo || '');
+          setTrainerCompanyName(profile.company_name || 'TrackPoint');
+        }
 
       } catch (err) {
         console.error("Database connection error:", err.message);
@@ -688,7 +695,7 @@ export default function ClientDashboard() {
       {/* SIDEBAR - HIDDEN ON MOBILE */}
       <aside className="hidden lg:flex w-[88px] h-full flex-col justify-between shrink-0 relative z-40">
         <div className=" h-24 flex items-center justify-center -sm border border-gray-100">
-          <img src={newLogo} alt="TP" className="h-50 w-auto" onError={(e) => e.target.style.display = 'none'} />
+          <img src={trainerLogo || newLogo} alt={trainerCompanyName} className="h-20 w-auto object-contain max-h-[80px]" onError={(e) => e.target.style.display = 'none'} />
         </div>
         <nav className="bg-white rounded-full py-6 flex flex-col items-center gap-4 shadow-sm border border-gray-100">
           <NavIcon icon={<Home size={24} />} isActive={activeNav === 'Home'} onClick={() => setActiveNav('Home')} />
