@@ -186,7 +186,7 @@ const getLiveClientStatus = (client) => {
   return 'Active';
 };
 
-export default function Dashboard() {
+export default function Dashboard({ session }) {
   const [activePage, setActivePage] = useState('Dashboard');
   const [isArchiveMode, setIsArchiveMode] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
@@ -323,7 +323,11 @@ export default function Dashboard() {
     // 1. Fetch the initial data when the page first loads
     const fetchTransactions = async () => {
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        let user = session?.user;
+        if (!user) {
+          const { data: { session: localSession } } = await supabase.auth.getSession();
+          user = localSession?.user;
+        }
         if (!user) return;
         
         const { data, error } = await supabase.from('transactions')
@@ -507,7 +511,7 @@ export default function Dashboard() {
   const todayFormattedFull = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const todayMonthDay = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
-  const [userId, setUserId] = useState('trainer_default');
+  const [userId, setUserId] = useState(session?.user?.id || 'trainer_default');
   const [showGoogleSyncModal, setShowGoogleSyncModal] = useState(false);
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1036495166418-fallbacksynthesizerdefault.apps.googleusercontent.com';
   const [gcalAccessToken, setGcalAccessToken] = useState(localStorage.getItem('gcal_access_token') || '');
@@ -1122,7 +1126,11 @@ export default function Dashboard() {
   // --- FETCH INITIAL DATA ON LOAD ---
   useEffect(() => {
     const fetchInitialData = async () => {
-      const { data: { user } } = await supabase.auth.getUser();
+      let user = session?.user;
+      if (!user) {
+        const { data: { session: localSession } } = await supabase.auth.getSession();
+        user = localSession?.user;
+      }
       if (!user) return;
       setUserId(user.id);
 
@@ -1169,7 +1177,11 @@ export default function Dashboard() {
   };
 
   const fetchSessions = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
+    let user = session?.user;
+    if (!user) {
+      const { data: { session: localSession } } = await supabase.auth.getSession();
+      user = localSession?.user;
+    }
     if (user) {
       await fetchLiveSchedule(user.id);
     }
