@@ -553,29 +553,30 @@ export default function Dashboard({ session }) {
   const todayMonthDay = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   const [userId, setUserId] = useState(session?.user?.id || 'trainer_default');
-  const [showGoogleSyncModal, setShowGoogleSyncModal] = useState(false);
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1036495166418-fallbacksynthesizerdefault.apps.googleusercontent.com';
-  const [gcalAccessToken, setGcalAccessToken] = useState(localStorage.getItem('gcal_access_token') || '');
-  const [gcalTokenExpiresAt, setGcalTokenExpiresAt] = useState(parseInt(localStorage.getItem('gcal_token_expires_at')) || 0);
   const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
   const [copiedFeedLink, setCopiedFeedLink] = useState(false);
 
   const isGcalConnected = useMemo(() => {
-    if (!gcalAccessToken) return false;
-    return Date.now() < gcalTokenExpiresAt;
-  }, [gcalAccessToken, gcalTokenExpiresAt]);
+    return !!trainerProfile?.gcal_refresh_token;
+  }, [trainerProfile?.gcal_refresh_token]);
 
-  const isGcalExpired = useMemo(() => {
-    return gcalAccessToken && Date.now() >= gcalTokenExpiresAt;
-  }, [gcalAccessToken, gcalTokenExpiresAt]);
+  const isGcalExpired = false;
 
-  const handleLinkGoogleCalendar = () => {
+  const handleLinkGoogleCalendar = async () => {
     if (isGcalConnected) {
-      setGcalAccessToken('');
-      setGcalTokenExpiresAt(0);
-      localStorage.removeItem('gcal_access_token');
-      localStorage.removeItem('gcal_token_expires_at');
-      alert("Successfully unlinked Google Calendar account.");
+      if (!window.confirm("Are you sure you want to unlink your Google Calendar account? Syncing will stop.")) return;
+      setIsLinkingGoogle(true);
+      try {
+        const { error } = await supabase.from('profiles').update({ gcal_refresh_token: null }).eq('id', userId);
+        if (error) throw error;
+        setTrainerProfile(prev => ({ ...prev, gcal_refresh_token: null }));
+        alert("Successfully unlinked Google Calendar account.");
+      } catch (err) {
+        alert("Error unlinking account: " + err.message);
+      } finally {
+        setIsLinkingGoogle(false);
+      }
       return;
     }
 
@@ -585,22 +586,37 @@ export default function Dashboard({ session }) {
         throw new Error("Google Identity Services script not loaded. Please refresh the page and try again.");
       }
 
-      const client = window.google.accounts.oauth2.initTokenClient({
+      const client = window.google.accounts.oauth2.initCodeClient({
         client_id: GOOGLE_CLIENT_ID,
         scope: 'https://www.googleapis.com/auth/calendar.events',
-        callback: (response) => {
-          setIsLinkingGoogle(false);
+        ux_mode: 'popup',
+        access_type: 'offline',
+        select_account: true,
+        callback: async (response) => {
           if (response.error) {
+            setIsLinkingGoogle(false);
             alert("Google Authentication failed: " + response.error_description);
             return;
           }
-          if (response.access_token) {
-            const expiresAt = Date.now() + (parseInt(response.expires_in) || 3600) * 1000;
-            setGcalAccessToken(response.access_token);
-            setGcalTokenExpiresAt(expiresAt);
-            localStorage.setItem('gcal_access_token', response.access_token);
-            localStorage.setItem('gcal_token_expires_at', String(expiresAt));
-            alert("Google Calendar account linked successfully! Direct, real-time synchronization is now active.");
+          if (response.code) {
+            try {
+              const exchangeRes = await fetch('/api/gcal/exchange', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code: response.code, trainer_id: userId })
+              });
+              const data = await exchangeRes.json();
+              if (data.success) {
+                setTrainerProfile(prev => ({ ...prev, gcal_refresh_token: 'active_refresh_token' }));
+                alert("Google Calendar account linked permanently! Direct, real-time background sync is now active.");
+              } else {
+                throw new Error(data.error || "Token exchange failed.");
+              }
+            } catch (err) {
+              alert("Error exchanging token with server: " + err.message);
+            } finally {
+              setIsLinkingGoogle(false);
+            }
           }
         },
         error_callback: (err) => {
@@ -609,7 +625,7 @@ export default function Dashboard({ session }) {
         }
       });
 
-      client.requestAccessToken({ prompt: 'consent' });
+      client.requestCode();
     } catch (err) {
       setIsLinkingGoogle(false);
       alert("Failed to initialize Google Authentication: " + err.message);
@@ -617,132 +633,28 @@ export default function Dashboard({ session }) {
   };
 
   const syncToGoogleCalendar = async (action, sessionData) => {
-    const accessToken = localStorage.getItem('gcal_access_token');
-    const expiresAt = parseInt(localStorage.getItem('gcal_token_expires_at')) || 0;
-    if (!accessToken || Date.now() >= expiresAt) {
-      console.warn("Google Calendar direct sync skipped: Token is missing or expired.");
+    if (!isGcalConnected) {
+      console.warn("Google Calendar direct sync skipped: Calendar is not connected.");
       return;
     }
 
     try {
-      const googleEventId = sessionData.id.replace(/-/g, '').toLowerCase();
+      const response = await fetch('/api/gcal/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action,
+          sessionData,
+          trainer_id: userId
+        })
+      });
 
-      if (action === 'DELETE') {
-        const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
-          method: 'DELETE',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`
-          }
-        });
-        if (!response.ok && response.status !== 404) {
-          throw new Error(`Google Calendar API responded with status ${response.status}`);
-        }
-        console.log("Successfully deleted event from Google Calendar.");
-        return;
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || `Sync server responded with status ${response.status}`);
       }
 
-      const parseDateTimeToISO = (dateStr, timeStr, durationStr, isEnd = false) => {
-        try {
-          const [year, month, day] = dateStr.split('-').map(Number);
-          const match = timeStr.trim().match(/^(\d+):(\d+)\s*(AM|PM)$/i);
-          let hours = 9;
-          let minutes = 0;
-          if (match) {
-            hours = Number(match[1]);
-            minutes = Number(match[2]);
-            const ampm = match[3].toUpperCase();
-            if (ampm === 'PM' && hours < 12) {
-              hours += 12;
-            } else if (ampm === 'AM' && hours === 12) {
-              hours = 0;
-            }
-          } else {
-            const parts = timeStr.split(':');
-            if (parts.length >= 2) {
-              hours = Number(parts[0]) || 9;
-              minutes = Number(parts[1].replace(/\D/g, '')) || 0;
-              if (timeStr.toLowerCase().includes('pm') && hours < 12) {
-                hours += 12;
-              } else if (timeStr.toLowerCase().includes('am') && hours === 12) {
-                hours = 0;
-              }
-            }
-          }
-
-          let dt = new Date(Date.UTC(year, month - 1, day, hours, minutes, 0));
-          dt = new Date(dt.getTime() - 8 * 60 * 60 * 1000);
-
-          if (isEnd) {
-            const durationMinutes = parseInt(durationStr) || 60;
-            dt = new Date(dt.getTime() + durationMinutes * 60 * 1000);
-          }
-
-          return dt.toISOString();
-        } catch (e) {
-          return new Date().toISOString();
-        }
-      };
-
-      const startISO = parseDateTimeToISO(sessionData.date, sessionData.time, sessionData.duration, false);
-      const endISO = parseDateTimeToISO(sessionData.date, sessionData.time, sessionData.duration, true);
-
-      const eventPayload = {
-        id: googleEventId,
-        summary: sessionData.title || 'Group Class',
-        location: sessionData.location || 'TrackPoint HQ',
-        description: `Type: ${sessionData.type || 'Group Class'}\nDuration: ${sessionData.duration || '60 min'}\nCapacity: ${sessionData.capacity || 10}`,
-        start: {
-          dateTime: startISO,
-          timeZone: 'Asia/Kuala_Lumpur'
-        },
-        end: {
-          dateTime: endISO,
-          timeZone: 'Asia/Kuala_Lumpur'
-        },
-        status: 'confirmed'
-      };
-
-      if (action === 'CREATE') {
-        const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events`, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(eventPayload)
-        });
-
-        if (!response.ok) {
-          if (response.status === 409) {
-            await syncToGoogleCalendar('UPDATE', sessionData);
-          } else {
-            const errData = await response.json();
-            throw new Error(`Google Calendar API error: ${errData.error?.message || response.statusText}`);
-          }
-        } else {
-          console.log("Successfully created event in Google Calendar.");
-        }
-      } else if (action === 'UPDATE') {
-        const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${googleEventId}`, {
-          method: 'PUT',
-          headers: {
-            'Authorization': `Bearer ${accessToken}`,
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(eventPayload)
-        });
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            await syncToGoogleCalendar('CREATE', sessionData);
-          } else {
-            const errData = await response.json();
-            throw new Error(`Google Calendar API error: ${errData.error?.message || response.statusText}`);
-          }
-        } else {
-          console.log("Successfully updated event in Google Calendar.");
-        }
-      }
+      console.log(`Successfully processed ${data.action} sync for Google Calendar event.`);
     } catch (err) {
       console.error("Failed to sync to Google Calendar: ", err);
     }

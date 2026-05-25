@@ -5,6 +5,14 @@
       "destination": "/api/feeds/schedule"
     },
     {
+      "source": "/api/gcal/exchange",
+      "destination": "/api/gcal/exchange"
+    },
+    {
+      "source": "/api/gcal/sync",
+      "destination": "/api/gcal/sync"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
