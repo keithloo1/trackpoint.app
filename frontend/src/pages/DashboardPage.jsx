@@ -553,6 +553,7 @@ export default function Dashboard({ session }) {
   const todayMonthDay = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   const [userId, setUserId] = useState(session?.user?.id || 'trainer_default');
+  const [showGoogleSyncModal, setShowGoogleSyncModal] = useState(false);
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1036495166418-fallbacksynthesizerdefault.apps.googleusercontent.com';
   const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
   const [copiedFeedLink, setCopiedFeedLink] = useState(false);
