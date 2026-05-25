@@ -3823,128 +3823,374 @@ export default function Dashboard({ session }) {
         )}
 
 {/* VIEW: FULL CALENDAR */}
-{activePage === 'Calendar' && (
-          <div className="animate-in fade-in duration-500 flex flex-col h-full">
-            <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-1">
-              <div>
-              </div>
-              <button 
-                onClick={() => setShowGoogleSyncModal(true)} 
-                className={`border-2 px-4 md:px-6 py-3 rounded-2xl font-bold flex items-center gap-3 transition-all ${
-                  isGcalConnected 
-                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
-                    : isGcalExpired
-                    ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm'
-                    : 'bg-white border-gray-100 text-[#0B4550] hover:border-[#0B4550] hover:shadow-md'
+{activePage === 'Calendar' && (() => {
+  const getDaysOfWeek = (date) => {
+    const current = new Date(date);
+    const day = current.getDay();
+    const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(current.setDate(diff));
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const next = new Date(monday);
+      next.setDate(monday.getDate() + i);
+      days.push(next);
+    }
+    return days;
+  };
+
+  const weekDays = getDaysOfWeek(currentCalendarDate);
+  const startMonth = weekDays[0].toLocaleDateString('en-US', { month: 'long' });
+  const endMonth = weekDays[6].toLocaleDateString('en-US', { month: 'long' });
+  const startYear = weekDays[0].getFullYear();
+  
+  const monthYearLabel = startMonth === endMonth 
+    ? `${startMonth} ${startYear}` 
+    : `${weekDays[0].toLocaleDateString('en-US', { month: 'short' })} – ${weekDays[6].toLocaleDateString('en-US', { month: 'short' })} ${startYear}`;
+
+  const hours = Array.from({ length: 18 }, (_, i) => i + 6); // 6 AM to 11 PM
+
+  const getSessionsForDay = (dateObj) => {
+    return sessions.filter(s => {
+      if (!s.date) return false;
+      const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
+      const sDate = new Date(yr, mo - 1, dy);
+      return sDate.getDate() === dateObj.getDate() && 
+             sDate.getMonth() === dateObj.getMonth() && 
+             sDate.getFullYear() === dateObj.getFullYear();
+    });
+  };
+
+  const parseTimeToMinutes = (timeStr) => {
+    if (!timeStr) return 540; // 9:00 AM fallback
+    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+    let hours = 9;
+    let minutes = 0;
+    if (match) {
+      hours = parseInt(match[1], 10);
+      minutes = parseInt(match[2], 10);
+      const ampm = match[3].toUpperCase();
+      if (ampm === 'PM' && hours < 12) {
+        hours += 12;
+      } else if (ampm === 'AM' && hours === 12) {
+        hours = 0;
+      }
+    } else {
+      const parts = timeStr.split(':');
+      if (parts.length >= 2) {
+        hours = parseInt(parts[0], 10) || 9;
+        minutes = parseInt(parts[1].replace(/\D/g, ''), 10) || 0;
+        if (timeStr.toLowerCase().includes('pm') && hours < 12) {
+          hours += 12;
+        } else if (timeStr.toLowerCase().includes('am') && hours === 12) {
+          hours = 0;
+        }
+      }
+    }
+    return hours * 60 + minutes;
+  };
+
+  const getSessionTheme = (s) => {
+    const title = (s.title || '').toLowerCase();
+    const type = (s.type || '').toLowerCase();
+    const isPast = isSessionPast(s);
+    
+    let colorClass = "bg-cyan-50 border-cyan-500 text-cyan-800 hover:bg-cyan-100/80";
+    if (title.includes('muay') || title.includes('thai') || title.includes('mtr') || type.includes('muay')) {
+      colorClass = "bg-rose-50 border-rose-500 text-rose-800 hover:bg-rose-100/80";
+    } else if (title.includes('group') || type.includes('group') || title.includes('class')) {
+      colorClass = "bg-teal-50 border-teal-500 text-teal-800 hover:bg-teal-100/80";
+    } else if (title.includes('pt') || title.includes('personal') || title.includes('coach') || type.includes('personal')) {
+      colorClass = "bg-indigo-50 border-indigo-500 text-indigo-800 hover:bg-indigo-100/80";
+    } else if (title.includes('open') || title.includes('gym') || title.includes('trial')) {
+      colorClass = "bg-amber-50 border-amber-500 text-amber-800 hover:bg-amber-100/80";
+    }
+    
+    return {
+      classes: `absolute left-1.5 right-1.5 rounded-xl border-l-4 p-2 shadow-sm transition-all overflow-hidden flex flex-col group cursor-pointer ${colorClass} ${isPast ? 'opacity-65' : ''}`,
+      isPast
+    };
+  };
+
+  return (
+    <div className="animate-in fade-in duration-500 flex flex-col h-full">
+      {/* Top Header Bar */}
+      <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-4">
+        <div className="flex items-center gap-4 flex-wrap">
+          <h3 className="text-2xl font-extrabold text-[#0B4550] tracking-tight">
+            {monthYearLabel}
+          </h3>
+          <button 
+            onClick={() => setCurrentCalendarDate(new Date())}
+            className="px-4 py-2 bg-[#F9F7F2] text-[#0B4550] hover:bg-gray-200 rounded-xl font-bold text-sm transition-all shadow-sm"
+          >
+            Today
+          </button>
+          <div className="flex gap-1.5">
+            <button 
+              onClick={() => {
+                const prev = new Date(currentCalendarDate);
+                prev.setDate(prev.getDate() - 7);
+                setCurrentCalendarDate(prev);
+              }} 
+              className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-all"
+            >
+              <ChevronLeft size={18}/>
+            </button>
+            <button 
+              onClick={() => {
+                const next = new Date(currentCalendarDate);
+                next.setDate(next.getDate() + 7);
+                setCurrentCalendarDate(next);
+              }} 
+              className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-all"
+            >
+              <ChevronRight size={18}/>
+            </button>
+          </div>
+        </div>
+        <button 
+          onClick={() => setShowGoogleSyncModal(true)} 
+          className={`border-2 px-4 md:px-6 py-3 rounded-2xl font-bold flex items-center gap-3 transition-all ${
+            isGcalConnected 
+              ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
+              : isGcalExpired
+              ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm'
+              : 'bg-white border-gray-100 text-[#0B4550] hover:border-[#0B4550] hover:shadow-md'
+          }`}
+        >
+          {isGcalConnected ? (
+            <>
+              <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">✓</div>
+              Google Calendar Connected
+            </>
+          ) : isGcalExpired ? (
+            <>
+              <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">⚠️</div>
+              Calendar Link Expired
+            </>
+          ) : (
+            <>
+              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">G</div>
+              Connect Google Calendar
+            </>
+          )}
+        </button>
+      </div>
+
+      {/* Main Weekly hour view card container */}
+      <div className="bg-white rounded-[2.5rem] p-4 md:p-6 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
+        
+        {/* Mobile Horizontal Day Selector (Single Day Mode selector) */}
+        <div className="flex md:hidden justify-between items-center bg-[#F9F7F2] rounded-2xl p-2 mb-4 border border-gray-100">
+          {weekDays.map((dateObj, i) => {
+            const isTodayObj = new Date().toDateString() === dateObj.toDateString();
+            const isSelectedObj = currentCalendarDate.toDateString() === dateObj.toDateString();
+            const dayInitial = ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i];
+            return (
+              <button
+                key={`mobile-day-${i}`}
+                onClick={() => setCurrentCalendarDate(dateObj)}
+                className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all ${
+                  isSelectedObj 
+                    ? 'bg-[#0B4550] text-[#E6FF2B] scale-105 shadow-md' 
+                    : isTodayObj 
+                    ? 'text-[#0B4550] border border-[#0B4550]/20' 
+                    : 'text-[#898A8D]'
                 }`}
               >
-                {isGcalConnected ? (
-                  <>
-                    <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">✓</div>
-                    Google Calendar Connected
-                  </>
-                ) : isGcalExpired ? (
-                  <>
-                    <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">⚠️</div>
-                    Calendar Link Expired
-                  </>
-                ) : (
-                  <>
-                    <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">G</div>
-                    Connect Google Calendar
-                  </>
-                )}
+                <span className="text-[10px] font-black tracking-widest mb-1 opacity-80">{dayInitial}</span>
+                <span className="text-base font-extrabold">{dateObj.getDate()}</span>
               </button>
+            );
+          })}
+        </div>
+
+        {/* Dynamic hour grid scroll container */}
+        <div className="flex-1 overflow-y-auto no-scrollbar relative max-h-[calc(100vh-270px)] border border-gray-50 rounded-[2rem]">
+          
+          {/* Header Row (Mon-Sun on desktop, single day on mobile) */}
+          <div className="sticky top-0 z-30 bg-white border-b border-gray-100 flex shadow-sm">
+            {/* Hour column spacing placeholder */}
+            <div className="w-16 shrink-0 border-r border-gray-100 bg-gray-50/50"></div>
+            
+            {/* Desktop 7 Column Day headers */}
+            <div className="hidden md:flex flex-1">
+              {weekDays.map((dateObj, i) => {
+                const isTodayObj = new Date().toDateString() === dateObj.toDateString();
+                const isSelectedObj = currentCalendarDate.toDateString() === dateObj.toDateString();
+                const dayLabel = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'][i];
+                return (
+                  <div 
+                    key={`header-day-${i}`} 
+                    onClick={() => setCurrentCalendarDate(dateObj)}
+                    className={`flex-1 text-center py-4 border-r border-gray-100 last:border-r-0 cursor-pointer hover:bg-gray-50/50 transition-colors flex flex-col items-center justify-center ${
+                      isSelectedObj ? 'bg-[#0B4550]/5' : ''
+                    }`}
+                  >
+                    <span className="text-xs font-black tracking-widest text-[#898A8D] mb-1">{dayLabel}</span>
+                    <span className={`text-base font-black w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                      isTodayObj 
+                        ? 'bg-[#0B4550] text-[#E6FF2B]' 
+                        : isSelectedObj 
+                        ? 'bg-gray-200 text-[#0B4550]' 
+                        : 'text-[#0B4550]'
+                    }`}>
+                      {dateObj.getDate()}
+                    </span>
+                  </div>
+                );
+              })}
             </div>
 
-            <div className="bg-white rounded-[2.5rem] p-5 md:p-8 shadow-sm border border-gray-100 flex-1 flex flex-col">
-              <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
-                <h3 className="text-xl font-extrabold text-[#0B4550]">
-                  {currentCalendarDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
-                </h3>
-                <div className="flex gap-2">
-                  <button 
-                    onClick={() => {
-                      const newDate = new Date(currentCalendarDate);
-                      newDate.setMonth(newDate.getMonth() - 1);
-                      setCurrentCalendarDate(newDate);
-                    }} 
-                    className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200"
-                  >
-                    <ChevronLeft size={16}/>
-                  </button>
-                  <button 
-                    onClick={() => {
-                      const newDate = new Date(currentCalendarDate);
-                      newDate.setMonth(newDate.getMonth() + 1);
-                      setCurrentCalendarDate(newDate);
-                    }} 
-                    className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200"
-                  >
-                    <ChevronRight size={16}/>
-                  </button>
-                </div>
-              </div>
+            {/* Mobile Column Day Header */}
+            <div className="flex md:hidden flex-1 text-left py-4 px-4 bg-gray-50/50 justify-between items-center">
+              <span className="text-base font-black text-[#0B4550]">
+                {currentCalendarDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+              </span>
+              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                Selected Day View
+              </span>
+            </div>
+          </div>
 
-              {/* Calendar Grid */}
-              <div className="grid grid-cols-7 gap-4 mb-4 text-center">
-                {['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'].map(day => (
-                  <div key={day} className="text-l font-bold text-[#898A8D] tracking-widest">{day}</div>
+          {/* Core scrollable weekly grid body */}
+          <div className="relative flex min-h-[1020px]">
+            
+            {/* Time Labels Column */}
+            <div className="w-16 shrink-0 border-r border-gray-100 bg-gray-50/20 flex flex-col justify-between py-1.5 relative select-none">
+              {hours.map(h => {
+                const displayHour = h === 12 ? '12 PM' : h > 12 ? `${h - 12} PM` : `${h} AM`;
+                return (
+                  <div 
+                    key={`hour-label-${h}`} 
+                    className="h-[60px] text-[10px] font-black text-[#898A8D] pr-3 text-right flex items-start justify-end"
+                    style={{ transform: 'translateY(-6px)' }}
+                  >
+                    {displayHour}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Day columns layers (where hourly rows + absolute sessions sit) */}
+            <div className="flex-1 flex relative">
+              
+              {/* background horizontal hour row lines (drawn once, overlaying the background) */}
+              <div className="absolute inset-0 pointer-events-none flex flex-col z-0">
+                {hours.map(h => (
+                  <div key={`grid-row-${h}`} className="h-[60px] border-b border-gray-100/80 last:border-b-0 w-full"></div>
                 ))}
               </div>
-              
-              <div className="grid grid-cols-7 gap-4 flex-1">
-                {getCalendarDays(currentCalendarDate).map((dayObj, i) => {
-                  if (dayObj.isPlaceholder) {
-                    return <div key={`placeholder-${i}`} className="bg-gray-50/50 rounded-2xl p-3 min-h-[100px] border border-transparent"></div>;
-                  }
-                  
-                  const day = dayObj.day;
-                  const dateObj = dayObj.date;
-                  
-                  // Find sessions for this specific day to plot on the calendar
-                  const daySessions = sessions.filter(s => {
-                    if (!s.date) return false;
-                    const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
-                    const sDate = new Date(yr, mo - 1, dy);
-                    return sDate.getDate() === day && 
-                           sDate.getMonth() === dateObj.getMonth() && 
-                           sDate.getFullYear() === dateObj.getFullYear();
-                  }).sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
-                  
-                  const isToday = new Date().toDateString() === dateObj.toDateString();
-                  
+
+              {/* Desktop view: 7 separate columns overlay */}
+              <div className="hidden md:flex flex-1 relative z-10">
+                {weekDays.map((dateObj, colIdx) => {
+                  const daySessions = getSessionsForDay(dateObj);
                   return (
                     <div 
-                      key={`day-${day}`} 
-                      onClick={() => {
-                        setSelectedScheduleDate(dateObj);
-                        setCurrentCalendarDate(dateObj);
-                        setActivePage('Schedule');
-                      }}
-                      className="border border-gray-100 rounded-2xl p-3 min-h-[100px] hover:border-[#0B4550] transition-colors group cursor-pointer flex flex-col"
+                      key={`col-day-${colIdx}`} 
+                      className="flex-1 border-r border-gray-100 last:border-r-0 relative h-[1020px] hover:bg-gray-50/20 transition-colors"
                     >
-                      <span className={`text-l font-extrabold mb-2 ${isToday ? 'bg-[#0B4550] text-[#E6FF2B] w-7 h-7 rounded-full flex items-center justify-center' : 'text-[#0B4550]'}`}>
-                        {day}
-                      </span>
-                      <div className="flex-1 flex flex-col gap-1 overflow-y-auto no-scrollbar">
-                        {daySessions.map(s => {
-                          const coachName = s.location && s.location.includes(' | Coach: ') ? s.location.split(' | Coach: ')[1] : '';
-                          const isPast = isSessionPast(s);
-                          return (
-                            <div key={s.id} className={`bg-[#F9F7F2] text-[#0B4550] text-[15px] font-bold px-2 py-1.5 rounded-lg truncate group-hover:bg-[#E6FF2B] transition-colors ${isPast ? 'line-through opacity-50' : ''}`} title={coachName ? `${s.title} (Coach: ${coachName})` : s.title}>
-                              {s.time} - {s.title}
-                            </div>
-                          );
-                        })}
-                      </div>
+                      {daySessions.map(s => {
+                        const startMins = parseTimeToMinutes(s.time);
+                        const top = startMins - (6 * 60); // minutes from 6 AM
+                        const duration = parseInt(s.duration, 10) || 60;
+                        const theme = getSessionTheme(s);
+                        
+                        return (
+                          <div
+                            key={s.id}
+                            style={{ 
+                              top: `${top}px`, 
+                              height: `${duration}px`,
+                              minHeight: '38px' 
+                            }}
+                            className={theme.classes}
+                            onClick={() => {
+                              const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
+                              const sessionDate = new Date(yr, mo - 1, dy);
+                              setSelectedScheduleDate(sessionDate);
+                              setSelectedSession(s);
+                              setActivePage('Schedule');
+                            }}
+                          >
+                            <span className={`text-[12px] font-black tracking-tight leading-none mb-1 truncate ${theme.isPast ? 'line-through opacity-70' : ''}`}>
+                              {s.title}
+                            </span>
+                            <span className="text-[9px] font-bold tracking-tight opacity-75 truncate">
+                              {s.time} ({s.duration || '60m'})
+                            </span>
+                            {duration > 45 && s.location && (
+                              <span className="text-[9px] font-bold opacity-60 truncate mt-0.5">
+                                📍 {s.location.split(' | Coach: ')[0]}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
               </div>
+
+              {/* Mobile view: exactly 1 day column container overlay */}
+              <div className="flex md:hidden flex-1 relative z-10">
+                {(() => {
+                  const daySessions = getSessionsForDay(currentCalendarDate);
+                  return (
+                    <div className="flex-1 relative h-[1020px]">
+                      {daySessions.map(s => {
+                        const startMins = parseTimeToMinutes(s.time);
+                        const top = startMins - (6 * 60); // minutes from 6 AM
+                        const duration = parseInt(s.duration, 10) || 60;
+                        const theme = getSessionTheme(s);
+                        
+                        return (
+                          <div
+                            key={s.id}
+                            style={{ 
+                              top: `${top}px`, 
+                              height: `${duration}px`,
+                              minHeight: '38px' 
+                            }}
+                            className={theme.classes}
+                            onClick={() => {
+                              const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
+                              const sessionDate = new Date(yr, mo - 1, dy);
+                              setSelectedScheduleDate(sessionDate);
+                              setSelectedSession(s);
+                              setActivePage('Schedule');
+                            }}
+                          >
+                            <span className={`text-[12px] font-black tracking-tight leading-none mb-1 truncate ${theme.isPast ? 'line-through opacity-70' : ''}`}>
+                              {s.title}
+                            </span>
+                            <span className="text-[10px] font-bold tracking-tight opacity-75 truncate">
+                              {s.time} ({s.duration || '60m'})
+                            </span>
+                            {duration > 45 && s.location && (
+                              <span className="text-[9px] font-bold opacity-60 truncate mt-0.5">
+                                📍 {s.location.split(' | Coach: ')[0]}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
+              </div>
+
             </div>
+
           </div>
-        )}
+
+        </div>
+
+      </div>
+    </div>
+  );
+})()}
 
         {/* VIEW: SCHEDULE (NOW LIVE!) */}
         {activePage === 'Schedule' && (
