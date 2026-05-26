@@ -133,7 +133,8 @@ const parseNotesAndMetadata = (rawNotes) => {
   if (!rawNotes) return { 
     notes: '', 
     trialMeta: { checklist: [false, false, false, false], status: 'Pending' },
-    sessionNotes: {} 
+    sessionNotes: {},
+    address: ''
   };
   
   // Split session notes first
@@ -148,7 +149,15 @@ const parseNotesAndMetadata = (rawNotes) => {
     }
   }
 
-  const parts = mainNotesAndTrial.split('---TRIAL_META---');
+  // Split address metadata
+  const addressParts = mainNotesAndTrial.split('---ADDRESS_META---');
+  const mainNotesAndTrialWithoutAddress = addressParts[0].trim();
+  let address = '';
+  if (addressParts[1]) {
+    address = addressParts[1].trim();
+  }
+
+  const parts = mainNotesAndTrialWithoutAddress.split('---TRIAL_META---');
   const notes = parts[0].trim();
   let trialMeta = { checklist: [false, false, false, false], status: 'Pending' };
   if (parts[1]) {
@@ -158,13 +167,14 @@ const parseNotesAndMetadata = (rawNotes) => {
       console.error("Error parsing trial metadata: ", e);
     }
   }
-  return { notes, trialMeta, sessionNotes };
+  return { notes, trialMeta, sessionNotes, address };
 };
 
-const serializeNotesAndMetadata = (notes, trialMeta, sessionNotes = {}) => {
+const serializeNotesAndMetadata = (notes, trialMeta, sessionNotes = {}, address = '') => {
   let result = `${notes.trim()}`;
   result += `\n\n---TRIAL_META---\n${JSON.stringify(trialMeta)}`;
   result += `\n\n---SESSION_NOTES---\n${JSON.stringify(sessionNotes)}`;
+  result += `\n\n---ADDRESS_META---\n${address.trim()}`;
   return result;
 };
 
@@ -275,6 +285,11 @@ export default function Dashboard({ session }) {
   const [showUndoPinModal, setShowUndoPinModal] = useState(false);
   const [classSearchQuery, setClassSearchQuery] = useState('');
   
+  // --- ATTENDANCE SUMMARY MODAL STATES ---
+  const [showAttendanceSummaryModal, setShowAttendanceSummaryModal] = useState(false);
+  const [attendanceSummaryList, setAttendanceSummaryList] = useState([]);
+  const [isSavingAttendanceSummary, setIsSavingAttendanceSummary] = useState(false);
+  
   // --- AI COPILOT STATES ---
   const [showAICopilot, setShowAICopilot] = useState(false);
   const [aiChatHistory, setAiChatHistory] = useState([
@@ -359,6 +374,33 @@ export default function Dashboard({ session }) {
   const [clients, setClients] = useState([]);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
 
+  // --- SCHEDULE CONFIGURATION STATES & HELPERS ---
+  const [scheduleSettings, setScheduleSettings] = useState({
+    coaches: ["Coach Keith", "Coach John", "Coach Sarah"],
+    locations: ["Main Ring", "Studio A", "Gym Floor"],
+    classes: [
+      { name: "Muay Thai Class", credits: 1 },
+      { name: "PT Session", credits: 2 },
+      { name: "Group Class", credits: 1 },
+      { name: "Open Gym", credits: 1 }
+    ]
+  });
+  const [settingsClientId, setSettingsClientId] = useState(null);
+
+  const mapClientWithAddress = (c) => {
+    const parsed = parseNotesAndMetadata(c.notes);
+    return {
+      ...c,
+      address: parsed.address || ''
+    };
+  };
+
+  const getClassCreditCost = (title) => {
+    if (!title) return 1;
+    const match = scheduleSettings.classes.find(cls => cls.name.toLowerCase() === title.toLowerCase());
+    return match ? parseInt(match.credits) || 1 : 1;
+  };
+
   // --- State for Revenue Tab ---
   useEffect(() => {
     // 1. Fetch the initial data when the page first loads
@@ -424,6 +466,12 @@ export default function Dashboard({ session }) {
   });
   const [isSavingSettings, setIsSavingSettings] = useState(false);
   const [settingsMessage, setSettingsMessage] = useState(null);
+
+  // States for Scheduling Settings CRUD in Settings Page
+  const [newCoachName, setNewCoachName] = useState('');
+  const [newLocationName, setNewLocationName] = useState('');
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassCredits, setNewClassCredits] = useState(1);
 
   // State for Client Management
   const [selectedClient, setSelectedClient] = useState(null);
@@ -1119,15 +1167,76 @@ export default function Dashboard({ session }) {
       // Fetch Clients
       setIsLoadingClients(true);
       const { data: clientData } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
-      if (clientData) setClients(clientData);
+      if (clientData) {
+        await loadSystemSettings(clientData);
+        const normalClients = clientData.filter(c => c.email !== 'system_settings@trackpoint.app');
+        setClients(normalClients.map(mapClientWithAddress));
+      }
       setIsLoadingClients(false);
     };
     fetchInitialData();
   }, []);
 
+  const loadSystemSettings = async (allClients) => {
+    const settingsClient = allClients.find(c => c.email === 'system_settings@trackpoint.app');
+    if (settingsClient) {
+      setSettingsClientId(settingsClient.id);
+      if (settingsClient.notes) {
+        try {
+          const parsed = JSON.parse(settingsClient.notes);
+          if (parsed.coaches && parsed.locations && parsed.classes) {
+            setScheduleSettings(parsed);
+          }
+        } catch (e) {
+          console.error("Error parsing system settings:", e);
+        }
+      }
+    } else {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        
+        const defaultSettings = {
+          coaches: ["Coach Keith", "Coach John", "Coach Sarah"],
+          locations: ["Main Ring", "Studio A", "Gym Floor"],
+          classes: [
+            { name: "Muay Thai Class", credits: 1 },
+            { name: "PT Session", credits: 2 },
+            { name: "Group Class", credits: 1 },
+            { name: "Open Gym", credits: 1 }
+          ]
+        };
+
+        const { data, error } = await supabase.from('clients').insert([{
+          trainer_id: user.id,
+          name: "__SYSTEM_SETTINGS__",
+          email: "system_settings@trackpoint.app",
+          phone: "00000000",
+          notes: JSON.stringify(defaultSettings),
+          package: "System",
+          status: "Active",
+          initial_package: 0,
+          remaining_package: 0,
+          used_sessions: 0,
+          unlimited: true
+        }]).select('*');
+        
+        if (data && data[0]) {
+          setSettingsClientId(data[0].id);
+        }
+      } catch (err) {
+        console.error("Error initializing system settings:", err);
+      }
+    }
+  };
+
   const fetchClients = async () => {
     const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
-    if (data) setClients(data);
+    if (data) {
+      await loadSystemSettings(data);
+      const normalClients = data.filter(c => c.email !== 'system_settings@trackpoint.app');
+      setClients(normalClients.map(mapClientWithAddress));
+    }
   };
 
   const fetchSessions = async () => {
@@ -1342,6 +1451,59 @@ export default function Dashboard({ session }) {
     reader.readAsDataURL(file);
   };
 
+  // --- SCHEDULING SETTINGS CRUD HANDLERS ---
+  const handleAddCoachSetting = () => {
+    if (!newCoachName.trim()) return;
+    if (scheduleSettings.coaches.includes(newCoachName.trim())) return;
+    setScheduleSettings(prev => ({
+      ...prev,
+      coaches: [...prev.coaches, newCoachName.trim()]
+    }));
+    setNewCoachName('');
+  };
+
+  const handleRemoveCoachSetting = (coach) => {
+    setScheduleSettings(prev => ({
+      ...prev,
+      coaches: prev.coaches.filter(c => c !== coach)
+    }));
+  };
+
+  const handleAddLocationSetting = () => {
+    if (!newLocationName.trim()) return;
+    if (scheduleSettings.locations.includes(newLocationName.trim())) return;
+    setScheduleSettings(prev => ({
+      ...prev,
+      locations: [...prev.locations, newLocationName.trim()]
+    }));
+    setNewLocationName('');
+  };
+
+  const handleRemoveLocationSetting = (loc) => {
+    setScheduleSettings(prev => ({
+      ...prev,
+      locations: prev.locations.filter(l => l !== loc)
+    }));
+  };
+
+  const handleAddClassSetting = () => {
+    if (!newClassName.trim()) return;
+    if (scheduleSettings.classes.some(c => c.name.toLowerCase() === newClassName.trim().toLowerCase())) return;
+    setScheduleSettings(prev => ({
+      ...prev,
+      classes: [...prev.classes, { name: newClassName.trim(), credits: parseInt(newClassCredits) || 1 }]
+    }));
+    setNewClassName('');
+    setNewClassCredits(1);
+  };
+
+  const handleRemoveClassSetting = (className) => {
+    setScheduleSettings(prev => ({
+      ...prev,
+      classes: prev.classes.filter(c => c.name !== className)
+    }));
+  };
+
   const handleSaveSettings = async (e) => {
     e.preventDefault();
     setIsSavingSettings(true);
@@ -1366,6 +1528,16 @@ export default function Dashboard({ session }) {
         .eq('id', user.id);
         
       if (error) throw error;
+
+      // Sync the schedule settings to Supabase
+      if (settingsClientId) {
+        const serialized = serializeNotesAndMetadata('', { checklist: [], status: 'Settings' }, scheduleSettings);
+        const { error: settingsErr } = await supabase
+          .from('clients')
+          .update({ notes: serialized })
+          .eq('id', settingsClientId);
+        if (settingsErr) console.error("Error updating system settings client:", settingsErr);
+      }
       
       setTrainerName(settingsForm.full_name);
       setCompanyName(settingsForm.company_name);
@@ -1389,6 +1561,10 @@ export default function Dashboard({ session }) {
     setIsAddingClient(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
+      
+      const clientAddress = newClientData.address || '';
+      const notesWithAddress = serializeNotesAndMetadata('', { checklist: [false, false, false, false], status: 'Pending' }, {}, clientAddress);
+
       const { error } = await supabase
         .from('clients')
         .insert([{
@@ -1397,7 +1573,7 @@ export default function Dashboard({ session }) {
             email: newClientData.email,
             phone: newClientData.phone,
             dob: newClientData.dob || null,
-            address: newClientData.address || null,
+            notes: notesWithAddress,
             package: newClientData.package,
             expiry: newClientData.expiry_date || null,
             unlimited: newClientData.unlimited,
@@ -2099,6 +2275,14 @@ export default function Dashboard({ session }) {
       if (sanitizedForm.expiry === '') sanitizedForm.expiry = null;
       if (sanitizedForm.date_paid === '') sanitizedForm.date_paid = null;
 
+      // Extract address and serialize it to the notes field
+      const clientAddress = sanitizedForm.address || '';
+      delete sanitizedForm.address; // Prevent PostgREST column missing error
+
+      const parsedNotes = parseNotesAndMetadata(selectedClient.notes);
+      const updatedNotes = serializeNotesAndMetadata(parsedNotes.notes, parsedNotes.trialMeta, parsedNotes.sessionNotes, clientAddress);
+      sanitizedForm.notes = updatedNotes;
+
       const { error } = await supabase.from('clients').update(sanitizedForm).eq('id', selectedClient.id);
       if (error) throw error;
       
@@ -2115,7 +2299,7 @@ export default function Dashboard({ session }) {
       }
 
       // Instantly update the UI without reloading
-      const updatedClient = { ...selectedClient, ...sanitizedForm };
+      const updatedClient = { ...selectedClient, ...sanitizedForm, address: clientAddress };
       setSelectedClient(updatedClient);
       setClients(clients.map(c => c.id === selectedClient.id ? updatedClient : c));
       setIsEditingClient(false);
@@ -2201,8 +2385,9 @@ export default function Dashboard({ session }) {
 
       let updatedClient = { ...client };
       if (!client.unlimited) {
-        const newRemaining = Math.max(0, (client.remaining_package || 0) - 1);
-        const newUsed = (client.used_sessions || 0) + 1;
+        const creditCost = getClassCreditCost(selectedSession.title);
+        const newRemaining = Math.max(0, (client.remaining_package || 0) - creditCost);
+        const newUsed = (client.used_sessions || 0) + creditCost;
         
         const { error: clientErr } = await supabase.from('clients')
           .update({ remaining_package: newRemaining, used_sessions: newUsed })
@@ -2250,8 +2435,9 @@ export default function Dashboard({ session }) {
 
       const client = clients.find(c => c.id === clientId);
       if (client && !client.unlimited) {
-        const newRemaining = (client.remaining_package || 0) + 1;
-        const newUsed = Math.max(0, (client.used_sessions || 0) - 1);
+        const creditCost = getClassCreditCost(selectedSession.title);
+        const newRemaining = (client.remaining_package || 0) + creditCost;
+        const newUsed = Math.max(0, (client.used_sessions || 0) - creditCost);
 
         const { error: clientErr } = await supabase.from('clients')
           .update({ remaining_package: newRemaining, used_sessions: newUsed })
@@ -2315,8 +2501,9 @@ export default function Dashboard({ session }) {
 
         // Deduct session if not unlimited
         if (!client.unlimited) {
-          const newRemaining = Math.max(0, (client.remaining_package || 0) - 1);
-          const newUsed = (client.used_sessions || 0) + 1;
+          const creditCost = getClassCreditCost(selectedSession.title);
+          const newRemaining = Math.max(0, (client.remaining_package || 0) - creditCost);
+          const newUsed = (client.used_sessions || 0) + creditCost;
 
           const { error: clientErr } = await supabase.from('clients')
             .update({ remaining_package: newRemaining, used_sessions: newUsed })
@@ -2534,6 +2721,93 @@ export default function Dashboard({ session }) {
     if (packageSortBy === 'price_high') return b.price - a.price;
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
+
+  // --- ATTENDANCE SUMMARY MODAL HANDLERS ---
+  const handleOpenAttendanceSummaryModal = () => {
+    if (!selectedSession) return;
+    
+    const summaryList = (selectedSession.attendees || []).map(attendee => {
+      const client = clients.find(c => c.id === attendee.client_id);
+      return {
+        booking_id: attendee.booking_id,
+        client_id: attendee.client_id,
+        name: attendee.name || attendee.client_name || 'Client',
+        status: attendee.status || 'Booked',
+        package: client?.package || 'No Package',
+        remaining_package: client ? parseInt(client.remaining_package) || 0 : 0,
+        expiry: client?.expiry || '',
+        unlimited: client?.unlimited || false
+      };
+    });
+    
+    setAttendanceSummaryList(summaryList);
+    setShowAttendanceSummaryModal(true);
+  };
+
+  const handleSaveAttendanceSummary = async () => {
+    setIsSavingAttendanceSummary(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      // Perform batch updates
+      for (const item of attendanceSummaryList) {
+        // Update booking status
+        await supabase.from('bookings').update({ status: item.status }).eq('id', item.booking_id);
+        
+        // Find existing client to check if remaining credits changed
+        const existingClient = clients.find(c => c.id === item.client_id);
+        if (existingClient) {
+          const creditsChanged = existingClient.remaining_package !== item.remaining_package || existingClient.expiry !== item.expiry;
+          
+          await supabase.from('clients').update({
+            remaining_package: item.remaining_package,
+            expiry: item.expiry || null
+          }).eq('id', item.client_id);
+
+          // Log transaction if they were marked as Attended or credits were amended
+          if (item.status === 'Attended' || creditsChanged) {
+            let desc = `Roster Attendance confirmed for ${selectedSession.title}`;
+            if (creditsChanged) {
+              desc += ` (Amended balance: ${item.remaining_package} credits)`;
+            }
+            await supabase.from('transactions').insert([{
+              trainer_id: user?.id,
+              client_name: item.client_id,
+              amount: 0,
+              description: desc,
+              is_backlog: true,
+              created_at: new Date().toISOString()
+            }]);
+          }
+        }
+      }
+      
+      // Sync local state
+      await fetchClients();
+      
+      // Update selectedSession's attendees inside the session state
+      const updatedAttendees = selectedSession.attendees.map(a => {
+        const match = attendanceSummaryList.find(item => item.booking_id === a.booking_id);
+        return match ? { ...a, status: match.status } : a;
+      });
+
+      const updatedSessions = sessions.map(s => {
+        if (s.id === selectedSession.id) {
+          return { ...s, attendees: updatedAttendees };
+        }
+        return s;
+      });
+      setSessions(updatedSessions);
+      setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
+      
+      setShowAttendanceSummaryModal(false);
+      alert("Attendance and credit adjustments confirmed successfully!");
+    } catch (err) {
+      alert("Error confirming attendance summary: " + err.message);
+    } finally {
+      setIsSavingAttendanceSummary(false);
+    }
+  };
 
   // --- CLASS MODE HANDLERS ---
   const handleConfirmClassCheckIn = async () => {
@@ -4453,29 +4727,38 @@ export default function Dashboard({ session }) {
                              <p className="text-lg font-medium text-[#898A8D]">No bookings yet.</p>
                           </div>
                         ) : (
-                          <div className="space-y-3 mb-8">
-                            {selectedSession.attendees.map((attendee) => (
-                              <div key={attendee.booking_id} className="flex items-center gap-4 p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-[#0B4550] transition-colors">
-                                <div className="w-12 h-12 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-lg font-medium">
-                                  {getInitials(attendee.name)}
+                          <>
+                            <div className="space-y-3 mb-4">
+                              {selectedSession.attendees.map((attendee) => (
+                                <div key={attendee.booking_id} className="flex items-center gap-4 p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-[#0B4550] transition-colors">
+                                  <div className="w-12 h-12 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-lg font-medium">
+                                    {getInitials(attendee.name)}
+                                  </div>
+                                  <div className="flex-1">
+                                    <span className="text-lg font-medium text-[#0B4550] block">{attendee.name}</span>
+                                    <span className={`text-xs font-medium uppercase tracking-widest ${attendee.status === 'Attended' ? 'text-emerald-500' : 'text-[#898A8D]'}`}>
+                                      {attendee.status}
+                                    </span>
+                                  </div>
+                                  {/* ATTENDANCE TOGGLE */}
+                                  <button onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} className={`p-3 rounded-xl transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm border border-gray-200'}`} title="Toggle Attendance">
+                                    <CheckSquare size={24} />
+                                  </button>
+                                  {/* REMOVE FROM ROSTER */}
+                                  <button onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} className="p-3 rounded-xl bg-white text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors shadow-sm border border-gray-200" title="Remove from roster">
+                                    <Trash2 size={24} />
+                                  </button>
                                 </div>
-                                <div className="flex-1">
-                                  <span className="text-lg font-medium text-[#0B4550] block">{attendee.name}</span>
-                                  <span className={`text-xs font-medium uppercase tracking-widest ${attendee.status === 'Attended' ? 'text-emerald-500' : 'text-[#898A8D]'}`}>
-                                    {attendee.status}
-                                  </span>
-                                </div>
-                                {/* ATTENDANCE TOGGLE */}
-                                <button onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} className={`p-3 rounded-xl transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm border border-gray-200'}`} title="Toggle Attendance">
-                                  <CheckSquare size={24} />
-                                </button>
-                                {/* REMOVE FROM ROSTER */}
-                                <button onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} className="p-3 rounded-xl bg-white text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors shadow-sm border border-gray-200" title="Remove from roster">
-                                  <Trash2 size={24} />
-                                </button>
-                              </div>
-                            ))}
-                          </div>
+                              ))}
+                            </div>
+                            <button 
+                              onClick={handleOpenAttendanceSummaryModal} 
+                              className="w-full py-4 rounded-2xl bg-[#10B981] hover:bg-[#059669] text-white font-extrabold transition-all flex items-center justify-center gap-2 shadow-md mb-6 hover:shadow-lg active:scale-95 duration-200"
+                              title="Review and Finalize Attendance and Credits"
+                            >
+                              <CheckSquare size={20} /> Review & Confirm Attendance
+                            </button>
+                          </>
                         )}
                       </>
                     ) : (
@@ -4767,6 +5050,151 @@ export default function Dashboard({ session }) {
                   <div>
                     <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Gym Business Physical Address</label>
                     <textarea rows="3" value={settingsForm.company_address} onChange={(e) => setSettingsForm({...settingsForm, company_address: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] resize-none" placeholder="Room 9, 6-1-1, Jalan Jalil Perkasa 14, Kuala Lumpur 57000" />
+                  </div>
+                </div>
+              </div>
+
+              {/* SCHEDULING OPTIONS & CREDIT RULES */}
+              <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 space-y-8">
+                <h3 className="font-bold text-2xl text-[#0B4550] mb-2 pb-3 border-b border-gray-50 flex items-center gap-2">
+                  <Calendar size={24} /> Scheduling & Attendance Rules
+                </h3>
+                <p className="text-[#898A8D] font-medium text-sm -mt-4 mb-4">
+                  Configure active coaches, gym locations, and set custom package credit rates per class type.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  {/* Left Column: Coaches & Locations */}
+                  <div className="space-y-6">
+                    {/* Coaches CRUD */}
+                    <div className="bg-[#F9F7F2]/60 rounded-2xl p-5 border border-gray-100">
+                      <h4 className="font-extrabold text-lg text-[#0B4550] mb-4 flex items-center justify-between">
+                        <span>Coaches / Trainers</span>
+                        <span className="text-xs bg-[#0B4550] text-[#E6FF2B] px-2 py-0.5 rounded-full">{scheduleSettings.coaches.length}</span>
+                      </h4>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {scheduleSettings.coaches.map(coach => (
+                          <span key={coach} className="inline-flex items-center gap-1 bg-white text-[#0B4550] font-bold text-xs px-3 py-1.5 rounded-full border border-gray-100 hover:border-red-200 hover:text-red-500 transition-all cursor-pointer group" onClick={() => handleRemoveCoachSetting(coach)}>
+                            {coach}
+                            <X size={12} className="text-gray-400 group-hover:text-red-500" />
+                          </span>
+                        ))}
+                        {scheduleSettings.coaches.length === 0 && (
+                          <span className="text-xs text-[#898A8D] italic font-semibold">No coaches added yet.</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newCoachName}
+                          onChange={(e) => setNewCoachName(e.target.value)}
+                          placeholder="e.g. Keith"
+                          className="flex-1 bg-white border border-gray-100 rounded-xl px-3 py-2 text-sm font-semibold text-[#0B4550] outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddCoachSetting}
+                          className="bg-[#0B4550] text-[#E6FF2B] px-4 py-2 rounded-xl text-xs font-black hover:scale-[1.03] active:scale-[0.97] transition-all shadow-sm"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Locations CRUD */}
+                    <div className="bg-[#F9F7F2]/60 rounded-2xl p-5 border border-gray-100">
+                      <h4 className="font-extrabold text-lg text-[#0B4550] mb-4 flex items-center justify-between">
+                        <span>Locations / Rooms</span>
+                        <span className="text-xs bg-[#0B4550] text-[#E6FF2B] px-2 py-0.5 rounded-full">{scheduleSettings.locations.length}</span>
+                      </h4>
+                      <div className="flex flex-wrap gap-2 mb-4">
+                        {scheduleSettings.locations.map(loc => (
+                          <span key={loc} className="inline-flex items-center gap-1 bg-white text-[#0B4550] font-bold text-xs px-3 py-1.5 rounded-full border border-gray-100 hover:border-red-200 hover:text-red-500 transition-all cursor-pointer group" onClick={() => handleRemoveLocationSetting(loc)}>
+                            {loc}
+                            <X size={12} className="text-gray-400 group-hover:text-red-500" />
+                          </span>
+                        ))}
+                        {scheduleSettings.locations.length === 0 && (
+                          <span className="text-xs text-[#898A8D] italic font-semibold">No locations added yet.</span>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        <input
+                          type="text"
+                          value={newLocationName}
+                          onChange={(e) => setNewLocationName(e.target.value)}
+                          placeholder="e.g. Main Floor"
+                          className="flex-1 bg-white border border-gray-100 rounded-xl px-3 py-2 text-sm font-semibold text-[#0B4550] outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={handleAddLocationSetting}
+                          className="bg-[#0B4550] text-[#E6FF2B] px-4 py-2 rounded-xl text-xs font-black hover:scale-[1.03] active:scale-[0.97] transition-all shadow-sm"
+                        >
+                          Add
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Right Column: Class rules / credit mappings */}
+                  <div className="space-y-6">
+                    <div className="bg-[#F9F7F2]/60 rounded-2xl p-5 border border-gray-100 flex flex-col h-full">
+                      <h4 className="font-extrabold text-lg text-[#0B4550] mb-4 flex items-center justify-between">
+                        <span>Class Credit Rates</span>
+                        <span className="text-xs bg-[#0B4550] text-[#E6FF2B] px-2 py-0.5 rounded-full">{scheduleSettings.classes.length} Rules</span>
+                      </h4>
+                      <div className="space-y-2 mb-4 flex-1 overflow-y-auto max-h-[160px] pr-1 scrollbar-thin">
+                        {scheduleSettings.classes.map(cls => (
+                          <div key={cls.name} className="bg-white border border-gray-100 p-2 px-3 rounded-xl flex items-center justify-between gap-3 shadow-sm">
+                            <span className="font-bold text-sm text-[#0B4550] truncate">{cls.name}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-1 rounded-lg">
+                                {cls.credits} {cls.credits === 1 ? 'credit' : 'credits'}
+                              </span>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveClassSetting(cls.name)}
+                                className="text-gray-400 hover:text-red-500 transition-colors"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                        {scheduleSettings.classes.length === 0 && (
+                          <span className="text-xs text-[#898A8D] italic font-semibold block py-4 text-center">No class rules set yet.</span>
+                        )}
+                      </div>
+                      <div className="space-y-2 border-t border-gray-100 pt-3">
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={newClassName}
+                            onChange={(e) => setNewClassName(e.target.value)}
+                            placeholder="e.g. Muay Thai Class"
+                            className="flex-[2] bg-white border border-gray-100 rounded-xl px-3 py-2 text-xs font-semibold text-[#0B4550] outline-none"
+                          />
+                          <div className="flex-1 flex items-center gap-1 bg-white border border-gray-100 rounded-xl px-2 py-1.5 justify-center">
+                            <label className="text-[10px] font-black text-gray-400">CREDITS</label>
+                            <input
+                              type="number"
+                              min="1"
+                              value={newClassCredits}
+                              onChange={(e) => setNewClassCredits(Math.max(1, parseInt(e.target.value) || 1))}
+                              className="w-8 text-center text-xs font-black text-[#0B4550] bg-transparent outline-none"
+                            />
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={handleAddClassSetting}
+                          className="w-full bg-[#0B4550] text-[#E6FF2B] py-2 rounded-xl text-xs font-black hover:scale-[1.01] active:scale-[0.99] transition-all shadow-sm flex items-center justify-center gap-1"
+                        >
+                          <Plus size={14} /> Add Class Rule
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -5473,8 +5901,17 @@ export default function Dashboard({ session }) {
             <form onSubmit={handleAddEvent} className="space-y-6">
               
               <div>
-                <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Event Title</label>
-                <input type="text" required value={newEventData.title} onChange={(e) => setNewEventData({...newEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Morning HIIT Bootcamp" />
+                <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Event Title / Class</label>
+                {newEventData.type === 'Blocked' ? (
+                  <input type="text" required value={newEventData.title} onChange={(e) => setNewEventData({...newEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Blocked Time" />
+                ) : (
+                  <select required value={newEventData.title} onChange={(e) => setNewEventData({...newEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                    <option value="">-- Select Class Offered --</option>
+                    {scheduleSettings.classes.map(cls => (
+                      <option key={cls.name} value={cls.name}>{cls.name} ({cls.credits} {cls.credits === 1 ? 'credit' : 'credits'})</option>
+                    ))}
+                  </select>
+                )}
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -5538,11 +5975,21 @@ export default function Dashboard({ session }) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Location</label>
-                  <input type="text" value={newEventData.location} onChange={(e) => setNewEventData({...newEventData, location: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Main Floor" />
+                  <select value={newEventData.location} onChange={(e) => setNewEventData({...newEventData, location: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                    <option value="">-- Select Location --</option>
+                    {scheduleSettings.locations.map(loc => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Assign Coach</label>
-                  <input type="text" value={newEventData.coach} onChange={(e) => setNewEventData({...newEventData, coach: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Keith" />
+                  <select value={newEventData.coach} onChange={(e) => setNewEventData({...newEventData, coach: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                    <option value="">-- Select Coach --</option>
+                    {scheduleSettings.coaches.map(co => (
+                      <option key={co} value={co}>{co}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Max Capacity</label>
@@ -5667,8 +6114,17 @@ export default function Dashboard({ session }) {
             <form onSubmit={handleUpdateEvent} className="space-y-6">
               
               <div>
-                <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Event Title</label>
-                <input type="text" required value={editEventData.title} onChange={(e) => setEditEventData({...editEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. HIIT Bootcamp" />
+                <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Event Title / Class</label>
+                {editEventData.type === 'Blocked' ? (
+                  <input type="text" required value={editEventData.title} onChange={(e) => setEditEventData({...editEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Blocked Time" />
+                ) : (
+                  <select required value={editEventData.title} onChange={(e) => setEditEventData({...editEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                    <option value="">-- Select Class Offered --</option>
+                    {scheduleSettings.classes.map(cls => (
+                      <option key={cls.name} value={cls.name}>{cls.name} ({cls.credits} {cls.credits === 1 ? 'credit' : 'credits'})</option>
+                    ))}
+                  </select>
+                )}
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -5732,11 +6188,21 @@ export default function Dashboard({ session }) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Location</label>
-                  <input type="text" value={editEventData.location} onChange={(e) => setEditEventData({...editEventData, location: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Main Floor" />
+                  <select value={editEventData.location} onChange={(e) => setEditEventData({...editEventData, location: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                    <option value="">-- Select Location --</option>
+                    {scheduleSettings.locations.map(loc => (
+                      <option key={loc} value={loc}>{loc}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Assign Coach</label>
-                  <input type="text" value={editEventData.coach} onChange={(e) => setEditEventData({...editEventData, coach: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Keith" />
+                  <select value={editEventData.coach} onChange={(e) => setEditEventData({...editEventData, coach: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                    <option value="">-- Select Coach --</option>
+                    {scheduleSettings.coaches.map(co => (
+                      <option key={co} value={co}>{co}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Max Capacity</label>
@@ -5748,6 +6214,178 @@ export default function Dashboard({ session }) {
                 {isEditingEvent ? <RotateCw className="animate-spin" size={28} /> : 'Save Changes'}
               </button>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL OVERLAY: ATTENDANCE SUMMARY & AMENDMENT */}
+      {showAttendanceSummaryModal && (
+        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-5 md:py-8 overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] p-5 md:p-8 w-full max-w-4xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
+            <button 
+              onClick={() => setShowAttendanceSummaryModal(false)} 
+              className="absolute top-6 right-6 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="mb-6">
+              <span className="bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-widest px-3 py-1 rounded-full mb-2 inline-block">
+                Attendance Confirmation
+              </span>
+              <h2 className="text-2xl md:text-3xl font-black text-[#0B4550]">
+                {selectedSession?.title}
+              </h2>
+              <p className="text-[#898A8D] font-medium text-sm mt-1">
+                Review attendance status, packages, and adjust remaining session credits/expiries before final confirmation.
+              </p>
+            </div>
+
+            {/* Attendance Roster Table */}
+            <div className="flex-1 overflow-y-auto mb-6 pr-2 scrollbar-thin">
+              <div className="hidden md:grid grid-cols-12 gap-4 pb-3 border-b border-gray-100 text-xs font-bold uppercase tracking-wider text-[#898A8D]">
+                <div className="col-span-4">Client / Package</div>
+                <div className="col-span-3 text-center">Attendance Status</div>
+                <div className="col-span-3 text-center">Remaining Credits</div>
+                <div className="col-span-2 text-center">Package Expiry</div>
+              </div>
+
+              <div className="space-y-4 mt-4">
+                {attendanceSummaryList.map((item, idx) => {
+                  const updateItemField = (field, val) => {
+                    setAttendanceSummaryList(prev => prev.map((s, i) => i === idx ? { ...s, [field]: val } : s));
+                  };
+
+                  const adjustCredits = (amount) => {
+                    if (item.unlimited) return;
+                    updateItemField('remaining_package', Math.max(0, item.remaining_package + amount));
+                  };
+
+                  return (
+                    <div key={item.booking_id} className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center p-4 bg-[#F9F7F2]/60 rounded-2xl border border-gray-100 hover:border-[#0B4550]/30 transition-all">
+                      {/* Client Info */}
+                      <div className="col-span-1 md:col-span-4 flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-sm font-bold shadow-sm">
+                          {getInitials(item.name)}
+                        </div>
+                        <div>
+                          <span className="font-bold text-lg text-[#0B4550] block">{item.name}</span>
+                          <span className="text-xs font-medium text-[#898A8D]">{item.package}</span>
+                        </div>
+                      </div>
+
+                      {/* Attendance Status Toggle */}
+                      <div className="col-span-1 md:col-span-3 flex justify-center">
+                        <div className="bg-white p-1 rounded-xl border border-gray-100 flex shadow-sm w-full max-w-[200px]">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateItemField('status', 'Booked');
+                              // Automatically refund credit cost if toggled to Booked
+                              if (!item.unlimited) {
+                                const cost = getClassCreditCost(selectedSession.title);
+                                const originalClient = clients.find(c => c.id === item.client_id);
+                                if (originalClient) {
+                                  updateItemField('remaining_package', originalClient.remaining_package);
+                                }
+                              }
+                            }}
+                            className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all ${item.status === 'Booked' ? 'bg-[#0B4550] text-[#E6FF2B]' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                          >
+                            Booked
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              updateItemField('status', 'Attended');
+                              // Automatically deduct credit cost if toggled to Attended
+                              if (!item.unlimited) {
+                                const cost = getClassCreditCost(selectedSession.title);
+                                const originalClient = clients.find(c => c.id === item.client_id);
+                                if (originalClient) {
+                                  updateItemField('remaining_package', Math.max(0, originalClient.remaining_package - cost));
+                                }
+                              }
+                            }}
+                            className={`flex-1 py-2 text-xs font-extrabold rounded-lg transition-all ${item.status === 'Attended' ? 'bg-[#10B981] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#10B981]'}`}
+                          >
+                            Attended
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Remaining Credits Counter */}
+                      <div className="col-span-1 md:col-span-3 flex items-center justify-center gap-2">
+                        {item.unlimited ? (
+                          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-1 rounded-full uppercase tracking-wider">
+                            Unlimited
+                          </span>
+                        ) : (
+                          <div className="flex items-center gap-1 bg-white border border-gray-100 rounded-xl p-1 shadow-sm">
+                            <button
+                              type="button"
+                              onClick={() => adjustCredits(-1)}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-[#0B4550] transition-colors cursor-pointer"
+                            >
+                              -
+                            </button>
+                            <input
+                              type="number"
+                              min="0"
+                              value={item.remaining_package}
+                              onChange={(e) => updateItemField('remaining_package', Math.max(0, parseInt(e.target.value) || 0))}
+                              className="w-12 text-center font-black text-[#0B4550] outline-none text-lg bg-transparent"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => adjustCredits(1)}
+                              className="w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black bg-gray-50 text-gray-600 hover:bg-gray-100 hover:text-[#0B4550] transition-colors cursor-pointer"
+                            >
+                              +
+                            </button>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Expiry Date Adjustment */}
+                      <div className="col-span-1 md:col-span-2 flex justify-center">
+                        <input
+                          type="date"
+                          value={item.expiry ? item.expiry.split('T')[0] : ''}
+                          onChange={(e) => updateItemField('expiry', e.target.value)}
+                          className="bg-white border border-gray-100 text-[#0B4550] px-3 py-2 rounded-xl text-xs font-bold outline-none shadow-sm cursor-pointer w-full text-center"
+                        />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex gap-4 border-t border-gray-100 pt-6">
+              <button
+                type="button"
+                onClick={() => setShowAttendanceSummaryModal(false)}
+                className="flex-1 py-4 bg-gray-100 hover:bg-gray-200 text-gray-600 font-bold rounded-2xl transition-all text-lg shadow-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSavingAttendanceSummary}
+                onClick={handleSaveAttendanceSummary}
+                className="flex-[2] py-4 bg-[#10B981] hover:bg-[#059669] text-white font-black rounded-2xl transition-all text-lg shadow-md hover:shadow-lg flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSavingAttendanceSummary ? (
+                  <RotateCw className="animate-spin" size={24} />
+                ) : (
+                  <>
+                    <CheckSquare size={24} /> Confirm & Deduct Credits
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
