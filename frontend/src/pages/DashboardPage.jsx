@@ -3416,7 +3416,7 @@ export default function Dashboard({ session }) {
                           <Clock size={14} /> {formatDbDate(session.date)} - {session.time}
                         </span>
                       </div>
-                      <h4 className="text-xl font-medium text-[#0B4550] mb-1 group-hover:text-black transition-colors">{session.title}</h4>
+                      <h4 className="text-xl font-medium text-[#0B4550] mb-1 group-hover:text-black transition-colors">{getSessionDisplayTitle(session)}</h4>
                       <p className="text-sm font-medium text-[#898A8D] mb-4 flex items-center gap-1"><MapPin size={14} /> {session.location}</p>
                       
                       <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 pt-4 border-t border-gray-200">
@@ -4269,6 +4269,18 @@ export default function Dashboard({ session }) {
     return hours * 60 + minutes;
   };
 
+  const getSessionDisplayTitle = (s) => {
+    if (!s) return '';
+    const type = (s.type || '').toLowerCase();
+    const title = (s.title || '').toLowerCase();
+    const is1on1 = type === '1-on-1' || title.includes('1-on-1') || title.includes('1 on 1') || title.includes('personal training') || title.includes('pt session');
+    
+    if (is1on1 && s.attendees && s.attendees.length > 0) {
+      return s.attendees.map(a => a.name).join(', ');
+    }
+    return s.title;
+  };
+
   const getSessionTheme = (s) => {
     const title = (s.title || '').toLowerCase();
     const type = (s.type || '').toLowerCase();
@@ -4495,7 +4507,7 @@ export default function Dashboard({ session }) {
                             }}
                           >
                             <span className={`text-[12px] font-black tracking-tight leading-none mb-1 truncate ${theme.isPast ? 'line-through opacity-70' : ''}`}>
-                              {s.title}
+                              {getSessionDisplayTitle(s)}
                             </span>
                             <span className="text-[9px] font-bold tracking-tight opacity-75 truncate">
                               {s.time} ({s.duration || '60m'})
@@ -4543,7 +4555,7 @@ export default function Dashboard({ session }) {
                             }}
                           >
                             <span className={`text-[12px] font-black tracking-tight leading-none mb-1 truncate ${theme.isPast ? 'line-through opacity-70' : ''}`}>
-                              {s.title}
+                              {getSessionDisplayTitle(s)}
                             </span>
                             <span className="text-[10px] font-bold tracking-tight opacity-75 truncate">
                               {s.time} ({s.duration || '60m'})
@@ -4671,7 +4683,7 @@ export default function Dashboard({ session }) {
                                 <span className={`inline-block px-3 py-1 rounded-lg text-xs font-medium mb-2 ${is1on1 ? 'bg-[#E6FF2B] text-[#0B4550]' : 'bg-gray-100 text-[#898A8D]'}`}>
                                   {session.type}
                                 </span>
-                                <h3 className={`text-base sm:text-xl md:text-2xl font-medium mb-1 ${is1on1 ? 'text-white' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-60' : ''}`}>{session.title}</h3>
+                                <h3 className={`text-base sm:text-xl md:text-2xl font-medium mb-1 ${is1on1 ? 'text-white' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-60' : ''}`}>{getSessionDisplayTitle(session)}</h3>
                                 <div className={`flex items-start sm:items-center gap-1.5 sm:gap-2 text-xs sm:text-base md:text-lg font-medium ${is1on1 ? 'text-white/70' : 'text-[#898A8D]'}`}>
                                   <MapPin size={14} className="sm:w-[18px] sm:h-[18px] shrink-0 mt-0.5 sm:mt-0" /> 
                                   <span className="break-words">{displayLocation} {displayCoach && `• Coach: ${displayCoach}`} • {formatDbDate(session.date)}</span>
@@ -4700,7 +4712,7 @@ export default function Dashboard({ session }) {
                 {selectedSession && (
                   <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 sticky top-4">
                     <span className="inline-block px-4 py-1.5 rounded-xl bg-gray-100 text-[#898A8D] font-medium text-sm mb-4">{selectedSession.type}</span>
-                    <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550] mb-6 leading-tight">{selectedSession.title}</h2>
+                    <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550] mb-6 leading-tight">{getSessionDisplayTitle(selectedSession)}</h2>
                     <div className="space-y-5 border-b border-gray-100 pb-8 mb-8">
                       <div className="flex items-center gap-4 text-xl font-medium text-[#0B4550]"><Clock className="text-[#898A8D]" size={28} /> {formatDbDate(selectedSession.date)} - {selectedSession.time}</div>
                       <div className="flex items-center gap-4 text-xl font-medium text-[#0B4550]"><MapPin className="text-[#898A8D]" size={28} /> {selectedSession.location ? selectedSession.location.split(' | Coach: ')[0] : 'Main Floor'}</div>
