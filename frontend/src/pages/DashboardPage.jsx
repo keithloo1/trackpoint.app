@@ -137,36 +137,68 @@ const parseNotesAndMetadata = (rawNotes) => {
     address: ''
   };
   
-  // Split session notes first
-  const sessionParts = rawNotes.split('---SESSION_NOTES---');
-  const mainNotesAndTrial = sessionParts[0].trim();
+  let notes = '';
+  let trialMeta = { checklist: [false, false, false, false], status: 'Pending' };
   let sessionNotes = {};
-  if (sessionParts[1]) {
+  let address = '';
+
+  // Extract Session Notes first
+  if (rawNotes.includes('---SESSION_NOTES---')) {
+    const sessionParts = rawNotes.split('---SESSION_NOTES---');
+    let sessionContent = sessionParts[1] || '';
+    if (sessionContent.includes('---ADDRESS_META---')) {
+      sessionContent = sessionContent.split('---ADDRESS_META---')[0];
+    }
+    if (sessionContent.includes('---TRIAL_META---')) {
+      sessionContent = sessionContent.split('---TRIAL_META---')[0];
+    }
     try {
-      sessionNotes = JSON.parse(sessionParts[1].trim());
+      sessionNotes = JSON.parse(sessionContent.trim());
     } catch (e) {
       console.error("Error parsing session notes: ", e);
     }
   }
 
-  // Split address metadata
-  const addressParts = mainNotesAndTrial.split('---ADDRESS_META---');
-  const mainNotesAndTrialWithoutAddress = addressParts[0].trim();
-  let address = '';
-  if (addressParts[1]) {
-    address = addressParts[1].trim();
+  // Extract Address Meta
+  if (rawNotes.includes('---ADDRESS_META---')) {
+    const addressParts = rawNotes.split('---ADDRESS_META---');
+    let addressContent = addressParts[1] || '';
+    if (addressContent.includes('---SESSION_NOTES---')) {
+      addressContent = addressContent.split('---SESSION_NOTES---')[0];
+    }
+    if (addressContent.includes('---TRIAL_META---')) {
+      addressContent = addressContent.split('---TRIAL_META---')[0];
+    }
+    address = addressContent.trim();
   }
 
-  const parts = mainNotesAndTrialWithoutAddress.split('---TRIAL_META---');
-  const notes = parts[0].trim();
-  let trialMeta = { checklist: [false, false, false, false], status: 'Pending' };
-  if (parts[1]) {
+  // Extract Trial Meta
+  if (rawNotes.includes('---TRIAL_META---')) {
+    const trialParts = rawNotes.split('---TRIAL_META---');
+    let trialContent = trialParts[1] || '';
+    if (trialContent.includes('---SESSION_NOTES---')) {
+      trialContent = trialContent.split('---SESSION_NOTES---')[0];
+    }
+    if (trialContent.includes('---ADDRESS_META---')) {
+      trialContent = trialContent.split('---ADDRESS_META---')[0];
+    }
     try {
-      trialMeta = JSON.parse(parts[1].trim());
+      trialMeta = JSON.parse(trialContent.trim());
     } catch (e) {
       console.error("Error parsing trial metadata: ", e);
     }
   }
+
+  // Clean raw notes of all metadata sections to get the user's plain text notes
+  let cleanNotes = rawNotes;
+  const sections = ['---TRIAL_META---', '---SESSION_NOTES---', '---ADDRESS_META---'];
+  for (const sec of sections) {
+    if (cleanNotes.includes(sec)) {
+      cleanNotes = cleanNotes.split(sec)[0];
+    }
+  }
+  notes = cleanNotes.trim();
+
   return { notes, trialMeta, sessionNotes, address };
 };
 
