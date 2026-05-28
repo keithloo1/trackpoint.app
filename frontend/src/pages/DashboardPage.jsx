@@ -280,8 +280,10 @@ export default function Dashboard({ session }) {
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [selectedClassClient, setSelectedClassClient] = useState(null);
+  const [selectedClassSession, setSelectedClassSession] = useState(null);
   const [undoTargetClient, setUndoTargetClient] = useState(null);
   const [undoTargetTransactionId, setUndoTargetTransactionId] = useState(null);
+  const [undoTargetBookingId, setUndoTargetBookingId] = useState(null);
   const [showUndoPinModal, setShowUndoPinModal] = useState(false);
   const [classSearchQuery, setClassSearchQuery] = useState('');
   
@@ -2816,11 +2818,34 @@ export default function Dashboard({ session }) {
       const { data: { user } } = await supabase.auth.getUser();
       const client = selectedClassClient;
       
+      let descriptionStr = `Class Mode Check-in`;
+      let bookingId = null;
+      let cost = 1;
+      
+      if (selectedClassSession) {
+        descriptionStr = `Class Mode Check-in for ${selectedClassSession.title}`;
+        cost = getClassCreditCost(selectedClassSession.title);
+        
+        // Create the booking record
+        const { data: bookingData, error: bookingErr } = await supabase
+          .from('bookings')
+          .insert([{
+            client_id: client.id,
+            session_id: selectedClassSession.id,
+            status: 'Attended'
+          }])
+          .select('*')
+          .single();
+          
+        if (bookingErr) throw bookingErr;
+        bookingId = bookingData?.id;
+      }
+      
       const { data: transData, error: transError } = await supabase.from('transactions').insert([{
         trainer_id: user?.id,
         client_name: client.id,
         amount: 0,
-        description: `Class Mode Check-in`,
+        description: descriptionStr,
         is_backlog: false,
         created_at: new Date().toISOString()
       }]).select('*').single();
@@ -2829,15 +2854,19 @@ export default function Dashboard({ session }) {
       
       let newRemaining = client.remaining_package;
       if (!client.unlimited) {
-         newRemaining = Math.max(0, (client.remaining_package || 0) - 1);
+         newRemaining = Math.max(0, (client.remaining_package || 0) - cost);
          await supabase.from('clients').update({ remaining_package: newRemaining }).eq('id', client.id);
       }
       
       setUndoTargetTransactionId(transData?.id);
+      setUndoTargetBookingId(bookingId);
       setUndoTargetClient({ ...client, remaining_package: newRemaining });
       
       const updatedClient = { ...client, remaining_package: newRemaining };
       setClients(clients.map(c => c.id === client.id ? updatedClient : c));
+      
+      // Sync local session data to update rosters instantly in dashboard
+      await fetchSessions();
       
       setShowCheckInModal(false);
       setShowSuccessModal(true);
@@ -2855,16 +2884,30 @@ export default function Dashboard({ session }) {
       if (undoTargetTransactionId) {
         await supabase.from('transactions').delete().eq('id', undoTargetTransactionId);
       }
+      
+      if (undoTargetBookingId) {
+        await supabase.from('bookings').delete().eq('id', undoTargetBookingId);
+      }
+      
       if (undoTargetClient && !undoTargetClient.unlimited) {
-        const revertedRemaining = (undoTargetClient.remaining_package || 0) + 1;
+        // Retrieve cost of the class that was undoed
+        let cost = 1;
+        if (selectedClassSession) {
+          cost = getClassCreditCost(selectedClassSession.title);
+        }
+        const revertedRemaining = (undoTargetClient.remaining_package || 0) + cost;
         await supabase.from('clients').update({ remaining_package: revertedRemaining }).eq('id', undoTargetClient.id);
         const updatedClient = { ...undoTargetClient, remaining_package: revertedRemaining };
         setClients(clients.map(c => c.id === undoTargetClient.id ? updatedClient : c));
       }
+      
+      await fetchSessions();
+      
       setShowUndoPinModal(false);
       setShowSuccessModal(false);
       setPinInput('');
       setUndoTargetTransactionId(null);
+      setUndoTargetBookingId(null);
       setUndoTargetClient(null);
       alert("Check-in reversed successfully.");
     } catch (err) {
@@ -5488,6 +5531,17 @@ export default function Dashboard({ session }) {
                     key={client.id}
                     onClick={() => {
                       setSelectedClassClient(client);
+                      // Pre-select first class today if available
+                      const todayDate = new Date();
+                      const todayClasses = sessions.filter(session => {
+                        if (session.type === 'Blocked') return false;
+                        const sessDate = new Date(session.start_time);
+                        return sessDate.getDate() === todayDate.getDate() &&
+                               sessDate.getMonth() === todayDate.getMonth() &&
+                               sessDate.getFullYear() === todayDate.getFullYear();
+                      });
+                      const sortedTodayClasses = [...todayClasses].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+                      setSelectedClassSession(sortedTodayClasses.length > 0 ? sortedTodayClasses[0] : null);
                       setShowCheckInModal(true);
                     }}
                     className="bg-white p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-md border border-gray-100 hover:border-[#0B4550] transition-all flex flex-col items-center gap-3 active:scale-95 group"
@@ -5515,46 +5569,123 @@ export default function Dashboard({ session }) {
             </div>
 
             {/* Check-in Modal */}
-            {showCheckInModal && selectedClassClient && (
-              <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
-                <div className="bg-white rounded-[2rem] p-5 md:p-8 w-full max-w-md shadow-2xl text-center">
-                  <div className="w-20 h-20 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-2xl md:text-3xl font-bold mx-auto mb-6">
-                    {getInitials(selectedClassClient.name)}
-                  </div>
-                  <h2 className="text-2xl md:text-3xl font-black text-[#0B4550] mb-2">Check In?</h2>
-                  <p className="text-xl text-[#898A8D] mb-4 font-medium">{selectedClassClient.name}</p>
-                  
-                  <div className="bg-[#F9F7F2] rounded-2xl p-4 mb-8 border border-gray-100 flex flex-col items-center gap-1.5 w-full">
-                    {selectedClassClient.unlimited ? (
-                      <>
-                        <span className="text-sm font-extrabold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full uppercase tracking-widest text-[11px]">Unlimited Access</span>
-                        <span className="text-xs font-medium text-[#898A8D]">{getExpiryText(selectedClassClient)}</span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-base font-black text-[#0B4550]">{selectedClassClient.remaining_package || 0} Sessions Remaining</span>
-                        <span className="text-xs font-medium text-[#898A8D]">{getExpiryText(selectedClassClient)}</span>
-                      </>
-                    )}
-                  </div>
-                  
-                  <div className="flex gap-4">
-                    <button 
-                      onClick={() => setShowCheckInModal(false)}
-                      className="flex-1 py-4 rounded-xl font-bold text-[#898A8D] bg-[#F9F7F2] hover:bg-gray-200 transition-colors"
-                    >
-                      Cancel
-                    </button>
-                    <button 
-                      onClick={handleConfirmClassCheckIn}
-                      className="flex-1 py-4 rounded-xl font-bold text-[#E6FF2B] bg-[#0B4550] hover:scale-105 transition-transform"
-                    >
-                      Confirm
-                    </button>
+            {showCheckInModal && selectedClassClient && (() => {
+              const todayDate = new Date();
+              const todayClasses = sessions.filter(session => {
+                if (session.type === 'Blocked') return false;
+                const sessDate = new Date(session.start_time);
+                return sessDate.getDate() === todayDate.getDate() &&
+                       sessDate.getMonth() === todayDate.getMonth() &&
+                       sessDate.getFullYear() === todayDate.getFullYear();
+              });
+              const sortedTodayClasses = [...todayClasses].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+
+              return (
+                <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
+                  <div className="bg-white rounded-[2rem] p-5 md:p-8 w-full max-w-md shadow-2xl text-center">
+                    <div className="w-20 h-20 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-2xl md:text-3xl font-bold mx-auto mb-4">
+                      {getInitials(selectedClassClient.name)}
+                    </div>
+                    <h2 className="text-2xl md:text-3xl font-black text-[#0B4550] mb-1">Check In?</h2>
+                    <p className="text-xl text-[#898A8D] mb-4 font-medium">{selectedClassClient.name}</p>
+                    
+                    <div className="bg-[#F9F7F2] rounded-2xl p-3 mb-5 border border-gray-100 flex flex-col items-center gap-1 w-full text-xs">
+                      {selectedClassClient.unlimited ? (
+                        <>
+                          <span className="font-extrabold text-emerald-600 bg-emerald-100 px-3 py-1 rounded-full uppercase tracking-widest text-[10px]">Unlimited Access</span>
+                          <span className="font-medium text-[#898A8D]">{getExpiryText(selectedClassClient)}</span>
+                        </>
+                      ) : (
+                        <>
+                          <span className="font-black text-[#0B4550] text-sm">{selectedClassClient.remaining_package || 0} Sessions Remaining</span>
+                          <span className="font-medium text-[#898A8D]">{getExpiryText(selectedClassClient)}</span>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Class Selection for Today */}
+                    <div className="mb-6 text-left">
+                      <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-3 block text-center">
+                        Select Today's Class
+                      </label>
+                      {sortedTodayClasses.length > 0 ? (
+                        <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
+                          {sortedTodayClasses.map((session) => {
+                            const isSelected = selectedClassSession?.id === session.id;
+                            const startTimeStr = new Date(session.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            return (
+                              <button
+                                key={session.id}
+                                type="button"
+                                onClick={() => setSelectedClassSession(session)}
+                                className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all active:scale-[0.99] ${
+                                  isSelected
+                                    ? 'bg-[#0B4550] border-[#0B4550] text-[#E6FF2B] shadow-md'
+                                    : 'bg-[#F9F7F2] border-gray-100 text-[#0B4550] hover:bg-gray-100'
+                                }`}
+                              >
+                                <div className="flex-1 min-w-0 pr-2">
+                                  <span className="font-extrabold text-sm block truncate leading-tight">
+                                    {session.title}
+                                  </span>
+                                  <span className={`text-[10px] font-bold block mt-0.5 ${isSelected ? 'text-white/70' : 'text-[#898A8D]'}`}>
+                                    {session.coach ? `Coach: ${session.coach}` : 'No Coach'}
+                                  </span>
+                                </div>
+                                <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-lg whitespace-nowrap ${isSelected ? 'bg-white/20 text-[#E6FF2B]' : 'bg-white text-[#0B4550] shadow-sm'}`}>
+                                  {startTimeStr}
+                                </span>
+                              </button>
+                            );
+                          })}
+                          
+                          {/* Option for General Check-in */}
+                          <button
+                            type="button"
+                            onClick={() => setSelectedClassSession(null)}
+                            className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all active:scale-[0.99] ${
+                              selectedClassSession === null
+                                ? 'bg-[#0B4550] border-[#0B4550] text-[#E6FF2B] shadow-md'
+                                : 'bg-[#F9F7F2] border-gray-100 text-[#0B4550] hover:bg-gray-100'
+                            }`}
+                          >
+                            <div className="flex-1 min-w-0">
+                              <span className="font-extrabold text-sm block leading-tight">
+                                General Check-in
+                              </span>
+                              <span className={`text-[10px] font-bold block mt-0.5 ${selectedClassSession === null ? 'text-white/70' : 'text-[#898A8D]'}`}>
+                                Open gym / Facilities access
+                              </span>
+                            </div>
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="bg-[#F9F7F2] p-4 rounded-2xl text-center border border-gray-100">
+                          <p className="text-xs font-semibold text-[#898A8D] italic">
+                            No classes scheduled for today. General entry check-in will be logged.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                    
+                    <div className="flex gap-4">
+                      <button 
+                        onClick={() => setShowCheckInModal(false)}
+                        className="flex-1 py-4 rounded-xl font-bold text-[#898A8D] bg-[#F9F7F2] hover:bg-gray-200 transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        onClick={handleConfirmClassCheckIn}
+                        className="flex-1 py-4 rounded-xl font-bold text-[#E6FF2B] bg-[#0B4550] hover:scale-105 transition-transform"
+                      >
+                        Confirm
+                      </button>
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Success Modal */}
             {showSuccessModal && undoTargetClient && (
