@@ -2772,13 +2772,17 @@ export default function Dashboard({ session }) {
             if (creditsChanged) {
               desc += ` (Amended balance: ${item.remaining_package} credits)`;
             }
+            let transactionTime = new Date().toISOString();
+            if (selectedSession && selectedSession.start_time) {
+              transactionTime = new Date(selectedSession.start_time).toISOString();
+            }
             await supabase.from('transactions').insert([{
               trainer_id: user?.id,
               client_name: item.client_id,
               amount: 0,
               description: desc,
               is_backlog: true,
-              created_at: new Date().toISOString()
+              created_at: transactionTime
             }]);
           }
         }
