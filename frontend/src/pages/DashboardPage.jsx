@@ -1184,13 +1184,20 @@ export default function Dashboard({ session }) {
     if (settingsClient) {
       setSettingsClientId(settingsClient.id);
       if (settingsClient.notes) {
-        try {
-          const parsed = JSON.parse(settingsClient.notes);
-          if (parsed.coaches && parsed.locations && parsed.classes) {
-            setScheduleSettings(parsed);
+        // Try parsing via serialize metadata parser first
+        const parsedMeta = parseNotesAndMetadata(settingsClient.notes);
+        if (parsedMeta.sessionNotes && parsedMeta.sessionNotes.coaches && parsedMeta.sessionNotes.locations) {
+          setScheduleSettings(parsedMeta.sessionNotes);
+        } else {
+          // Fallback to raw JSON parse for legacy compatibility
+          try {
+            const parsed = JSON.parse(settingsClient.notes);
+            if (parsed.coaches && parsed.locations && parsed.classes) {
+              setScheduleSettings(parsed);
+            }
+          } catch (e) {
+            console.error("Error parsing system settings:", e);
           }
-        } catch (e) {
-          console.error("Error parsing system settings:", e);
         }
       }
     } else {
