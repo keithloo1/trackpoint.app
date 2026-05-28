@@ -733,13 +733,20 @@ export default function Dashboard({ session }) {
       return;
     }
 
+    // Dynamic 1-on-1 title resolution for Google Calendar integration
+    const resolvedTitle = getSessionDisplayTitle(sessionData);
+    const enrichedSessionData = {
+      ...sessionData,
+      title: resolvedTitle
+    };
+
     try {
       const response = await fetch('/api/gcal/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action,
-          sessionData,
+          sessionData: enrichedSessionData,
           trainer_id: userId
         })
       });
@@ -2473,6 +2480,12 @@ export default function Dashboard({ session }) {
       setSessions(updatedSessions);
       setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
       
+      // Update Google Calendar so the event title shows the newly assigned client
+      syncToGoogleCalendar('UPDATE', {
+        ...selectedSession,
+        attendees: updatedAttendees
+      });
+
       alert(`${client.name} has been successfully assigned to ${selectedSession.title}!`);
     } catch (err) {
       alert("Error assigning client: " + err.message);
@@ -2525,6 +2538,12 @@ export default function Dashboard({ session }) {
 
       setSessions(updatedSessions);
       setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
+
+      // Update Google Calendar so the event title updates to remove the client name
+      syncToGoogleCalendar('UPDATE', {
+        ...selectedSession,
+        attendees: updatedAttendees
+      });
 
       alert("Student removed successfully and session package refunded (if applicable).");
     } catch (err) {
@@ -2599,6 +2618,12 @@ export default function Dashboard({ session }) {
         setSessions(updatedSessions);
         setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
         
+        // Update Google Calendar so the event title shows the newly assigned client(s)
+        syncToGoogleCalendar('UPDATE', {
+          ...selectedSession,
+          attendees: updatedAttendees
+        });
+
         alert(`Successfully assigned ${successfulAssignments.length} student(s) to ${selectedSession.title}!`);
       }
 
@@ -2877,6 +2902,12 @@ export default function Dashboard({ session }) {
       setSessions(updatedSessions);
       setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
       
+      // Update Google Calendar with latest attendee status details
+      syncToGoogleCalendar('UPDATE', {
+        ...selectedSession,
+        attendees: updatedAttendees
+      });
+
       setShowAttendanceSummaryModal(false);
       alert("Attendance and credit adjustments confirmed successfully!");
     } catch (err) {
