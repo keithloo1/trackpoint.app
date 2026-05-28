@@ -2474,6 +2474,14 @@ export default function Dashboard({ session }) {
       const { error } = await supabase.from('bookings').delete().eq('id', bookingId);
       if (error) throw error;
 
+      // Delete any transactions related to this class attendance or check-in to keep history clean
+      if (selectedSession && selectedSession.title) {
+        await supabase.from('transactions')
+          .delete()
+          .eq('client_name', clientId)
+          .ilike('description', `%${selectedSession.title}%`);
+      }
+
       const client = clients.find(c => c.id === clientId);
       if (client && !client.unlimited) {
         const creditCost = getClassCreditCost(selectedSession.title);
@@ -2807,6 +2815,12 @@ export default function Dashboard({ session }) {
 
           // Log transaction if they were marked as Attended or credits were amended
           if (item.status === 'Attended' || creditsChanged) {
+            // First, delete any old duplicate transaction for this session to keep history perfectly clean
+            await supabase.from('transactions')
+              .delete()
+              .eq('client_name', item.client_id)
+              .ilike('description', `%${selectedSession.title}%`);
+
             let desc = `Roster Attendance confirmed for ${selectedSession.title}`;
             if (creditsChanged) {
               desc += ` (Amended balance: ${item.remaining_package} credits)`;
@@ -2823,6 +2837,12 @@ export default function Dashboard({ session }) {
               is_backlog: true,
               created_at: transactionTime
             }]);
+          } else {
+            // If they are not marked as Attended (and credits not amended), delete any previously logged transaction for this session
+            await supabase.from('transactions')
+              .delete()
+              .eq('client_name', item.client_id)
+              .ilike('description', `%${selectedSession.title}%`);
           }
         }
       }
