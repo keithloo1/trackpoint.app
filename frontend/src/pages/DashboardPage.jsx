@@ -268,6 +268,18 @@ const isSessionPast = (session) => {
   return sessionDateObj < new Date();
 };
 
+const getSessionDisplayTitle = (s) => {
+  if (!s) return '';
+  const type = (s.type || '').toLowerCase();
+  const title = (s.title || '').toLowerCase();
+  const is1on1 = type === '1-on-1' || title.includes('1-on-1') || title.includes('1 on 1') || title.includes('personal training') || title.includes('pt session');
+  
+  if (is1on1 && s.attendees && s.attendees.length > 0) {
+    return s.attendees.map(a => a.name).join(', ');
+  }
+  return s.title;
+};
+
 export default function Dashboard({ session }) {
   const [activePage, setActivePage] = useState('Dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -4269,17 +4281,7 @@ export default function Dashboard({ session }) {
     return hours * 60 + minutes;
   };
 
-  const getSessionDisplayTitle = (s) => {
-    if (!s) return '';
-    const type = (s.type || '').toLowerCase();
-    const title = (s.title || '').toLowerCase();
-    const is1on1 = type === '1-on-1' || title.includes('1-on-1') || title.includes('1 on 1') || title.includes('personal training') || title.includes('pt session');
-    
-    if (is1on1 && s.attendees && s.attendees.length > 0) {
-      return s.attendees.map(a => a.name).join(', ');
-    }
-    return s.title;
-  };
+
 
   const getSessionTheme = (s) => {
     const title = (s.title || '').toLowerCase();
