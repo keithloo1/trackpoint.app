@@ -6154,6 +6154,7 @@ export default function Dashboard({ session }) {
                     <option value="45 min">45 min</option>
                     <option value="60 min">60 min</option>
                     <option value="90 min">90 min</option>
+                    <option value="120 min">120 min</option>
                   </select>
                 </div>
                 <div>
@@ -6367,6 +6368,7 @@ export default function Dashboard({ session }) {
                     <option value="45 min">45 min</option>
                     <option value="60 min">60 min</option>
                     <option value="90 min">90 min</option>
+                    <option value="120 min">120 min</option>
                   </select>
                 </div>
                 <div>
