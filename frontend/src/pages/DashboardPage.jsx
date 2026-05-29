@@ -4,7 +4,7 @@ import {
   Home, Users, Calendar, CalendarSearch, BarChart2, Package,
   Settings, LogOut, Search, Bell,
   ChevronLeft, ChevronRight, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, RotateCw,
-  DollarSign, Download, FileText, Plus, ArrowLeft, Copy, Check, Clock, MapPin, CheckSquare, X, Square, ArrowRight, Save, Trash2, Upload, Minus, LayoutGrid, List, Edit3, Lock, Monitor, Unlock, Sparkles, Send, Bot, MessageSquare, Award, Camera, CreditCard
+  DollarSign, Download, FileText, Plus, ArrowLeft, Copy, Check, Clock, MapPin, CheckSquare, X, Square, ArrowRight, Save, Trash2, Upload, Minus, LayoutGrid, List, Edit3, Lock, Monitor, Unlock, Sparkles, Send, Bot, MessageSquare, Award, Camera, CreditCard, Eye, EyeOff
 } from 'lucide-react';
 import newLogo from '../assets/logo.svg';
 import Papa from 'papaparse';
@@ -289,6 +289,67 @@ export default function Dashboard({ session }) {
     }, 60000);
     return () => clearInterval(interval);
   }, []);
+
+  // --- REVENUE SECURITY STATES ---
+  const [showSecurityPinModal, setShowSecurityPinModal] = useState(false);
+  const [securityPinInput, setSecurityPinInput] = useState('');
+  const [securityPinError, setSecurityPinError] = useState(false);
+  const [pendingPageAction, setPendingPageAction] = useState(null); // 'Revenue' or 'RevealRevenue'
+  const [isRevenueUnlocked, setIsRevenueUnlocked] = useState(false);
+  const [isRevenueHidden, setIsRevenueHidden] = useState(true);
+
+  const handleSecurityPinChange = (val) => {
+    const cleaned = val.replace(/\D/g, '').slice(0, 4);
+    setSecurityPinInput(cleaned);
+    setSecurityPinError(false);
+
+    if (cleaned.length === 4) {
+      if (cleaned === CLASS_PIN) {
+        setIsRevenueUnlocked(true);
+        setShowSecurityPinModal(false);
+        setSecurityPinInput('');
+        
+        if (pendingPageAction === 'Revenue') {
+          setActivePage('Revenue');
+        } else if (pendingPageAction === 'RevealRevenue') {
+          setIsRevenueHidden(false);
+        }
+        setPendingPageAction(null);
+      } else {
+        setSecurityPinError(true);
+        setTimeout(() => {
+          setSecurityPinInput('');
+          setSecurityPinError(false);
+        }, 800);
+      }
+    }
+  };
+
+  const handleNavigateToRevenue = () => {
+    if (isRevenueUnlocked) {
+      setActivePage('Revenue');
+    } else {
+      setPendingPageAction('Revenue');
+      setSecurityPinInput('');
+      setSecurityPinError(false);
+      setShowSecurityPinModal(true);
+    }
+  };
+
+  const handleToggleRevenueVisibility = () => {
+    if (isRevenueHidden) {
+      if (isRevenueUnlocked) {
+        setIsRevenueHidden(false);
+      } else {
+        setPendingPageAction('RevealRevenue');
+        setSecurityPinInput('');
+        setSecurityPinError(false);
+        setShowSecurityPinModal(true);
+      }
+    } else {
+      setIsRevenueHidden(true);
+    }
+  };
 
   const [activePage, setActivePage] = useState('Dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -3127,7 +3188,7 @@ export default function Dashboard({ session }) {
         <nav className="flex-1 px-4 space-y-1 mt-2 overflow-y-auto">
           <NavItem icon={<Home size={28} />} label="Dashboard" isActive={activePage === 'Dashboard'} onClick={() => {setActivePage('Dashboard'); setSelectedClient(null);}} />
           <NavItem icon={<Users size={28} />} label="Clients" isActive={activePage === 'Clients'} onClick={() => {setActivePage('Clients'); setSelectedClient(null);}} />
-          <NavItem icon={<DollarSign size={28} />} label="Revenue" isActive={activePage === 'Revenue'} onClick={() => {setActivePage('Revenue'); setSelectedClient(null);}} />
+          <NavItem icon={<DollarSign size={28} />} label="Revenue" isActive={activePage === 'Revenue'} onClick={() => { handleNavigateToRevenue(); setSelectedClient(null); }} />
           <NavItem icon={<CalendarSearch size={28} />} label="Schedule" isActive={activePage === 'Schedule'} onClick={() => {setActivePage('Schedule'); setSelectedClient(null);}} />
           <NavItem icon={<Calendar size={28} />} label="Calendar" isActive={activePage === 'Calendar'} onClick={() => { setActivePage('Calendar'); setSelectedClient(null); }} />
           <NavItem icon={<BarChart2 size={28} />} label="Analytics" isActive={activePage === 'Analytics'} onClick={() => setActivePage('Analytics')} />
@@ -3153,7 +3214,7 @@ export default function Dashboard({ session }) {
           <Users size={24} />
           <span className="text-[10px] font-medium">Clients</span>
         </button>
-        <button onClick={() => setActivePage('Revenue')} className={`flex flex-col items-center gap-1 ${activePage === 'Revenue' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
+        <button onClick={handleNavigateToRevenue} className={`flex flex-col items-center gap-1 ${activePage === 'Revenue' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
           <DollarSign size={24} />
           <span className="text-[10px] font-medium">Revenue</span>
         </button>
@@ -3255,14 +3316,26 @@ export default function Dashboard({ session }) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-              <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-transform" onClick={() => setActivePage('Revenue')}>
+              <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-transform" onClick={handleNavigateToRevenue}>
                 <div className="absolute right-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-xl group-hover:bg-white/10 transition-all"></div>
                 <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-2">
-                  <h3 className="text-white/80 font-medium text-lg">Total Revenue</h3>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-white/80 font-medium text-lg">Total Revenue</h3>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleRevenueVisibility();
+                      }}
+                      className="text-white/60 hover:text-white transition-colors focus:outline-none p-0.5 rounded"
+                      title={isRevenueHidden ? "Show Revenue" : "Hide Revenue"}
+                    >
+                      {isRevenueHidden ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
                   <ArrowUpRight className="text-white/50 group-hover:text-[#E6FF2B] transition-colors" size={20} />
                 </div>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-white mb-1">
-                  RM {dashboardMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+                <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-white mb-1 tracking-tight">
+                  {isRevenueHidden ? 'RM ••••' : `RM ${dashboardMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
                 </h2>
               </div>
               
@@ -3271,7 +3344,7 @@ export default function Dashboard({ session }) {
                 value={dashboardMetrics.totalCount} 
                 trend="+1" 
                 isPositive={true} 
-                onClick={() => setActivePage('Revenue')} 
+                onClick={handleNavigateToRevenue} 
               />
               
               <StatCard 
@@ -3292,144 +3365,89 @@ export default function Dashboard({ session }) {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-              <div className="lg:col-span-2 bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 flex flex-col">
-                <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
-                  <h3 className="font-medium text-2xl text-[#0B4550]">Revenue Overview</h3>
-                  <button onClick={() => setActivePage('Revenue')} className="text-[#898A8D] text-sm font-medium hover:text-[#0B4550] transition-colors">View Details</button>
-                </div>
-                
-               {/* PREMIUM DYNAMIC BAR CHART */}
-            <div className="overflow-x-auto no-scrollbar w-full">
-              <div className="relative h-64 min-w-[600px] md:min-w-0 mt-10 group">
-              
-              {/* Y-AXIS LABELS & GRID LINES */}
-              <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                {[1, 0.75, 0.5, 0.25, 0].map((perc) => (
-                  <div key={perc} className="w-full h-0 border-t border-gray-50 flex items-center relative">
-                    <span className="absolute -left-2 text-[15px] font-bold text-gray-500 tabular-nums">
-                      {perc === 0 ? '0' : (maxChartAmount * perc >= 1000 ? (maxChartAmount * perc / 1000).toFixed(1) + 'k' : (maxChartAmount * perc))}
-                    </span>
-                  </div>
-                ))}
-              </div>
-
-              {/* THE BARS CONTAINER */}
-              <div className="relative flex items-end justify-between gap-2 h-full w-full pt-4 pl-10 pr-2">
-                {chartData.map((data) => {
-                  const heightPercentage = (data.amount / maxChartAmount) * 100;
-                  const isCurrentMonth = data.month === currentMonth;
-
-                  return (
-                    <div key={data.label} className="flex-1 flex flex-col justify-end items-center group/bar h-full relative">
-                      
-                      {/* TOOLTIP ON HOVER */}
-                      <div className="opacity-0 group-hover/bar:opacity-100 transition-all duration-200 bg-[#0B4550] text-white text-[10px] px-2 py-1 rounded absolute mb-2 z-30 pointer-events-none whitespace-nowrap bottom-full shadow-lg">
-                        RM {data.amount.toLocaleString()}
-                      </div>
-                      
-                      {/* THE BAR */}
-                      <div 
-                        className={`w-full max-w-[5.5rem] rounded-t-md transition-all duration-1000 ease-out relative z-10
-                          ${isCurrentMonth ? 'bg-[#E6FF2B] shadow-[0_0_15px_rgba(230,255,43,0.3)]' : 'bg-[#0B4550]/10 group-hover/bar:bg-[#0B4550]/20'}`}
-                        style={{ height: `${Math.max(heightPercentage, 4)}%` }} // 4% is the "Ghost Bar" height for RM 0 months
-                      >
-                        {/* Inner fill for non-active months that have data */}
-                        {!isCurrentMonth && data.amount > 0 && (
-                          <div className="absolute inset-0 bg-[#0B4550] rounded-t-md"></div>
-                        )}
-                      </div>
-                      
-                      {/* MONTH LABEL */}
-                      <div className={`text-[15px] mt-4 transition-colors ${isCurrentMonth ? 'font-black text-[#0B4550]' : 'font-medium text-gray-400 group-hover/bar:text-gray-600'}`}>
-                        {data.label}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-              </div>
-
-              </div>
-            <div className="lg:col-span-1 flex flex-col gap-5">
-                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 flex-1 flex flex-col h-[220px]">
-                  <h3 className="font-medium text-xl text-[#0B4550] mb-4">Quick Tasks</h3>
-                  <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2">
-          {todos.length === 0 ? (
-            <p className="text-[#898A8D] font-medium text-sm text-center pt-4">You're all caught up!</p>
-          ) : (
-            todos.map((todo) => (
-              <div key={todo.id} className="flex items-start justify-between group py-1">
-                <div className="flex items-start gap-3 flex-1">
-                  <div 
-                    className={`mt-0.5 cursor-pointer ${todo.done ? 'text-[#E6FF2B]' : 'text-[#898A8D] group-hover:text-[#0B4550]'}`}
-                    onClick={() => toggleTodo(todo.id, todo.done)}
-                  >
-                    {todo.done ? <CheckSquare size={20} /> : <Square size={20} />}
-                  </div>
-                  
-                  {editingTodoId === todo.id ? (
-                    <input
-                      autoFocus
-                      className="flex-1 bg-gray-50 border-none px-2 py-0 rounded text-base font-medium text-[#0B4550] outline-none ring-1 ring-[#E6FF2B] rounded-md"
-                      value={editValue}
-                      onChange={(e) => setEditValue(e.target.value)}
-                      onBlur={() => handleUpdateTodo(todo.id)}
-                      onKeyDown={(e) => e.key === 'Enter' && handleUpdateTodo(todo.id)}
-                    />
+              {/* Quick Tasks */}
+              <div className="lg:col-span-2 bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 flex flex-col min-h-[350px]">
+                <h3 className="font-medium text-xl text-[#0B4550] mb-4">Quick Tasks</h3>
+                <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2 max-h-[220px]">
+                  {todos.length === 0 ? (
+                    <p className="text-[#898A8D] font-medium text-sm text-center pt-4">You're all caught up!</p>
                   ) : (
-                    <span 
-                      onClick={() => {
-                        setEditingTodoId(todo.id);
-                        setEditValue(todo.text || todo.task || "");
-                      }}
-                      className={`text-base font-medium transition-all cursor-pointer flex-1 ${todo.done ? 'text-[#898A8D] line-through' : 'text-[#0B4550]'}`}
-                    >
-                      {todo.text || todo.task}
-                    </span>
+                    todos.map((todo) => (
+                      <div key={todo.id} className="flex items-start justify-between group py-1">
+                        <div className="flex items-start gap-3 flex-1">
+                          <div 
+                            className={`mt-0.5 cursor-pointer ${todo.done ? 'text-[#E6FF2B]' : 'text-[#898A8D] group-hover:text-[#0B4550]'}`}
+                            onClick={() => toggleTodo(todo.id, todo.done)}
+                          >
+                            {todo.done ? <CheckSquare size={20} /> : <Square size={20} />}
+                          </div>
+                          
+                          {editingTodoId === todo.id ? (
+                            <input
+                              autoFocus
+                              className="flex-1 bg-gray-50 border-none px-2 py-0 rounded text-base font-medium text-[#0B4550] outline-none ring-1 ring-[#E6FF2B] rounded-md"
+                              value={editValue}
+                              onChange={(e) => setEditValue(e.target.value)}
+                              onBlur={() => handleUpdateTodo(todo.id)}
+                              onKeyDown={(e) => e.key === 'Enter' && handleUpdateTodo(todo.id)}
+                            />
+                          ) : (
+                            <span 
+                              onClick={() => {
+                                setEditingTodoId(todo.id);
+                                setEditValue(todo.text || todo.task || "");
+                              }}
+                              className={`text-base font-medium transition-all cursor-pointer flex-1 ${todo.done ? 'text-[#898A8D] line-through' : 'text-[#0B4550]'}`}
+                            >
+                              {todo.text || todo.task}
+                            </span>
+                          )}
+                        </div>
+
+                        <button 
+                          onClick={() => deleteTodo(todo.id)}
+                          className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                    ))
                   )}
                 </div>
 
-                <button 
-                  onClick={() => deleteTodo(todo.id)}
-                  className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                >
-                  <Trash2 size={18} />
-                </button>
+                <form onSubmit={handleAddTodo} className="relative mt-auto">
+                  <input 
+                    type="text" value={newTodo} onChange={(e) => setNewTodo(e.target.value)}
+                    placeholder="Add a new task..."
+                    className="w-full bg-[#F9F7F2] rounded-xl py-2.5 pl-4 pr-10 text-sm font-medium text-[#0B4550] outline-none focus:border focus:border-[#E6FF2B]"
+                  />
+                  <button type="submit" disabled={!newTodo.trim()} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#898A8D] hover:text-[#0B4550] disabled:opacity-50">
+                    <Plus size={20} />
+                  </button>
+                </form>
               </div>
-            ))
-          )}
-        </div>
 
-                  <form onSubmit={handleAddTodo} className="relative mt-auto">
-                    <input 
-                      type="text" value={newTodo} onChange={(e) => setNewTodo(e.target.value)}
-                      placeholder="Add a new task..."
-                      className="w-full bg-[#F9F7F2] rounded-xl py-2.5 pl-4 pr-10 text-sm font-medium text-[#0B4550] outline-none focus:border focus:border-[#E6FF2B]"
-                    />
-                    <button type="submit" disabled={!newTodo.trim()} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#898A8D] hover:text-[#0B4550] disabled:opacity-50">
-                      <Plus size={20} />
-                    </button>
-                  </form>
+              {/* Birthdays */}
+              <div className="lg:col-span-1 bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 flex flex-col min-h-[350px]">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-medium text-xl text-[#0B4550]">
+                    {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][currentMonth]} Birthdays
+                  </h3>
+                  <span className="bg-[#E6FF2B]/30 text-[#0B4550] text-xs font-medium px-2 py-1 rounded-lg">{liveBirthdays.length}</span>
                 </div>
-
-                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-medium text-xl text-[#0B4550]">
-                      {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][currentMonth]} Birthdays
-                    </h3>
-                    <span className="bg-[#E6FF2B]/30 text-[#0B4550] text-xs font-medium px-2 py-1 rounded-lg">{liveBirthdays.length}</span>
-                  </div>
-                  <div className="space-y-3">
-                    {liveBirthdays.map(b => (
+                <div className="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
+                  {liveBirthdays.length === 0 ? (
+                    <p className="text-[#898A8D] font-medium text-sm text-center pt-8">No birthdays this month</p>
+                  ) : (
+                    liveBirthdays.map(b => (
                       <div key={b.id} className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 text-sm font-medium p-2 hover:bg-[#F9F7F2] rounded-lg transition-colors cursor-pointer">
                         <span className="text-[#0B4550] flex items-center">
                           {b.name} {b.date === todayMonthDay && <span className="ml-2 text-base" title="Birthday Today!">🎁</span>}
                         </span>
                         <span className="text-[#898A8D]">{b.date}</span>
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  )}
                 </div>
               </div>
             </div>
@@ -3488,7 +3506,27 @@ export default function Dashboard({ session }) {
 
         {/* VIEW: REVENUE */}
         {activePage === 'Revenue' && (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          !isRevenueUnlocked ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm animate-in fade-in duration-300 w-full">
+              <div className="w-20 h-20 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center mb-6">
+                <Lock size={40} />
+              </div>
+              <h3 className="text-3xl font-black text-[#0B4550] mb-2">Revenue Access Locked</h3>
+              <p className="text-[#898A8D] font-medium mb-8 max-w-sm text-base leading-relaxed">Financial history and analytics require a secure owner verification.</p>
+              <button 
+                onClick={() => {
+                  setPendingPageAction('Revenue');
+                  setSecurityPinInput('');
+                  setSecurityPinError(false);
+                  setShowSecurityPinModal(true);
+                }}
+                className="bg-[#0B4550] text-[#E6FF2B] font-bold text-lg px-8 py-4 rounded-2xl hover:scale-105 transition-all shadow-md flex items-center gap-2"
+              >
+                <Unlock size={20} /> Enter Owner PIN
+              </button>
+            </div>
+          ) : (
+            <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
             {/* NEW: Backlog Button */}
             <button 
@@ -3639,7 +3677,8 @@ export default function Dashboard({ session }) {
               )}
             </div>
           </div>
-        )}
+        )
+      )}
 
         {/* VIEW: CLIENTS */}
         {activePage === 'Clients' && (
@@ -5131,6 +5170,66 @@ export default function Dashboard({ session }) {
                </div>
             </div>
             
+            {/* Revenue Overview Chart inside Analytics */}
+            <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mb-8 flex flex-col">
+              <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
+                <div>
+                  <h3 className="font-medium text-2xl text-[#0B4550]">Revenue Overview</h3>
+                  <p className="text-sm text-[#898A8D] mt-1">Monthly breakdown of gross revenue generated</p>
+                </div>
+              </div>
+              
+              {/* PREMIUM DYNAMIC BAR CHART */}
+              <div className="overflow-x-auto no-scrollbar w-full">
+                <div className="relative h-64 min-w-[600px] md:min-w-0 mt-10 group">
+                  
+                  {/* Y-AXIS LABELS & GRID LINES */}
+                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                    {[1, 0.75, 0.5, 0.25, 0].map((perc) => (
+                      <div key={perc} className="w-full h-0 border-t border-gray-50 flex items-center relative">
+                        <span className="absolute -left-2 text-[15px] font-bold text-gray-500 tabular-nums">
+                          {perc === 0 ? '0' : (maxChartAmount * perc >= 1000 ? (maxChartAmount * perc / 1000).toFixed(1) + 'k' : (maxChartAmount * perc))}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* THE BARS CONTAINER */}
+                  <div className="relative flex items-end justify-between gap-2 h-full w-full pt-4 pl-10 pr-2">
+                    {chartData.map((data) => {
+                      const heightPercentage = (data.amount / maxChartAmount) * 100;
+                      const isCurrentMonth = data.month === currentMonth;
+
+                      return (
+                        <div key={data.label} className="flex-1 flex flex-col justify-end items-center group/bar h-full relative">
+                          {/* TOOLTIP ON HOVER */}
+                          <div className="opacity-0 group-hover/bar:opacity-100 transition-all duration-200 bg-[#0B4550] text-white text-[10px] px-2 py-1 rounded absolute mb-2 z-30 pointer-events-none whitespace-nowrap bottom-full shadow-lg">
+                            RM {data.amount.toLocaleString()}
+                          </div>
+                          
+                          {/* THE BAR */}
+                          <div 
+                            className={`w-full max-w-[5.5rem] rounded-t-md transition-all duration-1000 ease-out relative z-10
+                              ${isCurrentMonth ? 'bg-[#E6FF2B] shadow-[0_0_15px_rgba(230,255,43,0.3)]' : 'bg-[#0B4550]/10 group-hover/bar:bg-[#0B4550]/20'}`}
+                            style={{ height: `${Math.max(heightPercentage, 4)}%` }}
+                          >
+                            {!isCurrentMonth && data.amount > 0 && (
+                              <div className="absolute inset-0 bg-[#0B4550] rounded-t-md"></div>
+                            )}
+                          </div>
+                          
+                          {/* MONTH LABEL */}
+                          <div className={`text-[15px] mt-4 transition-colors ${isCurrentMonth ? 'font-black text-[#0B4550]' : 'font-medium text-gray-400 group-hover/bar:text-gray-600'}`}>
+                            {data.label}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
               <div className="lg:col-span-2 bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
                 <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-6">
@@ -5914,6 +6013,109 @@ export default function Dashboard({ session }) {
                 <button onClick={() => { setShowExitPinModal(false); setPinInput(''); }} className="flex-1 py-4 rounded-xl font-bold text-[#898A8D] bg-[#F9F7F2] hover:bg-gray-200">Cancel</button>
                 <button onClick={handleExitClassMode} className="flex-1 py-4 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600">Exit</button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* REVENUE SECURITY PIN MODAL */}
+        {showSecurityPinModal && (
+          <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[200] flex items-center justify-center p-4">
+            <style>{`
+              @keyframes pin-shake {
+                0%, 100% { transform: translateX(0); }
+                20%, 60% { transform: translateX(-6px); }
+                40%, 80% { transform: translateX(6px); }
+              }
+              .animate-pin-shake {
+                animation: pin-shake 0.3s ease-in-out;
+              }
+            `}</style>
+            <div 
+              className={`bg-white rounded-[2.5rem] p-6 md:p-8 w-full max-w-sm text-center shadow-2xl relative border border-gray-100 flex flex-col items-center transition-all ${
+                securityPinError ? 'animate-pin-shake border-2 border-red-500' : ''
+              }`}
+            >
+              {/* Invisible input that captures desktop keyboard entry */}
+              <input
+                type="password"
+                pattern="[0-9]*"
+                inputMode="numeric"
+                maxLength={4}
+                value={securityPinInput}
+                onChange={(e) => handleSecurityPinChange(e.target.value)}
+                className="absolute -top-96 left-0 opacity-0 pointer-events-none"
+                autoFocus
+              />
+
+              <div className="w-16 h-16 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center mb-4">
+                <Lock size={32} />
+              </div>
+              
+              <h3 className="text-2xl font-black text-[#0B4550] mb-2">Security Verification</h3>
+              <p className="text-[#898A8D] mb-6 font-medium text-sm">
+                {pendingPageAction === 'RevealRevenue' 
+                  ? 'Enter Owner PIN to reveal dashboard revenue' 
+                  : 'Enter Owner PIN to unlock Revenue section'}
+              </p>
+
+              {/* Secure Dot indicators */}
+              <div className="flex justify-center gap-4 mb-8">
+                {[0, 1, 2, 3].map((idx) => {
+                  const isFilled = securityPinInput.length > idx;
+                  return (
+                    <div 
+                      key={idx}
+                      className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
+                        isFilled 
+                          ? 'bg-[#0B4550] border-[#0B4550] scale-110 shadow-md' 
+                          : 'border-gray-300 bg-transparent'
+                      }`}
+                    />
+                  );
+                })}
+              </div>
+
+              {/* Interactive Keypad Dial */}
+              <div className="grid grid-cols-3 gap-4 max-w-[280px] mx-auto mb-6">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => handleSecurityPinChange(securityPinInput + num)}
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-[#0B4550] bg-[#F9F7F2] hover:bg-gray-100 active:scale-95 transition-all shadow-sm focus:outline-none"
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setSecurityPinInput('')}
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-sm font-semibold text-[#898A8D] hover:text-[#0B4550] active:scale-95 transition-all focus:outline-none"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => handleSecurityPinChange(securityPinInput + '0')}
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-[#0B4550] bg-[#F9F7F2] hover:bg-gray-100 active:scale-95 transition-all shadow-sm focus:outline-none"
+                >
+                  0
+                </button>
+                <button
+                  onClick={() => setSecurityPinInput(prev => prev.slice(0, -1))}
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-[#898A8D] hover:text-[#0B4550] active:scale-95 transition-all focus:outline-none"
+                >
+                  ⌫
+                </button>
+              </div>
+
+              <button 
+                onClick={() => {
+                  setShowSecurityPinModal(false);
+                  setSecurityPinInput('');
+                  setPendingPageAction(null);
+                }}
+                className="w-full py-4 rounded-2xl font-bold text-[#898A8D] bg-[#F9F7F2] hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         )}
