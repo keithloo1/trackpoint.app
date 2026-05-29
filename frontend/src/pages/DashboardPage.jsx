@@ -281,6 +281,15 @@ const getSessionDisplayTitle = (s) => {
 };
 
 export default function Dashboard({ session }) {
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60000);
+    return () => clearInterval(interval);
+  }, []);
+
   const [activePage, setActivePage] = useState('Dashboard');
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isArchiveMode, setIsArchiveMode] = useState(false);
@@ -4516,6 +4525,25 @@ export default function Dashboard({ session }) {
                       key={`col-day-${colIdx}`} 
                       className="flex-1 border-r border-gray-100 last:border-r-0 relative h-[1020px] hover:bg-gray-50/20 transition-colors"
                     >
+                      {(() => {
+                        const isToday = currentTime.toDateString() === dateObj.toDateString();
+                        const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
+                        const lineTop = currentMins - (6 * 60); // minutes from 6 AM
+                        const isLineVisible = lineTop >= 0 && lineTop <= 1020;
+                        
+                        if (isToday && isLineVisible) {
+                          return (
+                            <div 
+                              className="absolute left-0 right-0 flex items-center z-20 pointer-events-none"
+                              style={{ top: `${lineTop}px` }}
+                            >
+                              <div className="w-2.5 h-2.5 rounded-full bg-[#EA4335] -ml-[5px] shrink-0 shadow-sm z-30"></div>
+                              <div className="flex-1 h-0.5 bg-[#EA4335] shadow-[0_1px_2px_rgba(0,0,0,0.15)] z-20"></div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       {daySessions.map(s => {
                         const startMins = parseTimeToMinutes(s.time);
                         const top = startMins - (6 * 60); // minutes from 6 AM
@@ -4564,6 +4592,25 @@ export default function Dashboard({ session }) {
                   const daySessions = getSessionsForDay(currentCalendarDate);
                   return (
                     <div className="flex-1 relative h-[1020px]">
+                      {(() => {
+                        const isToday = currentTime.toDateString() === currentCalendarDate.toDateString();
+                        const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
+                        const lineTop = currentMins - (6 * 60); // minutes from 6 AM
+                        const isLineVisible = lineTop >= 0 && lineTop <= 1020;
+                        
+                        if (isToday && isLineVisible) {
+                          return (
+                            <div 
+                              className="absolute left-0 right-0 flex items-center z-20 pointer-events-none"
+                              style={{ top: `${lineTop}px` }}
+                            >
+                              <div className="w-2.5 h-2.5 rounded-full bg-[#EA4335] -ml-[5px] shrink-0 shadow-sm z-30"></div>
+                              <div className="flex-1 h-0.5 bg-[#EA4335] shadow-[0_1px_2px_rgba(0,0,0,0.15)] z-20"></div>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                       {daySessions.map(s => {
                         const startMins = parseTimeToMinutes(s.time);
                         const top = startMins - (6 * 60); // minutes from 6 AM
