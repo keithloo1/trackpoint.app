@@ -40,10 +40,32 @@ const formatTime = (totalSeconds) => {
   const s = (totalSeconds % 60).toString().padStart(2, '0');
   return `${m}:${s}`;
 };
+const parseLocalDate = (dateStr) => {
+  if (!dateStr) return null;
+  if (dateStr.includes('T')) return new Date(dateStr);
+  const parts = dateStr.split('-');
+  if (parts.length === 3) {
+    return new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+  }
+  return new Date(dateStr);
+};
+
 const formatDbDate = (dateStr) => {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  const date = parseLocalDate(dateStr);
+  if (!date) return '';
+  return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+};
+
+const calculateRemainingDays = (expiryDateStr) => {
+  if (!expiryDateStr) return null;
+  const expiry = parseLocalDate(expiryDateStr);
+  if (!expiry) return null;
+  const today = new Date();
+  expiry.setHours(0, 0, 0, 0);
+  today.setHours(0, 0, 0, 0);
+  const diffTime = expiry - today;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+  return diffDays;
 };
 
 const getInitials = (name) => {
@@ -266,9 +288,18 @@ export default function ClientDashboard() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const { data: realClient, error: clientErr } = await supabase.from('clients').select('*').eq('id', clientId).single();
-        if (clientErr) throw new Error("Invalid Link.");
-        if (!realClient) throw new Error("Client not found.");
+        const isUuid = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(clientId);
+        let clientQuery = supabase.from('clients').select('*');
+        if (isUuid) {
+          clientQuery = clientQuery.eq('id', clientId);
+        } else {
+          const cleanName = decodeURIComponent(clientId).replace(/[-_]/g, ' ').trim();
+          clientQuery = clientQuery.ilike('name', cleanName);
+        }
+        const { data: realClient, error: clientErr } = await clientQuery.maybeSingle();
+        if (clientErr || !realClient) {
+          throw new Error("Client not found or invalid link.");
+        }
 
         const ACTUAL_CLIENT_ID = realClient.id;
         const TRAINER_ID = realClient.trainer_id;
@@ -361,6 +392,8 @@ export default function ClientDashboard() {
           phone: realClient.phone || '',
           unlimited: realClient.unlimited,
           trainer_id: realClient.trainer_id,
+          packageName: realClient.package || 'Standard Package',
+          expiry: realClient.expiry || realClient.expiry_date || '',
           usedSessions: metrics?.used_sessions || realClient.used_sessions || 0,
           totalSessions: metrics?.total_sessions || realClient.total_sessions || 10,
           remainingSessions: realClient.remaining_package || 0,
@@ -437,6 +470,108 @@ export default function ClientDashboard() {
     const sessionDate = new Date(s.date);
     return sessionDate.getDate() === selectedDate && sessionDate.getMonth() === currentMonth && sessionDate.getFullYear() === 2026;
   });
+
+  const handleQuickBook = async (session) => {
+    if (session.attendees?.length >= session.capacity) return alert("Sorry, this class is full!");
+    if (session.isBookedByMe) return alert("You are already booked for this class!");
+
+    // Check if client has package sessions left
+    const remaining = clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions;
+    if (!clientData?.unlimited && remaining <= 0) {
+      setIsTopUpOpen(true);
+      return;
+    }
+
+    // 1. Save Relational Booking to Database
+    const { error } = await supabase.from('bookings').insert([{
+      client_id: clientData.id,
+      session_id: session.id,
+      session_date: session.date,
+      time_slot: session.time
+    }]);
+
+    if (error) {
+      alert("Booking failed: " + error.message);
+      return;
+    }
+
+    // 2. Deduct session IF they are not on an unlimited package
+    let newRemaining = remaining;
+    if (!clientData.unlimited) {
+      newRemaining = remaining - 1;
+      const newUsed = clientData.usedSessions + 1;
+      await supabase.from('clients').update({ remaining_package: newRemaining, used_sessions: newUsed }).eq('id', clientData.id);
+      await supabase.from('client_metrics').update({ used_sessions: newUsed }).eq('client_id', clientData.id);
+      setClientData(prev => ({ 
+        ...prev, 
+        remainingSessions: newRemaining, 
+        remaining_package: newRemaining, 
+        usedSessions: newUsed 
+      }));
+    }
+
+    // 3. Instantly update UI arrays so capacity changes
+    const updatedSession = {
+      ...session,
+      isBookedByMe: true,
+      attendees: session.attendees ? [...session.attendees, { client_id: clientData.id, name: clientData.name }] : [{ client_id: clientData.id, name: clientData.name }]
+    };
+
+    setLiveSessions(prev => prev.map(s => s.id === session.id ? updatedSession : s));
+    setUpcomingBookings(prev => {
+      const newList = [...prev, updatedSession];
+      return newList.sort((a, b) => new Date(a.date) - new Date(b.date));
+    });
+
+    alert("🎉 Class booked successfully!");
+  };
+
+  const handleQuickCancel = async (session) => {
+    if (!window.confirm("Are you sure you want to cancel this booking?")) return;
+
+    try {
+      // 1. Remove the booking from Supabase
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .match({ client_id: clientData.id, session_id: session.id });
+
+      if (error) throw error;
+
+      // 2. Refund the session if they are NOT on an unlimited package
+      const remaining = clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions;
+      let newRemaining = remaining;
+      if (!clientData.unlimited) {
+        newRemaining = remaining + 1;
+        const newUsed = Math.max(0, clientData.usedSessions - 1); // Prevent negative numbers
+
+        await supabase.from('clients').update({ remaining_package: newRemaining, used_sessions: newUsed }).eq('id', clientData.id);
+        await supabase.from('client_metrics').update({ used_sessions: newUsed }).eq('client_id', clientData.id);
+
+        setClientData(prev => ({ 
+          ...prev, 
+          remainingSessions: newRemaining, 
+          remaining_package: newRemaining, 
+          usedSessions: newUsed 
+        }));
+      }
+
+      // 3. Update UI arrays
+      const updatedSession = {
+        ...session,
+        isBookedByMe: false,
+        attendees: session.attendees.filter(a => a.client_id !== clientData.id)
+      };
+
+      setLiveSessions(prev => prev.map(s => s.id === session.id ? updatedSession : s));
+      setUpcomingBookings(prev => prev.filter(b => b.id !== session.id));
+
+      alert("Booking cancelled successfully.");
+
+    } catch (error) {
+      alert("Error cancelling booking: " + error.message);
+    }
+  };
 
   const handleConfirmBooking = async () => {
     if (!selectedLiveSession) return;
@@ -748,49 +883,176 @@ export default function ClientDashboard() {
 
         {activeNav === 'Home' && (
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 flex-1 pb-4 animate-in fade-in duration-500">
-            <div className="md:col-span-12 lg:col-span-7 bg-white rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-gray-100 relative overflow-hidden flex flex-col min-h-[300px]">
-              <div className="flex justify-between items-start z-10 mb-2">
-                <h3 className="font-medium text-2xl text-[#0B4550]">Package Status</h3>
-                <button onClick={() => setIsTopUpOpen(true)} className="bg-[#F9F7F2] text-[#0B4550] px-4 py-2 rounded-xl font-medium text-sm hover:bg-[#E6FF2B] transition-colors border border-gray-100 shadow-sm flex items-center gap-2 relative z-20"><CreditCard size={16} /> Top Up</button>
-              </div>
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#E6FF2B] rounded-full filter blur-3xl opacity-60 z-0 animate-pulse"></div>
-              <div className="flex-1 flex items-end z-10 pb-4 w-full">
-                <div className="space-y-4 w-full">
-                  <LegendItem
-                    color={(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? "bg-red-400" : "bg-[#E6FF2B]"}
-                    label="Remaining Sessions"
-                    value={clientData.remaining_package || clientData.remainingSessions || 0}
-                  />
-                  <LegendItem
-                    color="bg-[#0B4550]"
-                    label="Completed Sessions"
-                    value={clientData.usedSessions || 0}
-                  />
-                  <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden mt-4">
-                    <div
-                      className={`h-full transition-all duration-700 ${(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? 'bg-red-400' : 'bg-[#0B4550]'}`}
-                      style={{ width: `${((clientData.usedSessions || 0) / ((clientData.usedSessions || 0) + (clientData.remaining_package || clientData.remainingSessions || 0))) * 100}%` }}
-                    ></div>
-                  </div>
+            <div className="md:col-span-12 lg:col-span-7 bg-white rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-gray-100 relative overflow-hidden flex flex-col h-[380px]">
+              <div className="flex justify-between items-start z-10 mb-1">
+                <div>
+                  <h3 className="font-bold text-xs text-gray-400 uppercase tracking-widest">Active Package</h3>
+                  <h2 className="font-bold text-3xl text-[#0B4550] tracking-tight">{clientData.packageName}</h2>
                 </div>
+                <button onClick={() => setIsTopUpOpen(true)} className="bg-[#F9F7F2] text-[#0B4550] px-4 py-2 rounded-xl font-bold text-sm hover:bg-[#E6FF2B] transition-colors border border-gray-100 shadow-sm flex items-center gap-2 relative z-20"><CreditCard size={16} /> Top Up</button>
+              </div>
+              
+              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#E6FF2B] rounded-full filter blur-3xl opacity-40 z-0 animate-pulse"></div>
+              
+              <div className="flex-1 flex flex-col justify-end z-10 pb-2 w-full">
+                {clientData.unlimited ? (
+                  /* TIME-BASED / UNLIMITED LAYOUT */
+                  <div className="space-y-5 w-full">
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold uppercase tracking-wider animate-pulse">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                        Unlimited Access Plan
+                      </span>
+                    </div>
+                    
+                    <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2]/80 backdrop-blur-md rounded-2xl p-5 border border-gray-100">
+                      <div>
+                        <p className="text-xs font-bold text-[#898A8D] uppercase tracking-widest mb-1">Expiration Date</p>
+                        <p className="text-lg font-bold text-[#0B4550]">
+                          {clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs font-bold text-[#898A8D] uppercase tracking-widest mb-1">Time Remaining</p>
+                        <p className="text-lg font-bold text-[#0B4550]">
+                          {(() => {
+                            const days = calculateRemainingDays(clientData.expiry);
+                            if (days === null) return 'Unlimited Days';
+                            if (days < 0) return 'Expired';
+                            if (days === 0) return 'Expires Today';
+                            return `${days} Days Left`;
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  /* SESSION-BASED LAYOUT */
+                  <div className="space-y-4 w-full">
+                    <div className="space-y-3.5">
+                      <LegendItem
+                        color={(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? "bg-red-400" : "bg-[#E6FF2B]"}
+                        label="Remaining Sessions"
+                        value={clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions}
+                      />
+                      <LegendItem
+                        color="bg-[#0B4550]"
+                        label="Completed Sessions"
+                        value={clientData.usedSessions || 0}
+                      />
+                      
+                      <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden mt-2 relative">
+                        <div
+                          className={`h-full transition-all duration-700 ${(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? 'bg-red-400' : 'bg-[#0B4550]'}`}
+                          style={{ width: `${((clientData.usedSessions || 0) / ((clientData.usedSessions || 0) + (clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions || 1))) * 100}%` }}
+                        ></div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2]/80 backdrop-blur-md rounded-2xl p-4 border border-gray-100 mt-2">
+                      <div>
+                        <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-0.5">Package Expiration</p>
+                        <p className="text-sm font-bold text-[#0B4550]">
+                          {clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-0.5">Time Remaining</p>
+                        <p className="text-sm font-bold text-[#0B4550]">
+                          {(() => {
+                            const days = calculateRemainingDays(clientData.expiry);
+                            if (days === null) return 'No Time Limit';
+                            if (days < 0) return 'Expired';
+                            if (days === 0) return 'Expires Today';
+                            return `${days} Days Left`;
+                          })()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
-            <div className="md:col-span-6 lg:col-span-5 bg-[#0B4550] rounded-[2.5rem] p-6 md:p-8 shadow-sm text-white flex flex-col">
-              <div className="flex justify-between items-center mb-8 text-white">
-                <h3 className="font-medium text-2xl">Training Days</h3>
-                <div className="flex items-center gap-3 bg-white/10 px-4 py-2 rounded-full border border-white/20 text-sm">
-                  <ChevronLeft size={16} className="cursor-pointer" onClick={() => setCurrentMonth(prev => Math.max(0, prev - 1))} />
-                  <span className="font-medium w-12 text-center">{MONTHS[currentMonth].substring(0, 3)}</span>
-                  <ChevronRight size={16} className="cursor-pointer" onClick={() => setCurrentMonth(prev => Math.min(11, prev + 1))} />
+            <div className="md:col-span-6 lg:col-span-5 bg-[#0B4550] rounded-[2.5rem] p-6 md:p-8 shadow-sm text-white flex flex-col h-[380px] overflow-hidden">
+              <div className="flex justify-between items-center mb-6 shrink-0">
+                <div>
+                  <h3 className="font-medium text-2xl">Available Classes</h3>
+                  <p className="text-white/60 text-xs font-medium uppercase tracking-wider mt-0.5">Quick 1-Click Booking</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-[#E6FF2B]">
+                  <Calendar size={20} />
                 </div>
               </div>
-              <div className="grid grid-cols-7 text-center font-medium text-white/50 mb-4 uppercase text-[10px] tracking-widest"><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div></div>
-              <div className="grid grid-cols-7 text-center font-medium text-lg gap-y-4">
-                {[...Array(30)].map((_, i) => {
-                  const dayNum = i + 1;
-                  return (<div key={dayNum} onClick={() => openBookingDrawer(dayNum)} className={`w-10 h-10 rounded-full flex items-center justify-center mx-auto cursor-pointer transition-all hover:bg-[#E6FF2B] hover:text-[#0B4550] ${dayNum === selectedDate ? 'bg-[#E6FF2B] text-[#0B4550] shadow-[0_0_15px_rgba(230,255,43,0.3)]' : ''}`}>{dayNum}</div>)
-                })}
+              
+              <div className="flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-white/20 hover:scrollbar-thumb-white/40">
+                {(() => {
+                  const todayStr = new Date().toISOString().split('T')[0];
+                  const futureSessions = liveSessions.filter(s => s.date >= todayStr);
+                  
+                  if (futureSessions.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center py-12 text-center text-white/50">
+                        <Calendar size={32} className="mb-2 opacity-30" />
+                        <p className="text-sm font-medium">No classes scheduled yet.</p>
+                      </div>
+                    );
+                  }
+                  
+                  return futureSessions.map(session => {
+                    const isFull = session.attendees?.length >= session.capacity;
+                    return (
+                      <div key={session.id} className="bg-white/10 hover:bg-white/15 border border-white/10 rounded-2xl p-4 transition-all flex justify-between items-center gap-4 relative group">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                            <span className="inline-block px-2.5 py-0.5 rounded-md bg-[#E6FF2B] text-[#0B4550] text-[9px] font-bold uppercase tracking-wider">
+                              {formatDbDate(session.date)}
+                            </span>
+                            <span className="text-[10px] font-bold text-white/80">
+                              {session.time}
+                            </span>
+                          </div>
+                          <h4 className="text-base font-bold text-white leading-snug truncate mb-1">
+                            {session.title}
+                          </h4>
+                          <p className="text-xs text-white/70 flex items-center gap-1 font-medium">
+                            <User size={12} className="text-[#E6FF2B]" /> {session.coach || session.trainer || 'Coach Keith'}
+                          </p>
+                        </div>
+                        
+                        <div className="text-right shrink-0">
+                          <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1.5">
+                            {session.attendees?.length || 0} / {session.capacity} Slots
+                          </p>
+                          {session.isBookedByMe ? (
+                            <div className="flex flex-col items-end gap-1">
+                              <span className="text-xs font-bold text-[#E6FF2B] bg-white/20 py-1.5 px-3.5 rounded-xl border border-white/10 flex items-center gap-1">
+                                Booked ✓
+                              </span>
+                              <button 
+                                onClick={() => handleQuickCancel(session)} 
+                                className="text-[10px] font-bold text-red-300 hover:text-red-400 hover:underline transition-colors mt-0.5 mr-1 animate-in fade-in"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          ) : isFull ? (
+                            <span className="inline-block text-xs font-bold text-white/40 bg-white/5 py-1.5 px-3.5 rounded-xl border border-transparent">
+                              Full
+                            </span>
+                          ) : (
+                            <button
+                              onClick={() => handleQuickBook(session)}
+                              className="bg-[#E6FF2B] hover:bg-white text-[#0B4550] py-2 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:scale-[1.05]"
+                            >
+                              Book Spot
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
               </div>
             </div>
 
@@ -1216,7 +1478,7 @@ export default function ClientDashboard() {
                   {viewClassDetails.attendees && viewClassDetails.attendees.length > 0 ? (
                     viewClassDetails.attendees.map((a, i) => (
                       <div key={i} className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-[#0B45  50] text-[#E6FF2B] flex items-center justify-center text-xs font-medium border-2 border-white shadow-sm">{getInitials(a.name)}</div>
+                        <div className="w-8 h-8 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-xs font-medium border-2 border-white shadow-sm">{getInitials(a.name)}</div>
                         <span className="font-medium text-[#0B4550] text-sm">{a.name}</span>
                       </div>
                     ))
