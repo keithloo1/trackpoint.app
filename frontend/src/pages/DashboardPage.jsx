@@ -295,6 +295,7 @@ export default function Dashboard({ session }) {
   const [securityPinInput, setSecurityPinInput] = useState('');
   const [securityPinError, setSecurityPinError] = useState(false);
   const [pendingPageAction, setPendingPageAction] = useState(null); // 'Revenue' or 'RevealRevenue'
+  const [pendingTabAction, setPendingTabAction] = useState(null);
   const [isRevenueUnlocked, setIsRevenueUnlocked] = useState(false);
   const [isRevenueHidden, setIsRevenueHidden] = useState(true);
 
@@ -309,12 +310,16 @@ export default function Dashboard({ session }) {
         setShowSecurityPinModal(false);
         setSecurityPinInput('');
         
-        if (pendingPageAction === 'Revenue') {
-          setActivePage('Revenue');
+        if (pendingPageAction === 'Revenue' || pendingPageAction === 'Analytics' || pendingPageAction === 'Clients') {
+          setActivePage(pendingPageAction);
+          if (pendingTabAction) {
+            setActiveTab(pendingTabAction);
+          }
         } else if (pendingPageAction === 'RevealRevenue') {
           setIsRevenueHidden(false);
         }
         setPendingPageAction(null);
+        setPendingTabAction(null);
       } else {
         setSecurityPinError(true);
         setTimeout(() => {
@@ -325,14 +330,22 @@ export default function Dashboard({ session }) {
     }
   };
 
-  const handleNavigateToRevenue = () => {
-    if (isRevenueUnlocked) {
-      setActivePage('Revenue');
+  const handleNavigateToPage = (pageName, initialTab = null) => {
+    if (pageName === 'Revenue' || pageName === 'Analytics' || pageName === 'Clients') {
+      if (isRevenueUnlocked) {
+        setActivePage(pageName);
+        if (initialTab) {
+          setActiveTab(initialTab);
+        }
+      } else {
+        setPendingPageAction(pageName);
+        setPendingTabAction(initialTab);
+        setSecurityPinInput('');
+        setSecurityPinError(false);
+        setShowSecurityPinModal(true);
+      }
     } else {
-      setPendingPageAction('Revenue');
-      setSecurityPinInput('');
-      setSecurityPinError(false);
-      setShowSecurityPinModal(true);
+      setActivePage(pageName);
     }
   };
 
@@ -391,6 +404,7 @@ export default function Dashboard({ session }) {
   // --- CLASS MODE STATES ---
   const [showExitPinModal, setShowExitPinModal] = useState(false);
   const [pinInput, setPinInput] = useState('');
+  const [exitPinError, setExitPinError] = useState(false);
   const [showCheckInModal, setShowCheckInModal] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [selectedClassClient, setSelectedClassClient] = useState(null);
@@ -3152,14 +3166,38 @@ export default function Dashboard({ session }) {
     }
   };
 
-  const handleExitClassMode = () => {
-    if (pinInput !== CLASS_PIN) {
-      alert("Incorrect PIN");
-      return;
+  const handleExitPinChange = (val) => {
+    const cleaned = val.replace(/\D/g, '').slice(0, 4);
+    setPinInput(cleaned);
+    setExitPinError(false);
+
+    if (cleaned.length === 4) {
+      if (cleaned === CLASS_PIN) {
+        setShowExitPinModal(false);
+        setPinInput('');
+        setActivePage('Dashboard');
+      } else {
+        setExitPinError(true);
+        setTimeout(() => {
+          setPinInput('');
+          setExitPinError(false);
+        }, 800);
+      }
     }
-    setShowExitPinModal(false);
-    setPinInput('');
-    setActivePage('Dashboard');
+  };
+
+  const handleExitClassMode = () => {
+    if (pinInput === CLASS_PIN) {
+      setShowExitPinModal(false);
+      setPinInput('');
+      setActivePage('Dashboard');
+    } else {
+      setExitPinError(true);
+      setTimeout(() => {
+        setPinInput('');
+        setExitPinError(false);
+      }, 800);
+    }
   };
 
   return (
@@ -3187,11 +3225,11 @@ export default function Dashboard({ session }) {
   
         <nav className="flex-1 px-4 space-y-1 mt-2 overflow-y-auto">
           <NavItem icon={<Home size={28} />} label="Dashboard" isActive={activePage === 'Dashboard'} onClick={() => {setActivePage('Dashboard'); setSelectedClient(null);}} />
-          <NavItem icon={<Users size={28} />} label="Clients" isActive={activePage === 'Clients'} onClick={() => {setActivePage('Clients'); setSelectedClient(null);}} />
-          <NavItem icon={<DollarSign size={28} />} label="Revenue" isActive={activePage === 'Revenue'} onClick={() => { handleNavigateToRevenue(); setSelectedClient(null); }} />
+          <NavItem icon={<Users size={28} />} label="Clients" isActive={activePage === 'Clients'} onClick={() => { handleNavigateToPage('Clients'); setSelectedClient(null); }} />
+          <NavItem icon={<DollarSign size={28} />} label="Revenue" isActive={activePage === 'Revenue'} onClick={() => { handleNavigateToPage('Revenue'); setSelectedClient(null); }} />
           <NavItem icon={<CalendarSearch size={28} />} label="Schedule" isActive={activePage === 'Schedule'} onClick={() => {setActivePage('Schedule'); setSelectedClient(null);}} />
           <NavItem icon={<Calendar size={28} />} label="Calendar" isActive={activePage === 'Calendar'} onClick={() => { setActivePage('Calendar'); setSelectedClient(null); }} />
-          <NavItem icon={<BarChart2 size={28} />} label="Analytics" isActive={activePage === 'Analytics'} onClick={() => setActivePage('Analytics')} />
+          <NavItem icon={<BarChart2 size={28} />} label="Analytics" isActive={activePage === 'Analytics'} onClick={() => handleNavigateToPage('Analytics')} />
           <NavItem icon={<Package size={28} />} label="Packages" isActive={activePage === 'Packages'} onClick={() => setActivePage('Packages')} />
           <NavItem icon={<Monitor size={28} />} label="Class Mode" isActive={activePage === 'ClassMode'} onClick={() => setActivePage('ClassMode')} />
         </nav>
@@ -3210,11 +3248,11 @@ export default function Dashboard({ session }) {
           <Home size={24} />
           <span className="text-[10px] font-medium">Home</span>
         </button>
-        <button onClick={() => setActivePage('Clients')} className={`flex flex-col items-center gap-1 ${activePage === 'Clients' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
+        <button onClick={() => handleNavigateToPage('Clients')} className={`flex flex-col items-center gap-1 ${activePage === 'Clients' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
           <Users size={24} />
           <span className="text-[10px] font-medium">Clients</span>
         </button>
-        <button onClick={handleNavigateToRevenue} className={`flex flex-col items-center gap-1 ${activePage === 'Revenue' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
+        <button onClick={() => handleNavigateToPage('Revenue')} className={`flex flex-col items-center gap-1 ${activePage === 'Revenue' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
           <DollarSign size={24} />
           <span className="text-[10px] font-medium">Revenue</span>
         </button>
@@ -3316,7 +3354,7 @@ export default function Dashboard({ session }) {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-              <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-transform" onClick={handleNavigateToRevenue}>
+              <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-transform" onClick={() => handleNavigateToPage('Revenue')}>
                 <div className="absolute right-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-xl group-hover:bg-white/10 transition-all"></div>
                 <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-2">
                   <div className="flex items-center gap-2">
@@ -3344,7 +3382,7 @@ export default function Dashboard({ session }) {
                 value={dashboardMetrics.totalCount} 
                 trend="+1" 
                 isPositive={true} 
-                onClick={handleNavigateToRevenue} 
+                onClick={() => handleNavigateToPage('Revenue')} 
               />
               
               <StatCard 
@@ -3352,7 +3390,7 @@ export default function Dashboard({ session }) {
                 value={liveExpiries.length} 
                 trend="-2" 
                 isPositive={false} 
-                onClick={() => { setActivePage('Clients'); setActiveTab('Expiring Soon'); }} 
+                onClick={() => handleNavigateToPage('Clients', 'Expiring Soon')} 
               />
               
               <StatCard 
@@ -3360,8 +3398,129 @@ export default function Dashboard({ session }) {
                 value={activeClientsCount} 
                 trend="+1" 
                 isPositive={true} 
-                onClick={() => { setActivePage('Clients'); setActiveTab('Active'); }} 
+                onClick={() => handleNavigateToPage('Clients', 'Active')} 
               />
+            </div>
+
+            <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mb-6">
+              <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
+                <div>
+                  <h3 className="font-medium text-2xl text-[#0B4550]">Upcoming Schedule</h3>
+                  <p className="text-sm text-[#898A8D] mt-1">Your next high-value sessions and member check-ins</p>
+                </div>
+                <button onClick={() => setActivePage('Schedule')} className="flex items-center gap-2 text-[#898A8D] font-medium hover:text-[#0B4550] transition-colors">
+                  View Full Calendar <ArrowRight size={20} />
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                {(() => {
+                  const upcomingSessions = sessions
+                    .filter(s => !isSessionPast(s))
+                    .sort((a, b) => {
+                      const dateDiff = new Date(a.date) - new Date(b.date);
+                      if (dateDiff !== 0) return dateDiff;
+                      return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
+                    });
+
+                  if (upcomingSessions.length === 0) {
+                    return (
+                      <div className="md:col-span-3 text-center py-6 md:py-10 text-[#898A8D] font-medium">No upcoming sessions. Head to the Schedule tab to add some!</div>
+                    );
+                  }
+
+                  return upcomingSessions.slice(0, 3).map((session, index) => {
+                    const isNext = index === 0;
+                    return (
+                      <div 
+                        key={session.id} 
+                        className={`rounded-2xl p-5 border transition-all duration-300 cursor-pointer group flex flex-col justify-between ${
+                          isNext 
+                            ? 'bg-[#F9F7F2] border-[#E6FF2B] shadow-[0_4px_20px_rgba(11,69,80,0.05)] hover:scale-[1.03]' 
+                            : 'bg-white border-gray-100 hover:border-[#0B4550] hover:scale-[1.01]'
+                        }`}
+                        onClick={() => setActivePage('Schedule')}
+                      >
+                        <div>
+                          <div className="flex justify-between items-start mb-4">
+                            <span className={`inline-block px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
+                              isNext ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-[#F9F7F2] text-[#0B4550]'
+                            }`}>
+                              {session.type}
+                            </span>
+                            
+                            {isNext && (
+                              <span className="flex items-center gap-1 bg-[#E6FF2B]/20 text-[#0B4550] px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse border border-[#E6FF2B]/30">
+                                <span className="w-1.5 h-1.5 rounded-full bg-[#0B4550] inline-block animate-ping"></span>
+                                Up Next
+                              </span>
+                            )}
+                          </div>
+                          
+                          <h4 className="text-xl font-bold text-[#0B4550] mb-2 group-hover:text-black transition-colors">
+                            {getSessionDisplayTitle(session)}
+                          </h4>
+                          
+                          <div className="space-y-2 mb-4">
+                            <p className="text-xs font-semibold text-[#898A8D] flex items-center gap-1.5">
+                              <Clock size={14} className="text-[#0B4550]" /> {formatDbDate(session.date)} - {session.time}
+                            </p>
+                            <p className="text-xs font-semibold text-[#898A8D] flex items-center gap-1.5">
+                              <MapPin size={14} className="text-[#0B4550]" /> {session.location}
+                            </p>
+                            <p className="text-xs font-semibold text-[#898A8D] flex items-center gap-1.5">
+                              <User size={14} className="text-[#0B4550]" /> Coach: {session.coach || session.trainer || trainerName || 'Unassigned'}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 pt-4 border-t border-gray-100 mt-2">
+                          <div className="flex justify-between items-center">
+                            <div className="flex -space-x-2">
+                              {session.attendees && session.attendees.length > 0 ? (
+                                session.attendees.slice(0, 4).map((att, idx) => {
+                                  const initials = att.name ? att.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+                                  return (
+                                    <div 
+                                      key={idx} 
+                                      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white text-white bg-[#0B4550]"
+                                      title={att.name}
+                                    >
+                                      {initials}
+                                    </div>
+                                  );
+                                })
+                              ) : (
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 border-white bg-gray-100 text-gray-400" title="No attendees yet">
+                                  ?
+                                </div>
+                              )}
+                              {session.attendees && session.attendees.length > 4 && (
+                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white bg-[#898A8D] text-white" title={`${session.attendees.length - 4} more`}>
+                                  +{session.attendees.length - 4}
+                                </div>
+                              )}
+                            </div>
+                            <span className="text-xs font-bold text-[#898A8D]">
+                              {session.attendees ? session.attendees.length : 0} / {session.capacity} Booked
+                            </span>
+                          </div>
+                          
+                          {session.capacity > (session.attendees ? session.attendees.length : 0) ? (
+                            <span className="text-[10px] font-bold text-emerald-600/90 text-right">
+                              {session.capacity - (session.attendees ? session.attendees.length : 0)} slots available
+                            </span>
+                          ) : (
+                            <span className="text-[10px] font-bold text-red-500 text-right">
+                              Fully Booked
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  });
+                })()}
+              </div>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
@@ -3451,56 +3610,6 @@ export default function Dashboard({ session }) {
                 </div>
               </div>
             </div>
-                    
-            <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mb-6">
-              <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
-                <h3 className="font-medium text-2xl text-[#0B4550]">Upcoming Schedule</h3>
-                <button onClick={() => setActivePage('Schedule')} className="flex items-center gap-2 text-[#898A8D] font-medium hover:text-[#0B4550] transition-colors">
-                  View Full Calendar <ArrowRight size={20} />
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                {(() => {
-                  const upcomingSessions = sessions
-                    .filter(s => !isSessionPast(s))
-                    .sort((a, b) => {
-                      const dateDiff = new Date(a.date) - new Date(b.date);
-                      if (dateDiff !== 0) return dateDiff;
-                      return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
-                    });
-
-                  if (upcomingSessions.length === 0) {
-                    return (
-                      <div className="md:col-span-3 text-center py-6 md:py-10 text-[#898A8D] font-medium">No upcoming sessions. Head to the Schedule tab to add some!</div>
-                    );
-                  }
-
-                  return upcomingSessions.slice(0, 3).map((session) => (
-                    <div key={session.id} className="bg-[#F9F7F2] rounded-2xl p-5 border border-gray-100 hover:border-[#E6FF2B] transition-colors cursor-pointer group" onClick={() => setActivePage('Schedule')}>
-                      <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-4">
-                        <span className={`inline-block px-3 py-1 rounded-lg text-xs font-medium ${session.type === '1-on-1' ? 'bg-[#0B4550] text-white' : 'bg-white text-[#0B4550]'}`}>
-                          {session.type}
-                        </span>
-                        <span className="text-[#898A8D] font-medium text-sm flex items-center gap-1">
-                          <Clock size={14} /> {formatDbDate(session.date)} - {session.time}
-                        </span>
-                      </div>
-                      <h4 className="text-xl font-medium text-[#0B4550] mb-1 group-hover:text-black transition-colors">{getSessionDisplayTitle(session)}</h4>
-                      <p className="text-sm font-medium text-[#898A8D] mb-4 flex items-center gap-1"><MapPin size={14} /> {session.location}</p>
-                      
-                      <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 pt-4 border-t border-gray-200">
-                        <div className="flex -space-x-2">
-                          {/* Future Attendees Join will go here */}
-                          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-medium border-2 border-[#F9F7F2] bg-gray-200 text-white">?</div>
-                        </div>
-                        <span className="text-xs font-medium text-[#898A8D]">{session.attendees ? session.attendees.length : 0} / {session.capacity} Booked</span>
-                      </div>
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
           </div>
         )}
 
@@ -3552,17 +3661,35 @@ export default function Dashboard({ session }) {
           </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-               <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md">
-                 <h3 className="text-white/80 font-medium text-lg mb-2">Total Collected (This Month)</h3>
-                 <h2 className="text-3xl md:text-4xl font-medium text-white">RM {totalCollectedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h2>
+               <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden">
+                 <div className="flex justify-between items-center mb-2">
+                   <h3 className="text-white/80 font-medium text-lg">Total Collected (This Month)</h3>
+                   <button 
+                     onClick={(e) => {
+                       e.stopPropagation();
+                       handleToggleRevenueVisibility();
+                     }}
+                     className="text-white/60 hover:text-white transition-colors focus:outline-none p-0.5 rounded"
+                     title={isRevenueHidden ? "Show Revenue" : "Hide Revenue"}
+                   >
+                     {isRevenueHidden ? <EyeOff size={18} /> : <Eye size={18} />}
+                   </button>
+                 </div>
+                 <h2 className="text-3xl md:text-4xl font-medium text-white">
+                   {isRevenueHidden ? 'RM ••••' : `RM ${totalCollectedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                 </h2>
                </div>
                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
                  <h3 className="text-[#898A8D] font-medium text-lg mb-2">Pending Payments</h3>
-                 <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550]">RM 0.00</h2>
+                 <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550]">
+                   {isRevenueHidden ? 'RM ••••' : 'RM 0.00'}
+                 </h2>
                </div>
                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
                  <h3 className="text-[#898A8D] font-medium text-lg mb-2">Projected Renewals</h3>
-                 <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550]">RM {estimatedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h2>
+                 <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550]">
+                   {isRevenueHidden ? 'RM ••••' : `RM ${estimatedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                 </h2>
                </div>
             </div>
 
@@ -3582,7 +3709,7 @@ export default function Dashboard({ session }) {
                             <Calendar size={18} /> {yearData.year}
                           </h4>
                           <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                            Yearly Collected: <span className="text-emerald-600 font-extrabold">RM {yearData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
+                            Yearly Collected: <span className="text-emerald-600 font-extrabold">{isRevenueHidden ? 'RM ••••' : `RM ${yearData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</span>
                           </div>
                         </div>
 
@@ -3612,7 +3739,7 @@ export default function Dashboard({ session }) {
                                     </div>
                                     <div className="text-right">
                                       <p className="text-[10px] font-bold text-[#898A8D] uppercase">Collected</p>
-                                      <p className="text-sm font-bold text-emerald-600">RM {monthData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</p>
+                                      <p className="text-sm font-bold text-emerald-600">{isRevenueHidden ? 'RM ••••' : `RM ${monthData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
                                     </div>
                                   </div>
 
@@ -3637,7 +3764,7 @@ export default function Dashboard({ session }) {
                                                 <td className="py-3 pl-4 text-xs font-semibold text-gray-500 w-[12%]">{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
                                                 <td className="py-3 font-bold w-[23%]">{clients.find(c => c.id === t.client_name)?.name || t.client_name}</td>
                                                 <td className="py-3 text-xs text-gray-500 font-semibold w-[45%]">{t.description}</td>
-                                                <td className="py-3 font-black text-emerald-600 text-right w-[12%]">+RM {Number(t.amount).toFixed(2)}</td>
+                                                <td className="py-3 font-black text-emerald-600 text-right w-[12%]">{isRevenueHidden ? 'RM ••••' : `+RM ${Number(t.amount).toFixed(2)}`}</td>
                                                 <td className="py-3 pr-4 text-right w-[8%]">
                                                    <div className="flex items-center justify-end gap-2">
                                                      {t.amount > 0 && !t.is_backlog && (
@@ -3682,7 +3809,27 @@ export default function Dashboard({ session }) {
 
         {/* VIEW: CLIENTS */}
         {activePage === 'Clients' && (
-          <div className="animate-in fade-in duration-500">
+          !isRevenueUnlocked ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm animate-in fade-in duration-300 w-full">
+              <div className="w-20 h-20 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center mb-6">
+                <Lock size={40} />
+              </div>
+              <h3 className="text-3xl font-black text-[#0B4550] mb-2">Clients Access Locked</h3>
+              <p className="text-[#898A8D] font-medium mb-8 max-w-sm text-base leading-relaxed">Member details, activity logs, and profiles require a secure owner verification.</p>
+              <button 
+                onClick={() => {
+                  setPendingPageAction('Clients');
+                  setSecurityPinInput('');
+                  setSecurityPinError(false);
+                  setShowSecurityPinModal(true);
+                }}
+                className="bg-[#0B4550] text-[#E6FF2B] font-bold text-lg px-8 py-4 rounded-2xl hover:scale-105 transition-all shadow-md flex items-center gap-2"
+              >
+                <Unlock size={20} /> Enter Owner PIN
+              </button>
+            </div>
+          ) : (
+            <div className="animate-in fade-in duration-500">
             {!selectedClient && (
               <>
                 <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
@@ -4291,7 +4438,8 @@ export default function Dashboard({ session }) {
               </div>
             )}
           </div>
-        )}
+        )
+      )}
 
 {/* VIEW: FULL CALENDAR */}
 {activePage === 'Calendar' && (() => {
@@ -5139,7 +5287,27 @@ export default function Dashboard({ session }) {
 
         {/* VIEW: ANALYTICS */}
         {activePage === 'Analytics' && (
-          <div className="animate-in fade-in duration-500">
+          !isRevenueUnlocked ? (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] text-center p-8 bg-white rounded-[2.5rem] border border-gray-100 shadow-sm animate-in fade-in duration-300 w-full">
+              <div className="w-20 h-20 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center mb-6">
+                <Lock size={40} />
+              </div>
+              <h3 className="text-3xl font-black text-[#0B4550] mb-2">Analytics Access Locked</h3>
+              <p className="text-[#898A8D] font-medium mb-8 max-w-sm text-base leading-relaxed">Performance analytics and trends require a secure owner verification.</p>
+              <button 
+                onClick={() => {
+                  setPendingPageAction('Analytics');
+                  setSecurityPinInput('');
+                  setSecurityPinError(false);
+                  setShowSecurityPinModal(true);
+                }}
+                className="bg-[#0B4550] text-[#E6FF2B] font-bold text-lg px-8 py-4 rounded-2xl hover:scale-105 transition-all shadow-md flex items-center gap-2"
+              >
+                <Unlock size={20} /> Enter Owner PIN
+              </button>
+            </div>
+          ) : (
+            <div className="animate-in fade-in duration-500">
             <div className="flex justify-end items-center mb-8">
               <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100">
                 {['1M', '3M', '6M', '1Y', 'All Time'].map((tab) => (
@@ -5275,7 +5443,8 @@ export default function Dashboard({ session }) {
               </div>
             </div>
           </div>
-        )}
+        )
+      )}
 
         {/* VIEW: SETTINGS */}
         {activePage === 'Settings' && (
@@ -5991,28 +6160,93 @@ export default function Dashboard({ session }) {
           </div>
         )}
 
-        {/* PIN MODAL FOR EXIT */}
+        {/* PIN MODAL FOR EXIT - PREMIUM DIALPAD */}
         {showExitPinModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-            <div className="bg-white rounded-[2rem] p-5 md:p-8 w-full max-w-sm text-center shadow-2xl">
-              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+            <div 
+              className={`bg-white rounded-[2.5rem] p-6 md:p-8 w-full max-w-sm text-center shadow-2xl relative border border-gray-100 flex flex-col items-center transition-all ${
+                exitPinError ? 'animate-pin-shake border-2 border-red-500' : ''
+              }`}
+            >
+              {/* Invisible input that captures desktop keyboard entry */}
+              <input
+                type="password"
+                pattern="[0-9]*"
+                inputMode="numeric"
+                maxLength={4}
+                value={pinInput}
+                onChange={(e) => handleExitPinChange(e.target.value)}
+                className="absolute -top-96 left-0 opacity-0 pointer-events-none"
+                autoFocus
+              />
+
+              <div className="w-16 h-16 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center mb-4">
                 <Lock size={32} />
               </div>
+              
               <h3 className="text-2xl font-black text-[#0B4550] mb-2">Exit Class Mode</h3>
-              <p className="text-[#898A8D] mb-6 font-medium text-sm">Enter Gym Owner PIN to return to Dashboard</p>
-              <input 
-                type="password" 
-                maxLength={4}
-                autoFocus
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value)}
-                className="w-full text-center text-3xl md:text-4xl tracking-[1rem] font-black py-4 bg-[#F9F7F2] rounded-xl border-none outline-none focus:ring-2 focus:ring-[#0B4550] text-[#0B4550] mb-6"
-                placeholder="••••"
-              />
-              <div className="flex gap-3">
-                <button onClick={() => { setShowExitPinModal(false); setPinInput(''); }} className="flex-1 py-4 rounded-xl font-bold text-[#898A8D] bg-[#F9F7F2] hover:bg-gray-200">Cancel</button>
-                <button onClick={handleExitClassMode} className="flex-1 py-4 rounded-xl font-bold text-white bg-red-500 hover:bg-red-600">Exit</button>
+              <p className="text-[#898A8D] mb-6 font-medium text-sm">
+                Enter Gym Owner PIN to return to Dashboard
+              </p>
+
+              {/* Secure Dot indicators */}
+              <div className="flex justify-center gap-4 mb-8">
+                {[0, 1, 2, 3].map((idx) => {
+                  const isFilled = pinInput.length > idx;
+                  return (
+                    <div 
+                      key={idx}
+                      className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
+                        isFilled 
+                          ? 'bg-[#0B4550] border-[#0B4550] scale-110 shadow-md' 
+                          : 'border-gray-300 bg-transparent'
+                      }`}
+                    />
+                  );
+                })}
               </div>
+
+              {/* Interactive Keypad Dial */}
+              <div className="grid grid-cols-3 gap-4 max-w-[280px] mx-auto mb-6">
+                {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
+                  <button
+                    key={num}
+                    onClick={() => handleExitPinChange(pinInput + num)}
+                    className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-[#0B4550] bg-[#F9F7F2] hover:bg-gray-100 active:scale-95 transition-all shadow-sm focus:outline-none"
+                  >
+                    {num}
+                  </button>
+                ))}
+                <button
+                  onClick={() => setPinInput('')}
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-sm font-semibold text-[#898A8D] hover:text-[#0B4550] active:scale-95 transition-all focus:outline-none"
+                >
+                  Clear
+                </button>
+                <button
+                  onClick={() => handleExitPinChange(pinInput + '0')}
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-[#0B4550] bg-[#F9F7F2] hover:bg-gray-100 active:scale-95 transition-all shadow-sm focus:outline-none"
+                >
+                  0
+                </button>
+                <button
+                  onClick={() => setPinInput(prev => prev.slice(0, -1))}
+                  className="w-16 h-16 rounded-full flex items-center justify-center text-xl font-bold text-[#898A8D] hover:text-[#0B4550] active:scale-95 transition-all focus:outline-none"
+                >
+                  ⌫
+                </button>
+              </div>
+
+              <button 
+                onClick={() => {
+                  setShowExitPinModal(false);
+                  setPinInput('');
+                  setExitPinError(false);
+                }}
+                className="w-full py-4 rounded-2xl font-bold text-[#898A8D] bg-[#F9F7F2] hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
             </div>
           </div>
         )}
@@ -7425,7 +7659,7 @@ export default function Dashboard({ session }) {
               </button>
               
               <button 
-                onClick={() => { setActivePage('Analytics'); setShowMoreMenu(false); }}
+                onClick={() => { handleNavigateToPage('Analytics'); setShowMoreMenu(false); }}
                 className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${activePage === 'Analytics' ? 'bg-[#F9F7F2] text-[#0B4550] font-bold' : 'text-[#898A8D] hover:bg-gray-50'}`}
               >
                 <BarChart2 size={28} />
