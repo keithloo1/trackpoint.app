@@ -1099,7 +1099,7 @@ export default function ClientDashboard() {
       </aside>
 
       {/* MOBILE BOTTOM NAV */}
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-around items-center py-3 px-2 z-[50] shadow-[0_-4px_24px_rgba(0,0,0,0.04)]">
+      <div className={`lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-around items-center py-3 px-2 z-[50] shadow-[0_-4px_24px_rgba(0,0,0,0.04)] ${isBuilderOpen || isTrackerOpen ? 'hidden' : ''}`}>
         <button onClick={() => setActiveNav('Home')} className={`flex flex-col items-center gap-1 ${activeNav === 'Home' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
           <Home size={24} />
           <span className="text-[10px] font-medium">Home</span>
@@ -1488,19 +1488,21 @@ export default function ClientDashboard() {
 
         {/* --- PROGRESS & ANALYTICS VIEW --- */}
         {activeNav === 'Progress' && (
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 flex-1 pb-4 animate-in fade-in duration-500">
-            <div className="md:col-span-12 lg:col-span-8 flex flex-col h-full"><WeightLineChart data={clientData.weightHistory} startWeight={clientData.startWeight} /></div>
-            <div className="md:col-span-12 lg:col-span-4 flex flex-col gap-4 md:gap-6">
-              <div className="bg-[#0B4550] rounded-[2.5rem] p-8 shadow-sm flex-1 flex flex-col justify-center items-center text-center relative overflow-hidden group">
-                <div className="absolute -right-8 -top-8 opacity-10 group-hover:scale-110 transition-transform duration-500"><Dumbbell size={160} className="text-white" /></div>
-                <h3 className="font-medium text-6xl text-[#E6FF2B] mb-2 relative z-10">12.4<span className="text-3xl">k</span></h3>
-                <p className="text-white/70 font-medium text-xs uppercase tracking-widest relative z-10">Total Volume Lifted (kg)</p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6 flex-1 pb-4 animate-in fade-in duration-500">
+            <div className="col-span-12 lg:col-span-8 flex flex-col h-[280px] sm:h-[350px] md:h-[400px] lg:h-full lg:min-h-[400px] bg-white rounded-[2.5rem] p-4 sm:p-6 border border-gray-100 shadow-sm relative overflow-hidden"><WeightLineChart data={clientData.weightHistory} startWeight={clientData.startWeight} /></div>
+            <div className="col-span-12 lg:col-span-4 flex flex-col gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-1 gap-4">
+                <div className="bg-[#0B4550] rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm flex flex-col justify-center items-center text-center relative overflow-hidden group min-h-[120px] sm:min-h-[140px] lg:min-h-0">
+                  <div className="absolute -right-8 -top-8 opacity-10 group-hover:scale-110 transition-transform duration-500"><Dumbbell size={120} className="text-white" /></div>
+                  <h3 className="font-bold text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-[#E6FF2B] mb-1 relative z-10">12.4<span className="text-xl sm:text-2xl">k</span></h3>
+                  <p className="text-white/70 font-semibold text-[9px] sm:text-xs uppercase tracking-widest relative z-10 leading-snug">Total Vol. (kg)</p>
+                </div>
+                <div className="bg-white rounded-[2rem] sm:rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm border border-gray-100 flex flex-col justify-center items-center text-center min-h-[120px] sm:min-h-[140px] lg:min-h-0">
+                  <h3 className="font-bold text-3xl sm:text-4xl md:text-5xl lg:text-6xl text-[#0B4550] mb-1">42</h3>
+                  <p className="text-[#898A8D] font-semibold text-[9px] sm:text-xs uppercase tracking-widest leading-snug">Workouts Done</p>
+                </div>
               </div>
-              <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 flex-1 flex flex-col justify-center items-center text-center">
-                <h3 className="font-medium text-6xl text-[#0B4550] mb-2">42</h3>
-                <p className="text-[#898A8D] font-medium text-xs uppercase tracking-widest">Workouts Completed</p>
-              </div>
-              <button onClick={openWeightModal} className="bg-[#E6FF2B] text-[#0B4550] py-6 rounded-[2.5rem] font-medium text-xl shadow-sm hover:scale-[1.02] transition-all flex items-center justify-center gap-2 border border-yellow-300"><Plus size={24} /> Log New Weight</button>
+              <button onClick={openWeightModal} className="bg-[#E6FF2B] text-[#0B4550] py-4 sm:py-5 rounded-[2rem] sm:rounded-[2.5rem] font-bold text-base sm:text-lg shadow-sm hover:scale-[1.02] transition-all flex items-center justify-center gap-2 border border-yellow-300 active:scale-95"><Plus size={20} /> Log New Weight</button>
             </div>
             <div className="col-span-12 bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 mt-2">
               <div className="flex items-center justify-between mb-8">
@@ -1529,8 +1531,8 @@ export default function ClientDashboard() {
 
         {/* SETTINGS MODAL */}
         {isSettingsOpen && <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[115] transition-opacity" onClick={() => setIsSettingsOpen(false)} />}
-        <div className={`fixed top-0 right-0 h-full w-[500px] bg-white z-[120] shadow-2xl transition-transform duration-500 ease-out p-10 flex flex-col ${isSettingsOpen ? 'translate-x-0' : 'translate-x-full'}`}>
-          <div className="flex justify-between items-center mb-8"><h2 className="text-3xl font-medium text-[#0B4550]">Settings</h2><button onClick={() => setIsSettingsOpen(false)} className="w-10 h-10 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-colors"><X size={20} /></button></div>
+        <div className={`fixed top-0 right-0 h-full w-full sm:w-[500px] bg-white z-[120] shadow-2xl transition-transform duration-500 ease-out p-6 sm:p-10 flex flex-col ${isSettingsOpen ? 'translate-x-0' : 'translate-x-full'}`}>
+          <div className="flex justify-between items-center mb-6 sm:mb-8"><h2 className="text-3xl font-medium text-[#0B4550]">Settings</h2><button onClick={() => setIsSettingsOpen(false)} className="w-10 h-10 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-colors"><X size={20} /></button></div>
           <div className="flex gap-2 bg-[#F9F7F2] p-2 rounded-2xl mb-8">
             <button onClick={() => setSettingsTab('profile')} className={`flex-1 py-3 font-medium text-sm rounded-xl transition-all ${settingsTab === 'profile' ? 'bg-white shadow-sm text-[#0B4550]' : 'text-[#898A8D]'}`}>Profile</button>
             <button onClick={() => setSettingsTab('billing')} className={`flex-1 py-3 font-medium text-sm rounded-xl transition-all ${settingsTab === 'billing' ? 'bg-white shadow-sm text-[#0B4550]' : 'text-[#898A8D]'}`}>Billing</button>
@@ -1735,7 +1737,7 @@ export default function ClientDashboard() {
             <div className="bg-white px-10 py-6 border-b border-gray-100 flex items-center justify-between shadow-sm shrink-0"><div className="flex items-center gap-16 mx-auto w-full max-w-4xl"><StepIndicator num={1} label="Equipment" active={step >= 1} current={step === 1} /><div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-[#0B4550]' : 'bg-gray-100'}`}></div><StepIndicator num={2} label="Muscles" active={step >= 2} current={step === 2} /><div className={`flex-1 h-1 rounded-full ${step >= 3 ? 'bg-[#0B4550]' : 'bg-gray-100'}`}></div><StepIndicator num={3} label="Exercises" active={step === 3} current={step === 3} /></div><button onClick={() => { setIsBuilderOpen(false); setStep(1); }} className="absolute right-8 top-8 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-[#898A8D] hover:bg-red-50 hover:text-red-500 transition-colors"><X size={20} /></button></div>
             <div className="flex-1 overflow-y-auto p-8 flex justify-center">
               <div className="max-w-4xl w-full">
-                {step === 1 && (<div className="animate-in slide-in-from-right-4"><div className="text-center mb-10"><h2 className="text-4xl font-medium text-[#0B4550] mb-2">Select Equipment</h2><p className="text-lg text-[#898A8D] font-medium">What are we working with?</p></div><div className="grid grid-cols-4 gap-4">{EQUIPMENT_OPTIONS.map(eq => (<div key={eq} onClick={() => toggleSelection(eq, selectedEquip, setSelectedEquip)} className={`bg-white p-6 rounded-[2rem] border-4 cursor-pointer transition-all flex flex-col items-center gap-3 ${selectedEquip.includes(eq) ? 'border-[#0B4550] shadow-lg' : 'border-transparent shadow-sm'}`}><Dumbbell size={48} className={selectedEquip.includes(eq) ? 'text-[#0B4550]' : 'text-gray-300'} /><span className={`font-medium text-sm ${selectedEquip.includes(eq) ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>{eq}</span></div>))}</div></div>)}
+                {step === 1 && (<div className="animate-in slide-in-from-right-4"><div className="text-center mb-6 sm:mb-10"><h2 className="text-3xl sm:text-4xl font-medium text-[#0B4550] mb-2">Select Equipment</h2><p className="text-base sm:text-lg text-[#898A8D] font-medium">What are we working with?</p></div><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">{EQUIPMENT_OPTIONS.map(eq => (<div key={eq} onClick={() => toggleSelection(eq, selectedEquip, setSelectedEquip)} className={`bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border-4 cursor-pointer transition-all flex flex-col items-center justify-center gap-2 sm:gap-3 ${selectedEquip.includes(eq) ? 'border-[#0B4550] shadow-lg' : 'border-transparent shadow-sm'}`}><Dumbbell size={32} className={`sm:w-12 sm:h-12 ${selectedEquip.includes(eq) ? 'text-[#0B4550]' : 'text-gray-300'}`} /><span className={`font-bold text-xs sm:text-sm tracking-wide ${selectedEquip.includes(eq) ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>{eq}</span></div>))}</div></div>)}
                 {step === 2 && (
                   <div className="animate-in slide-in-from-right-4">
                     <div className="text-center mb-10">
@@ -1866,7 +1868,7 @@ export default function ClientDashboard() {
                 )}
               </div>
             </div>
-            <div className="bg-white p-6 border-t border-gray-100 flex justify-center shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
+            <div className="bg-white p-6 pb-8 sm:pb-6 border-t border-gray-100 flex justify-center shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
               <div className="max-w-4xl w-full flex justify-between items-center">
                 <button onClick={() => step > 1 ? setStep(step - 1) : setIsBuilderOpen(false)} className="px-8 font-medium text-[#898A8D] flex items-center gap-2 hover:text-[#0B4550] transition-colors">
                   <ChevronLeft size={20} /> Previous
