@@ -334,8 +334,15 @@ export default function ClientDashboard() {
               attendees: sessionBookings.map(b => ({ client_id: b.client_id, name: b.clients?.name || 'Unknown' }))
             };
 
-            // Add to upcoming if booked by this client
-            if (isBookedByMe) clientUpcoming.push(fullSession);
+            // Add to upcoming if booked by this client and in the future (today or later)
+            if (isBookedByMe) {
+              const sessionDateObj = parseLocalDate(session.date);
+              const todayLocal = new Date();
+              todayLocal.setHours(0, 0, 0, 0);
+              if (sessionDateObj && sessionDateObj >= todayLocal) {
+                clientUpcoming.push(fullSession);
+              }
+            }
             return fullSession;
           });
           setLiveSessions(formattedSessions);
@@ -547,6 +554,15 @@ export default function ClientDashboard() {
   };
 
   const handleQuickCancel = async (session) => {
+    // Prevent cancelling past sessions
+    const sessionDateObj = parseLocalDate(session.date);
+    const todayLocal = new Date();
+    todayLocal.setHours(0, 0, 0, 0);
+    if (sessionDateObj && sessionDateObj < todayLocal) {
+      alert("You cannot cancel past classes.");
+      return;
+    }
+
     if (!window.confirm("Are you sure you want to cancel this booking?")) return;
 
     try {
