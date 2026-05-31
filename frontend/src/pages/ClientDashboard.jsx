@@ -6,7 +6,7 @@ import {
   Target, Flame, ChevronDown, X, Clock, MapPin, Scale, Users,
   Zap, Trophy, ChevronLeft, ChevronRight, Package, CheckCircle2, RefreshCw,
   Trash2, Dumbbell, PlayCircle, Timer, CalendarPlus, CalendarCheck,
-  CreditCard, ShieldCheck, TrendingUp, Award, User, Bell, FileText, Camera, Loader2
+  CreditCard, ShieldCheck, TrendingUp, Award, User, Bell, FileText, Camera, Loader2, Printer
 } from 'lucide-react';
 import newLogo from '../assets/logo.svg';
 
@@ -261,6 +261,8 @@ export default function ClientDashboard() {
   const [selectedLiveSession, setSelectedLiveSession] = useState(null);
   const [upcomingBookings, setUpcomingBookings] = useState([]);
   const [viewClassDetails, setViewClassDetails] = useState(null);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [isInvoiceOpen, setIsInvoiceOpen] = useState(false);
 
   const [settingsTab, setSettingsTab] = useState('profile');
   const [alerts, setAlerts] = useState({ workouts: true, messages: true, billing: false });
@@ -307,11 +309,12 @@ export default function ClientDashboard() {
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', TRAINER_ID).maybeSingle();
         const { data: metrics } = await supabase.from('client_metrics').select('*').eq('client_id', ACTUAL_CLIENT_ID).maybeSingle();
         const { data: weights } = await supabase.from('weight_logs').select('*').eq('client_id', ACTUAL_CLIENT_ID).order('created_at', { ascending: false });
+        const { data: workoutsData } = await supabase.from('workouts').select('*').eq('client_id', ACTUAL_CLIENT_ID);
 
         // FETCH TRANSACTIONS (The Ledger)
         const { data: transData } = await supabase.from('transactions')
           .select('*')
-          .eq('client_id', ACTUAL_CLIENT_ID)
+          .or(`client_name.eq."${ACTUAL_CLIENT_ID}",client_name.eq."${realClient.name}"`)
           .order('created_at', { ascending: false });
 
         // FETCH LIVE SESSIONS FOR THIS TRAINER
@@ -348,20 +351,40 @@ export default function ClientDashboard() {
           setLiveSessions(formattedSessions);
           setUpcomingBookings(clientUpcoming);
 
+          // Calculate sequential invoice numbers chronologically
+          const invoiceNumMap = {};
+          if (transData) {
+            const sortedTrans = [...transData].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+            let invoiceCounter = 101;
+            sortedTrans.forEach(t => {
+              const isPurchase = t.amount > 0 || 
+                t.description?.toLowerCase().includes('renewal') || 
+                t.description?.toLowerCase().includes('purchase');
+              if (isPurchase) {
+                invoiceNumMap[t.id] = invoiceCounter++;
+              }
+            });
+          }
+
           // COMBINE TRANSACTIONS AND BOOKINGS INTO HISTORY LEDGER
           const combined = [];
 
           // Add Transactions
           if (transData) {
             transData.forEach(t => {
+              const isPurchase = t.amount > 0 || 
+                t.description?.toLowerCase().includes('renewal') || 
+                t.description?.toLowerCase().includes('purchase');
               combined.push({
                 id: `trans-${t.id}`,
                 date: new Date(t.created_at),
                 title: t.description || 'Manual Entry',
-                type: t.amount > 0 ? 'purchase' : 'usage',
+                type: isPurchase ? 'purchase' : 'usage',
                 amount: t.amount,
-                method: t.payment_method,
-                isTransaction: true
+                method: t.payment_method || 'Cash',
+                isTransaction: true,
+                invoiceNumber: invoiceNumMap[t.id] ? `INV-${invoiceNumMap[t.id]}` : null,
+                rawTransaction: t
               });
             });
           }
@@ -401,6 +424,44 @@ export default function ClientDashboard() {
             realClient.package.toLowerCase().includes('pass')
           ));
 
+        // Parse Real Personal Records from workouts
+        const prMap = {};
+        if (workoutsData) {
+          workoutsData.forEach(w => {
+            const workoutDate = new Date(w.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            let exerciseList = [];
+            try {
+              exerciseList = typeof w.workout_data === 'string' ? JSON.parse(w.workout_data) : w.workout_data;
+            } catch (e) {
+              console.error("Error parsing workout_data:", e);
+            }
+
+            if (Array.isArray(exerciseList)) {
+              exerciseList.forEach(ex => {
+                if (ex.name && Array.isArray(ex.sets)) {
+                  ex.sets.forEach(set => {
+                    const weightVal = parseFloat(set.weight);
+                    if (set.completed && !isNaN(weightVal) && weightVal > 0) {
+                      const repsVal = parseInt(set.reps || set.targetReps) || 1;
+                      const currentMax = prMap[ex.name]?.maxWeight || 0;
+                      if (weightVal > currentMax) {
+                        prMap[ex.name] = {
+                          exercise: ex.name,
+                          weight: `${weightVal} kg`,
+                          maxWeight: weightVal,
+                          reps: repsVal,
+                          date: workoutDate
+                        };
+                      }
+                    }
+                  });
+                }
+              });
+            }
+          });
+        }
+        const parsedPRs = Object.values(prMap).sort((a, b) => b.maxWeight - a.maxWeight);
+
         setClientData({
           id: ACTUAL_CLIENT_ID,
           name: realClient.name || 'Client',
@@ -419,10 +480,7 @@ export default function ClientDashboard() {
           currentWeight: latestWeight,
           goalWeight: parseFloat(metrics?.goal_weight) || 62,
           weightHistory: formattedWeights.length > 0 ? formattedWeights : [{ date: "Today", weight: 68, feeling: '🙂' }],
-          prs: [
-            { exercise: "Barbell Squat", weight: "85 kg", reps: 5, date: "Apr 18" },
-            { exercise: "Deadlift", weight: "100 kg", reps: 1, date: "Mar 30" }
-          ]
+          prs: parsedPRs
         });
 
         if (profile) {
@@ -793,15 +851,39 @@ export default function ClientDashboard() {
   };
 
   const saveWeightProgress = async () => {
-    const { error: logError } = await supabase.from('weight_logs').insert([{ client_id: clientData.id, weight: tempWeight, feeling: tempFeeling }]);
+    // 1. Insert log with the client-selected past/present date
+    const { error: logError } = await supabase.from('weight_logs').insert([{ 
+      client_id: clientData.id, 
+      weight: tempWeight, 
+      feeling: tempFeeling,
+      created_at: new Date(tempDate).toISOString()
+    }]);
     if (logError) return alert("Database Error (Logs): " + logError.message);
 
+    // 2. Update client metrics
     const { error: metricError } = await supabase.from('client_metrics').update({ current_weight: tempWeight, goal_weight: tempGoal }).eq('client_id', clientData.id);
     if (metricError) return alert("Database Error (Metrics): " + metricError.message);
 
-    const d = new Date(tempDate);
-    const formattedDate = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    setClientData(prev => ({ ...prev, currentWeight: tempWeight, goalWeight: tempGoal, weightHistory: [{ date: formattedDate, weight: tempWeight, feeling: tempFeeling }, ...prev.weightHistory] }));
+    // 3. Re-fetch all weight logs dynamically to guarantee absolute correctness and perfect sorting
+    const { data: updatedWeights } = await supabase.from('weight_logs')
+      .select('*')
+      .eq('client_id', clientData.id)
+      .order('created_at', { ascending: false });
+
+    const formattedWeights = updatedWeights ? updatedWeights.map(w => ({
+      date: new Date(w.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      weight: parseFloat(w.weight),
+      feeling: w.feeling
+    })) : [];
+
+    const latestWeight = formattedWeights.length > 0 ? formattedWeights[0].weight : tempWeight;
+
+    setClientData(prev => ({ 
+      ...prev, 
+      currentWeight: latestWeight, 
+      goalWeight: tempGoal, 
+      weightHistory: formattedWeights 
+    }));
     setIsWeightModalOpen(false);
   };
 
@@ -813,7 +895,48 @@ export default function ClientDashboard() {
 
   const finishWorkoutSession = async () => {
     await supabase.from('workouts').insert([{ client_id: clientData.id, duration_seconds: workoutTime, workout_data: generatedWorkout }]);
+    
+    // Re-fetch workouts to dynamically recalculate and update PRs!
+    const { data: workoutsData } = await supabase.from('workouts').select('*').eq('client_id', clientData.id);
+    const prMap = {};
+    if (workoutsData) {
+      workoutsData.forEach(w => {
+        const workoutDate = new Date(w.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        let exerciseList = [];
+        try {
+          exerciseList = typeof w.workout_data === 'string' ? JSON.parse(w.workout_data) : w.workout_data;
+        } catch (e) {
+          console.error("Error parsing workout_data:", e);
+        }
+
+        if (Array.isArray(exerciseList)) {
+          exerciseList.forEach(ex => {
+            if (ex.name && Array.isArray(ex.sets)) {
+              ex.sets.forEach(set => {
+                const weightVal = parseFloat(set.weight);
+                if (set.completed && !isNaN(weightVal) && weightVal > 0) {
+                  const repsVal = parseInt(set.reps || set.targetReps) || 1;
+                  const currentMax = prMap[ex.name]?.maxWeight || 0;
+                  if (weightVal > currentMax) {
+                    prMap[ex.name] = {
+                      exercise: ex.name,
+                      weight: `${weightVal} kg`,
+                      maxWeight: weightVal,
+                      reps: repsVal,
+                      date: workoutDate
+                    };
+                  }
+                }
+              });
+            }
+          });
+        }
+      });
+    }
+    const parsedPRs = Object.values(prMap).sort((a, b) => b.maxWeight - a.maxWeight);
+
     alert(`Workout Saved! Total time: ${formatTime(workoutTime)}`);
+    setClientData(prev => ({ ...prev, prs: parsedPRs }));
     setIsTrackerOpen(false); setGeneratedWorkout(null); setStep(1); setSelectedMuscles([]); setWorkoutTime(0); setRestTime(0);
   };
 
@@ -865,6 +988,11 @@ export default function ClientDashboard() {
   const toggleSetComplete = (exIndex, setIndex) => {
     const updated = [...generatedWorkout]; updated[exIndex].sets[setIndex].completed = !updated[exIndex].sets[setIndex].completed;
     setGeneratedWorkout(updated); if (updated[exIndex].sets[setIndex].completed) setRestTime(60); else setRestTime(0);
+  };
+  const updateSetWeight = (exIndex, setIndex, val) => {
+    const updated = [...generatedWorkout];
+    updated[exIndex].sets[setIndex].weight = val;
+    setGeneratedWorkout(updated);
   };
 
   return (
@@ -1233,15 +1361,28 @@ export default function ClientDashboard() {
                           </p>
                         </div>
                       </div>
-                      <div className="text-right">
-                        <p className={`text-2xl font-black ${item.type === 'purchase' ? 'text-emerald-500' :
-                            item.type === 'usage' ? 'text-rose-500' : 'text-[#0B4550]'
-                          }`}>
-                          {item.type === 'purchase' ? '+' : '-'}{Math.abs(item.amount)}
-                        </p>
-                        <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">
-                          {item.isTransaction ? 'Credits' : 'Session'}
-                        </p>
+                      <div className="flex items-center gap-4 text-right">
+                        {item.type === 'purchase' && item.invoiceNumber && (
+                          <button 
+                            onClick={() => {
+                              setSelectedInvoice(item);
+                              setIsInvoiceOpen(true);
+                            }}
+                            className="bg-[#0B4550]/10 hover:bg-[#0B4550] text-[#0B4550] hover:text-[#E6FF2B] px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0"
+                          >
+                            <FileText size={13} /> PDF Invoice
+                          </button>
+                        )}
+                        <div>
+                          <p className={`text-xl md:text-2xl font-black ${item.type === 'purchase' ? 'text-emerald-500' :
+                              item.type === 'usage' ? 'text-rose-500' : 'text-[#0B4550]'
+                            }`}>
+                            {item.type === 'purchase' ? '+' : '-'}{Math.abs(item.amount)}
+                          </p>
+                          <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">
+                            {item.isTransaction ? 'Credits' : 'Session'}
+                          </p>
+                        </div>
                       </div>
                     </div>
                   ))
@@ -1272,13 +1413,21 @@ export default function ClientDashboard() {
                 <div className="flex items-center gap-3"><div className="w-12 h-12 bg-[#F9F7F2] rounded-2xl flex items-center justify-center text-[#0B4550]"><Award size={24} /></div><h3 className="font-medium text-2xl text-[#0B4550]">Personal Records</h3></div>
                 <button className="text-[#898A8D] font-medium hover:text-[#0B4550] text-sm">View All History</button>
               </div>
-              <div className="grid grid-cols-3 gap-6">
-                {clientData.prs.map((pr, i) => (
-                  <div key={i} className="bg-[#F9F7F2] p-6 rounded-[2rem] border border-gray-100 flex flex-col justify-between hover:border-[#E6FF2B] transition-all cursor-pointer">
-                    <div className="mb-6"><p className="text-xs font-medium text-[#898A8D] uppercase tracking-widest mb-1">{pr.date}</p><h4 className="text-xl font-medium text-[#0B4550] leading-tight">{pr.exercise}</h4></div>
-                    <div className="flex justify-between items-end"><span className="font-medium text-4xl text-[#0B4550]">{pr.weight}</span><span className="font-medium text-[#0B4550] bg-white px-3 py-1.5 rounded-xl text-xs uppercase tracking-widest shadow-sm border border-gray-100">{pr.reps} Rep Max</span></div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {!clientData.prs || clientData.prs.length === 0 ? (
+                  <div className="col-span-1 md:col-span-3 py-12 text-center bg-[#F9F7F2] rounded-[2rem] border border-gray-100 flex flex-col items-center justify-center">
+                    <Award size={40} className="text-[#898A8D] mb-3 opacity-60" />
+                    <p className="text-[#898A8D] font-medium text-sm">No personal records logged yet.</p>
+                    <p className="text-[#898A8D]/70 font-semibold text-[11px] mt-1 max-w-sm">Complete physical training sessions and track completed sets using the active workout tool to establish your records!</p>
                   </div>
-                ))}
+                ) : (
+                  clientData.prs.map((pr, i) => (
+                    <div key={i} className="bg-[#F9F7F2] p-6 rounded-[2rem] border border-gray-100 flex flex-col justify-between hover:border-[#E6FF2B] transition-all cursor-pointer">
+                      <div className="mb-6"><p className="text-xs font-medium text-[#898A8D] uppercase tracking-widest mb-1">{pr.date}</p><h4 className="text-xl font-medium text-[#0B4550] leading-tight">{pr.exercise}</h4></div>
+                      <div className="flex justify-between items-end"><span className="font-medium text-4xl text-[#0B4550]">{pr.weight}</span><span className="font-medium text-[#0B4550] bg-white px-3 py-1.5 rounded-xl text-xs uppercase tracking-widest shadow-sm border border-gray-100">{pr.reps} Rep Max</span></div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           </div>
@@ -1528,7 +1677,7 @@ export default function ClientDashboard() {
             <div className="flex-1 overflow-y-auto p-8">
               <div className="max-w-4xl mx-auto space-y-8 pb-20">
                 {generatedWorkout.map((ex, exIdx) => (
-                  <div key={exIdx} className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm"><div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6"><div><p className="text-xs font-medium text-[#898A8D] uppercase tracking-widest mb-1">{ex.muscle}</p><h4 className="text-2xl font-medium text-[#0B4550]">{ex.name}</h4></div><div className="flex gap-2"><a href={`https://www.youtube.com/results?search_query=how+to+do+${ex.name.replace(/ /g, '+')}+exercise`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 bg-red-50 px-4 py-2 rounded-xl transition-colors"><PlayCircle size={18} /> Tutorial</a><button onClick={() => shuffleExercise(exIdx)} className="flex items-center gap-2 text-sm font-medium text-blue-500 hover:text-blue-600 bg-blue-50 px-4 py-2 rounded-xl transition-colors"><RefreshCw size={18} /> Swap</button></div></div><div className="flex flex-col gap-3"><div className="grid grid-cols-4 gap-4 px-4 pb-2 border-b border-gray-100 text-xs font-medium text-[#898A8D] uppercase tracking-widest text-center"><div>Set</div><div>Target</div><div>Weight (kg)</div><div>Done</div></div>{ex.sets.map((set, setIdx) => (<div key={setIdx} className={`grid grid-cols-4 gap-4 items-center p-3 rounded-2xl transition-all border ${set.completed ? 'bg-emerald-50 border-emerald-100 opacity-70' : 'bg-[#F9F7F2] border-transparent'}`}><div className="font-medium text-lg text-center text-[#0B4550]">{setIdx + 1}</div><div className="font-medium text-center text-[#898A8D]">{set.targetReps} Reps</div><div><input type="number" placeholder="-" className={`w-full p-2 rounded-xl text-center font-medium outline-none ${set.completed ? 'bg-transparent text-emerald-700' : 'bg-white text-[#0B4550] shadow-sm'}`} /></div><button onClick={() => toggleSetComplete(exIdx, setIdx)} className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center transition-all ${set.completed ? 'bg-emerald-500 text-white shadow-md scale-105' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm'}`}><CheckCircle2 size={24} /></button></div>))}</div></div>
+                  <div key={exIdx} className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm"><div className="flex flex-col md:flex-row justify-between md:items-center gap-4 mb-6"><div><p className="text-xs font-medium text-[#898A8D] uppercase tracking-widest mb-1">{ex.muscle}</p><h4 className="text-2xl font-medium text-[#0B4550]">{ex.name}</h4></div><div className="flex gap-2"><a href={`https://www.youtube.com/results?search_query=how+to+do+${ex.name.replace(/ /g, '+')}+exercise`} target="_blank" rel="noreferrer" className="flex items-center gap-2 text-sm font-medium text-red-500 hover:text-red-600 bg-red-50 px-4 py-2 rounded-xl transition-colors"><PlayCircle size={18} /> Tutorial</a><button onClick={() => shuffleExercise(exIdx)} className="flex items-center gap-2 text-sm font-medium text-blue-500 hover:text-blue-600 bg-blue-50 px-4 py-2 rounded-xl transition-colors"><RefreshCw size={18} /> Swap</button></div></div><div className="flex flex-col gap-3"><div className="grid grid-cols-4 gap-4 px-4 pb-2 border-b border-gray-100 text-xs font-medium text-[#898A8D] uppercase tracking-widest text-center"><div>Set</div><div>Target</div><div>Weight (kg)</div><div>Done</div></div>{ex.sets.map((set, setIdx) => (<div key={setIdx} className={`grid grid-cols-4 gap-4 items-center p-3 rounded-2xl transition-all border ${set.completed ? 'bg-emerald-50 border-emerald-100 opacity-70' : 'bg-[#F9F7F2] border-transparent'}`}><div className="font-medium text-lg text-center text-[#0B4550]">{setIdx + 1}</div><div className="font-medium text-center text-[#898A8D]">{set.targetReps} Reps</div><div><input type="number" placeholder="-" value={set.weight || ''} onChange={(e) => updateSetWeight(exIdx, setIdx, e.target.value)} className={`w-full p-2 rounded-xl text-center font-medium outline-none ${set.completed ? 'bg-transparent text-[#10B981]' : 'bg-white text-[#0B4550] shadow-sm'}`} /></div><button onClick={() => toggleSetComplete(exIdx, setIdx)} className={`w-12 h-12 mx-auto rounded-xl flex items-center justify-center transition-all ${set.completed ? 'bg-emerald-500 text-white shadow-md scale-105' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm'}`}><CheckCircle2 size={24} /></button></div>))}</div></div>
                 ))}
                 <button onClick={finishWorkoutSession} className="w-full bg-[#0B4550] text-[#E6FF2B] py-6 rounded-[2.5rem] font-medium text-2xl shadow-xl transition-all hover:scale-[1.02]">Finish & Save Workout</button>
               </div>
@@ -1575,6 +1724,130 @@ export default function ClientDashboard() {
                 </button>
               )}
 
+            </div>
+          </div>
+        )}
+
+        {/* INVOICE DETAIL & PDF PRINT MODAL */}
+        {isInvoiceOpen && selectedInvoice && (
+          <div className="fixed inset-0 bg-black/45 backdrop-blur-sm z-[150] flex justify-center items-center p-4 overflow-y-auto" onClick={() => setIsInvoiceOpen(false)}>
+            <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-4xl shadow-2xl relative animate-in zoom-in-95 duration-200 my-8 max-h-[90vh] overflow-y-auto no-scrollbar" onClick={e => e.stopPropagation()}>
+              <button onClick={() => setIsInvoiceOpen(false)} className="absolute top-6 right-6 w-10 h-10 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-colors print:hidden"><X size={20} /></button>
+
+              <div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-5 print:hidden">
+                <div>
+                  <h2 className="text-2xl font-bold text-[#0B4550]">Invoice Receipt</h2>
+                  <p className="text-xs text-[#898A8D] font-bold mt-1">Review transaction details or download invoice as PDF.</p>
+                </div>
+                <button 
+                  onClick={() => window.print()}
+                  className="bg-[#0B4550] text-[#E6FF2B] hover:bg-[#E6FF2B] hover:text-[#0B4550] border border-transparent px-5 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-sm mr-12"
+                >
+                  <Printer size={16} /> Print / Save PDF
+                </button>
+              </div>
+
+              <style dangerouslySetInnerHTML={{__html: `
+                @media print {
+                  body * {
+                    visibility: hidden !important;
+                  }
+                  #printable-invoice-area, #printable-invoice-area * {
+                    visibility: visible !important;
+                  }
+                  #printable-invoice-area {
+                    position: absolute !important;
+                    left: 0 !important;
+                    top: 0 !important;
+                    width: 100% !important;
+                    margin: 0 !important;
+                    padding: 0 !important;
+                    background: white !important;
+                    color: black !important;
+                  }
+                  .print\\:hidden {
+                    display: none !important;
+                  }
+                }
+              `}} />
+
+              <div id="printable-invoice-area" className="bg-white text-gray-800 font-sans leading-relaxed p-2">
+                <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-12">
+                  <div>
+                    <h1 className="text-3xl font-black text-[#0B4550] tracking-tight uppercase">TrackPoint App</h1>
+                    <p className="text-xs text-gray-400 mt-1 font-bold tracking-widest uppercase">Premium Performance & Coaching Portal</p>
+                  </div>
+                  <div className="text-right">
+                    <h2 className="text-3xl font-extrabold text-[#0B4550] tracking-tight uppercase mb-2">Invoice</h2>
+                    <div className="space-y-1 text-sm font-semibold text-gray-500">
+                      <p>Invoice No: <span className="text-[#0B4550] font-bold">{selectedInvoice.invoiceNumber}</span></p>
+                      <p>Date: {selectedInvoice.date.toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                      <p>Payment Term: Paid in Full</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 border-t border-b border-gray-100 py-6 mb-8">
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Bill To</h4>
+                    <div className="text-sm font-semibold text-gray-700">
+                      <p className="text-base font-extrabold text-[#0B4550]">{clientData.name || 'Client'}</p>
+                      <p className="mt-1">Email: {clientData.email || 'N/A'}</p>
+                      <p>Phone: {clientData.phone || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex flex-col justify-end items-end text-right">
+                    <div className="bg-[#F9F7F2] border border-gray-100 rounded-2xl p-4 w-full max-w-[280px]">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Amount Paid</span>
+                      <span className="text-2xl font-black text-[#0B4550]">RM {parseFloat(selectedInvoice.amount || 0).toFixed(2)}</span>
+                      <span className="text-xs text-gray-500 font-semibold block mt-1">Paid in full via {selectedInvoice.method || 'Cash'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <table className="w-full text-left border-collapse mb-10">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      <th className="py-3 pl-2">Item & Description</th>
+                      <th className="py-3 text-right">Qty</th>
+                      <th className="py-3 text-right">Unit Price (RM)</th>
+                      <th className="py-3 text-right pr-2">Amount (RM)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm font-semibold text-gray-700">
+                    <tr className="border-b border-gray-100">
+                      <td className="py-5 pl-2">
+                        <p className="font-extrabold text-base text-[#0B4550]">{selectedInvoice.title}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Physical Training & Coaching Pack</p>
+                      </td>
+                      <td className="py-5 text-right font-bold">1</td>
+                      <td className="py-5 text-right font-bold">RM {parseFloat(selectedInvoice.amount || 0).toFixed(2)}</td>
+                      <td className="py-5 text-right pr-2 font-extrabold text-[#0B4550]">RM {parseFloat(selectedInvoice.amount || 0).toFixed(2)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <div className="flex justify-end">
+                  <div className="w-full max-w-xs space-y-3 font-semibold text-sm text-gray-500">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span className="text-gray-700">RM {parseFloat(selectedInvoice.amount || 0).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax (0%)</span>
+                      <span className="text-gray-700">RM 0.00</span>
+                    </div>
+                    <div className="flex justify-between border-t border-gray-100 pt-3 text-base text-[#0B4550] font-bold">
+                      <span>Total Paid</span>
+                      <span>RM {parseFloat(selectedInvoice.amount || 0).toFixed(2)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="border-t border-gray-100 pt-8 mt-12 text-center text-xs text-gray-400 font-bold uppercase tracking-widest">
+                  Thank you for your business!
+                </div>
+              </div>
             </div>
           </div>
         )}
