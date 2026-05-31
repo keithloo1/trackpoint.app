@@ -385,13 +385,24 @@ export default function ClientDashboard() {
 
         const latestWeight = formattedWeights.length > 0 ? formattedWeights[0].weight : (parseFloat(metrics?.current_weight) || 68);
 
+        const isUnlimitedPackage = !!realClient.unlimited || 
+          (realClient.package && (
+            realClient.package.toLowerCase().includes('unlimited') || 
+            realClient.package.toLowerCase().includes('membership') || 
+            realClient.package.toLowerCase().includes('monthly') || 
+            realClient.package.toLowerCase().includes('time-based') || 
+            realClient.package.toLowerCase().includes('pass')
+          ));
+
         setClientData({
           id: ACTUAL_CLIENT_ID,
           name: realClient.name || 'Client',
           email: realClient.email || '',
           phone: realClient.phone || '',
-          unlimited: realClient.unlimited,
+          unlimited: isUnlimitedPackage,
           trainer_id: realClient.trainer_id,
+          trainerName: profile?.full_name || 'Your Coach',
+          notes: realClient.notes || '',
           packageName: realClient.package || 'Standard Package',
           expiry: realClient.expiry || realClient.expiry_date || '',
           usedSessions: metrics?.used_sessions || realClient.used_sessions || 0,
@@ -462,12 +473,20 @@ export default function ClientDashboard() {
     );
   }
 
-  const remainingSessions = clientData.totalSessions - clientData.usedSessions;
+  const remaining = clientData.remaining_package !== undefined ? clientData.remaining_package : (clientData.remainingSessions || 0);
+  const hasBookingPrivilege = !!clientData?.unlimited || remaining > 0;
+  const remainingSessions = clientData?.unlimited ? 9999 : remaining;
   const weightProgress = Math.max(0, Math.min(100, ((clientData.startWeight - clientData.currentWeight) / (clientData.startWeight - clientData.goalWeight)) * 100));
+  const getDaysInMonth = (month, year = 2026) => new Date(year, month + 1, 0).getDate();
+  const getFirstDayOffset = (month, year = 2026) => {
+    const day = new Date(year, month, 1).getDay();
+    return day === 0 ? 6 : day - 1;
+  };
 
   // Filter live sessions for the specific date selected in the modal
   const filteredSessionsForDate = liveSessions.filter(s => {
-    const sessionDate = new Date(s.date);
+    const sessionDate = parseLocalDate(s.date);
+    if (!sessionDate) return false;
     return sessionDate.getDate() === selectedDate && sessionDate.getMonth() === currentMonth && sessionDate.getFullYear() === 2026;
   });
 
@@ -487,7 +506,8 @@ export default function ClientDashboard() {
       client_id: clientData.id,
       session_id: session.id,
       session_date: session.date,
-      time_slot: session.time
+      time_slot: session.time,
+      status: 'Booked'
     }]);
 
     if (error) {
@@ -590,7 +610,8 @@ export default function ClientDashboard() {
       client_id: clientData.id,
       session_id: selectedLiveSession.id,
       session_date: selectedLiveSession.date,
-      time_slot: selectedLiveSession.time
+      time_slot: selectedLiveSession.time,
+      status: 'Booked'
     }]);
 
     if (error) {
@@ -600,11 +621,17 @@ export default function ClientDashboard() {
 
     // 2. Deduct session IF they are not on an unlimited package
     if (!clientData.unlimited) {
-      const newRemaining = clientData.remainingSessions - 1;
+      const remainingVal = clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions;
+      const newRemaining = remainingVal - 1;
       const newUsed = clientData.usedSessions + 1;
       await supabase.from('clients').update({ remaining_package: newRemaining, used_sessions: newUsed }).eq('id', clientData.id);
       await supabase.from('client_metrics').update({ used_sessions: newUsed }).eq('client_id', clientData.id);
-      setClientData(prev => ({ ...prev, remainingSessions: newRemaining, usedSessions: newUsed }));
+      setClientData(prev => ({ 
+        ...prev, 
+        remainingSessions: newRemaining, 
+        remaining_package: newRemaining,
+        usedSessions: newUsed 
+      }));
     }
 
     // 3. Instantly update the UI arrays so capacity changes!
@@ -876,8 +903,8 @@ export default function ClientDashboard() {
             <p className="text-[#898A8D] font-medium text-lg">
             </p>
           </div>
-          <button onClick={() => remainingSessions > 0 ? openBookingDrawer() : setIsTopUpOpen(true)} className="hidden sm:block bg-[#0B4550] text-[#E6FF2B] px-6 md:px-8 py-3.5 rounded-full font-medium shadow-md hover:scale-105 transition-all whitespace-nowrap">
-            {remainingSessions > 0 ? "Book Session" : "Top Up to Book"}
+          <button onClick={() => hasBookingPrivilege ? openBookingDrawer() : setIsTopUpOpen(true)} className="hidden sm:block bg-[#0B4550] text-[#E6FF2B] px-6 md:px-8 py-3.5 rounded-full font-medium shadow-md hover:scale-105 transition-all whitespace-nowrap">
+            {hasBookingPrivilege ? "Book Session" : "Top Up to Book"}
           </button>
         </header>
 
@@ -1085,30 +1112,63 @@ export default function ClientDashboard() {
             </div>
 
             <div className="md:col-span-12 lg:col-span-7 bg-[#0B4550] rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-[#0B4550] flex flex-col text-white relative overflow-hidden">
-              <div className="absolute -right-4 -bottom-4 opacity-10"><Calendar size={160} /></div>
-              <h3 className="font-medium text-2xl mb-6 relative z-10">Next Upcoming Class</h3>
+              <div className="absolute -right-4 -bottom-4 opacity-10"><Award size={160} /></div>
+              <div className="relative z-10 flex flex-col h-full justify-between">
+                <div>
+                  <div className="flex justify-between items-center mb-6">
+                    <h3 className="font-bold text-xs uppercase tracking-widest text-white/50">Coach's Corner & Action Plan</h3>
+                    <span className="bg-[#E6FF2B] text-[#0B4550] text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                      <Trophy size={10} /> Active Guidance
+                    </span>
+                  </div>
 
-              {upcomingBookings.length === 0 ? (
-                <div className="bg-white/10 p-6 rounded-3xl text-center border border-white/20 relative z-10">
-                  <p className="text-white/80 font-medium">You have no upcoming classes.</p>
-                </div>
-              ) : (
-                <div className="space-y-4 relative z-10">
-                  {upcomingBookings.slice(0, 2).map(booking => (
-                    <div key={booking.id} onClick={() => setViewClassDetails(booking)} className="bg-white text-[#0B4550] p-5 rounded-3xl shadow-sm flex justify-between items-center hover:scale-[1.02] transition-transform cursor-pointer">
-                      <div>
-                        <span className="inline-block px-3 py-1 rounded-lg bg-[#E6FF2B] text-[#0B4550] text-[10px] font-medium uppercase tracking-widest mb-2">{booking.type}</span>
-                        <h4 className="text-xl font-medium mb-1">{booking.title}</h4>
-                        <p className="text-[#898A8D] font-medium text-sm flex items-center gap-2"><Clock size={14} /> {formatDbDate(booking.date)} at {booking.time}</p>
-                      </div>
-                      <div className="text-right">
-                        <div className="w-12 h-12 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] shadow-sm ml-auto mb-1"><MapPin size={20} /></div>
-                        <p className="text-[10px] font-medium text-[#898A8D] uppercase tracking-widest">{booking.location}</p>
-                      </div>
+                  <div className="flex items-center gap-4 mb-6">
+                    <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center font-bold text-[#E6FF2B] border border-white/10 text-xl shadow-inner uppercase">
+                      {clientData.trainerName ? clientData.trainerName.split(' ').map(n => n[0]).join('') : 'TR'}
                     </div>
-                  ))}
+                    <div>
+                      <h4 className="font-medium text-lg text-white">
+                        {clientData.trainerName || 'Your Personal Coach'}
+                      </h4>
+                      <p className="text-white/60 text-xs font-medium">Head Trainer & Performance Advisor</p>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/10 border border-white/10 rounded-2xl p-5 mb-6 text-white/90">
+                    <p className="text-xs font-bold uppercase tracking-wider text-[#E6FF2B] mb-2">Trainer's Assessment</p>
+                    {clientData.notes ? (
+                      <p className="text-sm leading-relaxed italic">
+                        "{clientData.notes}"
+                      </p>
+                    ) : (
+                      <p className="text-sm leading-relaxed italic">
+                        "Your current focus is to build solid core consistency, prioritize quality hydration, and track your daily strength thresholds. Keep up the amazing energy!"
+                      </p>
+                    )}
+                  </div>
                 </div>
-              )}
+
+                <div className="grid grid-cols-2 gap-3 pt-2">
+                  <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[#E6FF2B]/10 text-[#E6FF2B] flex items-center justify-center shrink-0">
+                      <Zap size={16} />
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-xs text-white">Daily Consistency</h5>
+                      <p className="text-[10px] text-white/60 font-medium">Hydration & Rest</p>
+                    </div>
+                  </div>
+                  <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-lg bg-[#E6FF2B]/10 text-[#E6FF2B] flex items-center justify-center shrink-0">
+                      <Activity size={16} />
+                    </div>
+                    <div>
+                      <h5 className="font-medium text-xs text-white">Post-Class Recover</h5>
+                      <p className="text-[10px] text-white/60 font-medium">10 Min Stretching</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -1280,7 +1340,10 @@ export default function ClientDashboard() {
                 </div>
                 <div className="grid grid-cols-7 text-center text-[#898A8D] font-medium text-[10px] uppercase tracking-widest mb-3"><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div></div>
                 <div className="grid grid-cols-7 gap-y-2 text-center">
-                  {[...Array(30)].map((_, i) => {
+                  {[...Array(getFirstDayOffset(currentMonth))].map((_, idx) => (
+                    <div key={`offset-${idx}`} className="w-10 h-10" />
+                  ))}
+                  {[...Array(getDaysInMonth(currentMonth))].map((_, i) => {
                     const d = i + 1;
                     return (
                       <div key={d} onClick={() => { setSelectedDate(d); setSelectedLiveSession(null); }} className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center cursor-pointer font-medium text-sm transition-all ${selectedDate === d ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md scale-110' : 'text-[#0B4550] hover:bg-gray-200'}`}>
