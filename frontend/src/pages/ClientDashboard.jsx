@@ -1460,10 +1460,10 @@ export default function ClientDashboard() {
                           <p className={`text-xl md:text-2xl font-black ${item.type === 'purchase' ? 'text-emerald-500' :
                               item.type === 'usage' ? 'text-rose-500' : 'text-[#0B4550]'
                             }`}>
-                            {item.type === 'purchase' ? '+' : '-'}{Math.abs(item.amount)}
+                            {item.type === 'purchase' ? `RM ${Math.abs(item.amount)}` : `-${Math.abs(item.amount)}`}
                           </p>
                           <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">
-                            {item.isTransaction ? 'Credits' : 'Session'}
+                            {item.type === 'purchase' ? 'Paid' : 'Session'}
                           </p>
                         </div>
                       </div>
