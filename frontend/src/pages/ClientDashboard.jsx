@@ -273,6 +273,9 @@ export default function ClientDashboard() {
   const [step, setStep] = useState(1);
   const [selectedEquip, setSelectedEquip] = useState(["Bodyweight"]);
   const [selectedMuscles, setSelectedMuscles] = useState([]);
+  const [difficulty, setDifficulty] = useState('Intermediate');
+  const [workoutGoal, setWorkoutGoal] = useState('Hypertrophy');
+  const [customPrompt, setCustomPrompt] = useState('');
   const [generatedWorkout, setGeneratedWorkout] = useState(null);
 
   const [workoutTime, setWorkoutTime] = useState(0);
@@ -949,12 +952,15 @@ export default function ClientDashboard() {
   const generateWorkout = async () => {
     setIsGenerating(true);
     try {
-      // 🤖 Call the AI Brain
+      // 🤖 Call the AI Brain with customized user selections
       const { data, error } = await supabase.functions.invoke('generate-workout', {
         body: { 
           muscles: selectedMuscles,
           equipment: selectedEquip,
-          clientName: clientData.name
+          clientName: clientData.name,
+          difficulty: difficulty,
+          goal: workoutGoal,
+          customPrompt: customPrompt
         }
       });
 
@@ -963,16 +969,56 @@ export default function ClientDashboard() {
       setStep(3);
     } catch (err) {
       console.error("AI Generation Failed, using local engine:", err);
-      // Robust Fallback: Rule-based generation
+      // Robust Fallback: Deeply tailored rule-based generation
       let newWorkout = [];
+      
+      let setsCount = 3;
+      if (difficulty === 'Beginner') setsCount = 2;
+      else if (difficulty === 'Advanced') setsCount = 4;
+
+      let targetRepsStr = "10";
+      let baseRest = 60;
+      if (workoutGoal === 'Strength') {
+        targetRepsStr = "5";
+        baseRest = 90;
+      } else if (workoutGoal === 'Endurance') {
+        targetRepsStr = "15";
+        baseRest = 30;
+      }
+
       selectedMuscles.forEach(muscle => {
         let possibleExercises = [];
         selectedEquip.forEach(eq => { if (EXERCISE_DB[muscle] && EXERCISE_DB[muscle][eq]) possibleExercises.push(...EXERCISE_DB[muscle][eq]); });
         if (possibleExercises.length === 0) possibleExercises.push(...(EXERCISE_DB[muscle]["Bodyweight"] || []));
-        const shuffled = [...new Set(possibleExercises)].sort(() => 0.5 - Math.random()).slice(0, selectedMuscles.length === 1 ? 5 : 2);
-        shuffled.forEach(ex => { if (!newWorkout.some(w => w.name === ex)) newWorkout.push({ muscle, name: ex, sets: [{ targetReps: 12, completed: false }, { targetReps: 10, completed: false }] }); });
+        
+        let exercisesPerMuscle = 2;
+        if (selectedMuscles.length === 1) {
+          exercisesPerMuscle = difficulty === 'Beginner' ? 3 : difficulty === 'Advanced' ? 5 : 4;
+        } else {
+          exercisesPerMuscle = difficulty === 'Beginner' ? 1 : difficulty === 'Advanced' ? 3 : 2;
+        }
+
+        const shuffled = [...new Set(possibleExercises)].sort(() => 0.5 - Math.random()).slice(0, exercisesPerMuscle);
+        shuffled.forEach(ex => { 
+          if (!newWorkout.some(w => w.name === ex)) {
+            const sets = [];
+            for (let s = 0; s < setsCount; s++) {
+              sets.push({ targetReps: targetRepsStr, completed: false, weight: '' });
+            }
+            newWorkout.push({ muscle, name: ex, sets, restDuration: baseRest }); 
+          }
+        });
       });
-      if (newWorkout.length === 0) newWorkout.push({ muscle: "Core", name: "Plank", sets: [{ targetReps: "60s", completed: false }] });
+
+      if (newWorkout.length === 0) {
+        newWorkout.push({ 
+          muscle: "Core", 
+          name: "Plank", 
+          sets: [{ targetReps: "60s", completed: false, weight: '' }], 
+          restDuration: 30 
+        });
+      }
+      
       setGeneratedWorkout(newWorkout); 
       setStep(3);
     } finally {
@@ -981,13 +1027,50 @@ export default function ClientDashboard() {
   };
   const shuffleExercise = (index) => {
     const targetMuscle = generatedWorkout[index].muscle;
-    const newEx = EXERCISE_DB[targetMuscle]["Bodyweight"][Math.floor(Math.random() * EXERCISE_DB[targetMuscle]["Bodyweight"].length)];
-    const updated = [...generatedWorkout]; updated[index] = { muscle: targetMuscle, name: newEx, sets: [{ targetReps: 12, completed: false }, { targetReps: 10, completed: false }] };
+    let possible = [];
+    selectedEquip.forEach(eq => { if (EXERCISE_DB[targetMuscle] && EXERCISE_DB[targetMuscle][eq]) possible.push(...EXERCISE_DB[targetMuscle][eq]); });
+    if (possible.length === 0) possible.push(...(EXERCISE_DB[targetMuscle]["Bodyweight"] || []));
+    const newEx = possible[Math.floor(Math.random() * possible.length)] || "Plank";
+
+    let setsCount = 3;
+    if (difficulty === 'Beginner') setsCount = 2;
+    else if (difficulty === 'Advanced') setsCount = 4;
+
+    let targetRepsStr = "10";
+    let baseRest = 60;
+    if (workoutGoal === 'Strength') {
+      targetRepsStr = "5";
+      baseRest = 90;
+    } else if (workoutGoal === 'Endurance') {
+      targetRepsStr = "15";
+      baseRest = 30;
+    }
+
+    const sets = [];
+    for (let s = 0; s < setsCount; s++) {
+      sets.push({ targetReps: targetRepsStr, completed: false, weight: '' });
+    }
+
+    const updated = [...generatedWorkout]; 
+    updated[index] = { 
+      muscle: targetMuscle, 
+      name: newEx, 
+      sets, 
+      restDuration: baseRest 
+    };
     setGeneratedWorkout(updated);
   };
   const toggleSetComplete = (exIndex, setIndex) => {
-    const updated = [...generatedWorkout]; updated[exIndex].sets[setIndex].completed = !updated[exIndex].sets[setIndex].completed;
-    setGeneratedWorkout(updated); if (updated[exIndex].sets[setIndex].completed) setRestTime(60); else setRestTime(0);
+    const updated = [...generatedWorkout]; 
+    updated[exIndex].sets[setIndex].completed = !updated[exIndex].sets[setIndex].completed;
+    setGeneratedWorkout(updated); 
+    
+    if (updated[exIndex].sets[setIndex].completed) {
+      const restSecs = updated[exIndex].restDuration || 60;
+      setRestTime(restSecs); 
+    } else {
+      setRestTime(0);
+    }
   };
   const updateSetWeight = (exIndex, setIndex, val) => {
     const updated = [...generatedWorkout];
@@ -1642,8 +1725,134 @@ export default function ClientDashboard() {
             <div className="flex-1 overflow-y-auto p-8 flex justify-center">
               <div className="max-w-4xl w-full">
                 {step === 1 && (<div className="animate-in slide-in-from-right-4"><div className="text-center mb-10"><h2 className="text-4xl font-medium text-[#0B4550] mb-2">Select Equipment</h2><p className="text-lg text-[#898A8D] font-medium">What are we working with?</p></div><div className="grid grid-cols-4 gap-4">{EQUIPMENT_OPTIONS.map(eq => (<div key={eq} onClick={() => toggleSelection(eq, selectedEquip, setSelectedEquip)} className={`bg-white p-6 rounded-[2rem] border-4 cursor-pointer transition-all flex flex-col items-center gap-3 ${selectedEquip.includes(eq) ? 'border-[#0B4550] shadow-lg' : 'border-transparent shadow-sm'}`}><Dumbbell size={48} className={selectedEquip.includes(eq) ? 'text-[#0B4550]' : 'text-gray-300'} /><span className={`font-medium text-sm ${selectedEquip.includes(eq) ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>{eq}</span></div>))}</div></div>)}
-                {step === 2 && (<div className="animate-in slide-in-from-right-4"><div className="text-center mb-10"><h2 className="text-4xl font-medium text-[#0B4550] mb-2">Target Muscles</h2><p className="text-lg text-[#898A8D] font-medium">What are we hitting today?</p></div><div className="grid grid-cols-3 gap-6">{MUSCLE_OPTIONS.map(m => (<div key={m} onClick={() => toggleSelection(m, selectedMuscles, setSelectedMuscles)} className={`bg-white p-8 rounded-[2rem] border-4 cursor-pointer transition-all flex flex-col items-center gap-4 ${selectedMuscles.includes(m) ? 'border-[#0B4550] bg-[#0B4550] text-white shadow-xl' : 'border-transparent text-[#0B4550] shadow-sm'}`}><Target size={48} className={selectedMuscles.includes(m) ? 'text-[#E6FF2B]' : 'text-[#898A8D]'} /><span className="font-medium text-xl">{m}</span></div>))}</div></div>)}
-                {step === 3 && generatedWorkout && (<div className="animate-in slide-in-from-right-4"><div className="text-center mb-10"><h2 className="text-4xl font-medium text-[#0B4550] mb-2">Workout Ready</h2><p className="text-lg text-[#898A8D] font-medium">Review and customize your session.</p></div><div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden"><div className="divide-y divide-gray-100">{generatedWorkout.map((ex, i) => (<div key={i} className="p-6 flex items-center gap-6 hover:bg-gray-50 transition-colors"><div className="w-14 h-14 bg-[#F9F7F2] rounded-2xl flex items-center justify-center font-medium text-[#0B4550] text-xl shrink-0">{ex.muscle.charAt(0)}</div><div className="flex-1"><h4 className="text-xl font-medium text-[#0B4550]">{ex.name}</h4><p className="text-sm font-medium text-[#898A8D] uppercase tracking-widest mt-1">{ex.muscle}</p></div><div className="flex items-center gap-3"><button onClick={() => shuffleExercise(i)} className="flex items-center gap-2 px-5 py-2.5 border-2 border-blue-100 text-blue-600 rounded-xl font-medium hover:bg-blue-50 transition-colors text-sm"><RefreshCw size={16} /> Swap</button><button onClick={() => removeExercise(i)} className="p-3 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-colors"><Trash2 size={24} /></button></div></div>))}</div><div className="p-6 bg-gray-50 border-t border-gray-100"><button onClick={() => setStep(2)} className="flex items-center gap-2 text-[#0B4550] font-medium text-lg hover:underline"><Plus size={24} /> Add more exercises</button></div></div></div>)}
+                {step === 2 && (
+                  <div className="animate-in slide-in-from-right-4">
+                    <div className="text-center mb-10">
+                      <h2 className="text-4xl font-medium text-[#0B4550] mb-2">Customize AI Session</h2>
+                      <p className="text-lg text-[#898A8D] font-medium">Select target muscles and style your routine.</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                      {/* Left Column: Target Muscles selection */}
+                      <div className="lg:col-span-7 space-y-4">
+                        <h3 className="text-lg font-bold text-[#0B4550] uppercase tracking-wider mb-2">Target Muscles</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                          {MUSCLE_OPTIONS.map(m => (
+                            <div key={m} onClick={() => toggleSelection(m, selectedMuscles, setSelectedMuscles)} className={`bg-white p-6 rounded-[2rem] border-4 cursor-pointer transition-all flex flex-col items-center gap-3 ${selectedMuscles.includes(m) ? 'border-[#0B4550] bg-[#0B4550] text-white shadow-xl scale-105' : 'border-transparent text-[#0B4550] shadow-sm hover:border-gray-200'}`}>
+                              <Target size={36} className={selectedMuscles.includes(m) ? 'text-[#E6FF2B]' : 'text-gray-400'} />
+                              <span className="font-bold text-sm tracking-wide">{m}</span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                      
+                      {/* Right Column: Customizer Dashboard card */}
+                      <div className="lg:col-span-5 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-md space-y-6 flex flex-col justify-between">
+                        {/* Difficulty Toggle */}
+                        <div>
+                          <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2.5 block">Fitness Level</label>
+                          <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100/50">
+                            {['Beginner', 'Intermediate', 'Advanced'].map(level => (
+                              <button 
+                                type="button"
+                                key={level} 
+                                onClick={() => setDifficulty(level)}
+                                className={`flex-1 py-2 text-xs font-extrabold rounded-xl transition-all ${difficulty === level ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                              >
+                                {level}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Workout Goal Toggle */}
+                        <div>
+                          <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2.5 block">Training Goal</label>
+                          <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100/50">
+                            {['Strength', 'Hypertrophy', 'Endurance'].map(goal => (
+                              <button 
+                                type="button"
+                                key={goal} 
+                                onClick={() => setWorkoutGoal(goal)}
+                                className={`flex-1 py-2 text-xs font-extrabold rounded-xl transition-all ${workoutGoal === goal ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                              >
+                                {goal}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Custom prompt/special instructions */}
+                        <div>
+                          <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2.5 block">Special Requests (AI)</label>
+                          <textarea
+                            value={customPrompt}
+                            onChange={(e) => setCustomPrompt(e.target.value)}
+                            placeholder="e.g., Lower back friendly, high intensity cardio, include pushups..."
+                            className="w-full bg-[#F9F7F2] border border-gray-100/50 rounded-2xl p-4 text-xs font-bold text-[#0B4550] placeholder-gray-400 outline-none focus:border-[#0B4550] focus:bg-white transition-all resize-none h-24 shadow-inner"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+                {step === 3 && generatedWorkout && (
+                  <div className="animate-in slide-in-from-right-4">
+                    <div className="text-center mb-8">
+                      <h2 className="text-4xl font-medium text-[#0B4550] mb-2">Workout Ready</h2>
+                      <p className="text-lg text-[#898A8D] font-medium">Review and customize your custom-tailored training session.</p>
+                    </div>
+
+                    {/* AI SUMMARY CARD GRID */}
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+                      <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center">
+                        <Clock size={22} className="text-[#0B4550] mb-2 opacity-80" />
+                        <span className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">Est. Duration</span>
+                        <span className="text-lg font-black text-[#0B4550] mt-1">
+                          {generatedWorkout.length * (generatedWorkout[0]?.sets?.length || 3) * 2 + Math.floor((generatedWorkout.length * (generatedWorkout[0]?.sets?.length || 3) * (generatedWorkout[0]?.restDuration || 60)) / 60)} mins
+                        </span>
+                      </div>
+                      <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center">
+                        <Target size={22} className="text-[#0B4550] mb-2 opacity-80" />
+                        <span className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">Training Focus</span>
+                        <span className="text-lg font-black text-[#0B4550] mt-1">{workoutGoal}</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center">
+                        <Zap size={22} className="text-[#0B4550] mb-2 opacity-80" />
+                        <span className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">Intensity Level</span>
+                        <span className="text-lg font-black text-[#0B4550] mt-1">{difficulty}</span>
+                      </div>
+                      <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center">
+                        <Dumbbell size={22} className="text-[#0B4550] mb-2 opacity-80" />
+                        <span className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">Total Exercises</span>
+                        <span className="text-lg font-black text-[#0B4550] mt-1">{generatedWorkout.length} Moves</span>
+                      </div>
+                    </div>
+
+                    <div className="bg-white rounded-[2.5rem] shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="divide-y divide-gray-100">
+                        {generatedWorkout.map((ex, i) => (
+                          <div key={i} className="p-6 flex items-center gap-6 hover:bg-gray-50 transition-colors">
+                            <div className="w-14 h-14 bg-[#F9F7F2] rounded-2xl flex items-center justify-center font-medium text-[#0B4550] text-xl shrink-0">{ex.muscle.charAt(0)}</div>
+                            <div className="flex-1">
+                              <h4 className="text-xl font-medium text-[#0B4550]">{ex.name}</h4>
+                              <p className="text-sm font-medium text-[#898A8D] uppercase tracking-widest mt-1">
+                                {ex.muscle} • {ex.sets?.length || 3} Sets • {ex.restDuration || 60}s Rest
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <button onClick={() => shuffleExercise(i)} className="flex items-center gap-2 px-5 py-2.5 border-2 border-blue-100 text-blue-600 rounded-xl font-medium hover:bg-blue-50 transition-colors text-sm"><RefreshCw size={16} /> Swap</button>
+                              <button onClick={() => removeExercise(i)} className="p-3 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-colors"><Trash2 size={24} /></button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="p-6 bg-gray-50 border-t border-gray-100">
+                        <button onClick={() => setStep(2)} className="flex items-center gap-2 text-[#0B4550] font-medium text-lg hover:underline"><Plus size={24} /> Add more exercises</button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             <div className="bg-white p-6 border-t border-gray-100 flex justify-center shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
