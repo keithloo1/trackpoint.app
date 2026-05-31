@@ -1111,63 +1111,62 @@ export default function ClientDashboard() {
               </div>
             </div>
 
-            <div className="md:col-span-12 lg:col-span-7 bg-[#0B4550] rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-[#0B4550] flex flex-col text-white relative overflow-hidden">
-              <div className="absolute -right-4 -bottom-4 opacity-10"><Award size={160} /></div>
-              <div className="relative z-10 flex flex-col h-full justify-between">
-                <div>
-                  <div className="flex justify-between items-center mb-6">
-                    <h3 className="font-bold text-xs uppercase tracking-widest text-white/50">Coach's Corner & Action Plan</h3>
-                    <span className="bg-[#E6FF2B] text-[#0B4550] text-[9px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
-                      <Trophy size={10} /> Active Guidance
-                    </span>
+            <div className="md:col-span-12 lg:col-span-7 bg-[#0B4550] rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-[#0B4550] flex flex-col text-white relative overflow-hidden h-[380px]">
+              <div className="absolute -right-4 -bottom-4 opacity-10"><Calendar size={160} /></div>
+              
+              <div className="relative z-10 flex flex-col h-full">
+                <div className="flex justify-between items-center mb-6 shrink-0">
+                  <div>
+                    <h3 className="font-bold text-xs uppercase tracking-widest text-white/50 mb-0.5">My Schedule</h3>
+                    <h2 className="text-2xl font-medium text-white">Booked Classes</h2>
                   </div>
-
-                  <div className="flex items-center gap-4 mb-6">
-                    <div className="w-14 h-14 rounded-2xl bg-white/10 flex items-center justify-center font-bold text-[#E6FF2B] border border-white/10 text-xl shadow-inner uppercase">
-                      {clientData.trainerName ? clientData.trainerName.split(' ').map(n => n[0]).join('') : 'TR'}
-                    </div>
-                    <div>
-                      <h4 className="font-medium text-lg text-white">
-                        {clientData.trainerName || 'Your Personal Coach'}
-                      </h4>
-                      <p className="text-white/60 text-xs font-medium">Head Trainer & Performance Advisor</p>
-                    </div>
-                  </div>
-
-                  <div className="bg-white/10 border border-white/10 rounded-2xl p-5 mb-6 text-white/90">
-                    <p className="text-xs font-bold uppercase tracking-wider text-[#E6FF2B] mb-2">Trainer's Assessment</p>
-                    {clientData.notes ? (
-                      <p className="text-sm leading-relaxed italic">
-                        "{clientData.notes}"
-                      </p>
-                    ) : (
-                      <p className="text-sm leading-relaxed italic">
-                        "Your current focus is to build solid core consistency, prioritize quality hydration, and track your daily strength thresholds. Keep up the amazing energy!"
-                      </p>
-                    )}
-                  </div>
+                  <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
+                    {upcomingBookings.length} {upcomingBookings.length === 1 ? 'Class' : 'Classes'} Booked
+                  </span>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3 pt-2">
-                  <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#E6FF2B]/10 text-[#E6FF2B] flex items-center justify-center shrink-0">
-                      <Zap size={16} />
+                {upcomingBookings.length === 0 ? (
+                  <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-[#E6FF2B] mb-4">
+                      <CalendarCheck size={28} />
                     </div>
-                    <div>
-                      <h5 className="font-medium text-xs text-white">Daily Consistency</h5>
-                      <p className="text-[10px] text-white/60 font-medium">Hydration & Rest</p>
-                    </div>
+                    <h4 className="font-medium text-base text-white mb-1">No Upcoming Bookings</h4>
+                    <p className="text-white/60 text-xs max-w-xs leading-relaxed">
+                      Use the Available Classes hub or click "Book Session" to secure your spot!
+                    </p>
                   </div>
-                  <div className="bg-white/5 border border-white/5 rounded-xl p-3 flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-[#E6FF2B]/10 text-[#E6FF2B] flex items-center justify-center shrink-0">
-                      <Activity size={16} />
-                    </div>
-                    <div>
-                      <h5 className="font-medium text-xs text-white">Post-Class Recover</h5>
-                      <p className="text-[10px] text-white/60 font-medium">10 Min Stretching</p>
-                    </div>
+                ) : (
+                  <div className="flex-1 overflow-y-auto pr-1 no-scrollbar space-y-3.5 pb-2">
+                    {upcomingBookings.map(booking => (
+                      <div 
+                        key={booking.id}
+                        className="bg-white/10 border border-white/10 rounded-2xl p-4 flex justify-between items-center hover:bg-white/[0.15] transition-all"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="w-10 h-10 rounded-xl bg-[#E6FF2B]/10 text-[#E6FF2B] flex items-center justify-center shrink-0">
+                            <Dumbbell size={18} />
+                          </div>
+                          <div>
+                            <h4 className="font-medium text-base text-white mb-0.5 leading-tight">{booking.title}</h4>
+                            <p className="text-white/60 text-xs flex items-center gap-1.5">
+                              <Clock size={12} /> {formatDbDate(booking.date)} at {booking.time}
+                            </p>
+                          </div>
+                        </div>
+                        <button 
+                          onClick={() => {
+                            if (window.confirm(`Are you sure you want to cancel your spot in ${booking.title}?`)) {
+                              handleQuickCancel(booking);
+                            }
+                          }}
+                          className="px-4 py-2 bg-transparent hover:bg-red-500/20 text-white/80 hover:text-red-300 border border-white/20 hover:border-red-500/30 rounded-full text-xs font-bold transition-all"
+                        >
+                          Cancel Class
+                        </button>
+                      </div>
+                    ))}
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </div>
