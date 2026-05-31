@@ -1119,6 +1119,17 @@ export default function ClientDashboard() {
       </div>
 
       <main className="flex-1 h-full overflow-y-auto flex flex-col relative z-10 pb-20 lg:pb-0">
+        {/* MOBILE HEADER BAR */}
+        <div className="lg:hidden flex items-center justify-between bg-white border border-gray-100 rounded-3xl p-4 mb-6 shadow-sm shrink-0">
+          <div className="flex items-center gap-3">
+            <img src={trainerLogo || newLogo} alt={trainerCompanyName} className="h-10 w-auto object-contain max-h-[40px]" onError={(e) => e.target.style.display = 'none'} />
+            <span className="font-extrabold text-sm text-[#0B4550] tracking-tight uppercase">{trainerCompanyName}</span>
+          </div>
+          <button onClick={openSettingsModal} className="w-10 h-10 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center font-bold text-sm shadow-sm active:scale-95 transition-all">
+            {clientData.name.charAt(0).toUpperCase()}
+          </button>
+        </div>
+
         <header className="flex justify-between items-center mb-8 px-2">
           <div>
             <h1 className="text-3xl md:text-5xl font-medium text-[#0B4550] mb-2 leading-tight">
@@ -1137,8 +1148,8 @@ export default function ClientDashboard() {
 
         {activeNav === 'Home' && (
           <div className="grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 flex-1 pb-4 animate-in fade-in duration-500">
-            <div className="md:col-span-12 lg:col-span-7 bg-white rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-gray-100 relative overflow-hidden flex flex-col h-[380px]">
-              <div className="flex justify-between items-start z-10 mb-1">
+            <div className="md:col-span-12 lg:col-span-7 bg-white rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm border border-gray-100 relative overflow-hidden flex flex-col h-auto lg:h-[380px] min-h-[340px]">
+              <div className="flex justify-between items-start z-10 mb-2">
                 <div>
                   <h3 className="font-bold text-xs text-gray-400 uppercase tracking-widest">Active Package</h3>
                   <h2 className="font-bold text-3xl text-[#0B4550] tracking-tight">{clientData.packageName}</h2>
@@ -1228,7 +1239,7 @@ export default function ClientDashboard() {
               </div>
             </div>
 
-            <div className="md:col-span-6 lg:col-span-5 bg-[#0B4550] rounded-[2.5rem] p-6 md:p-8 shadow-sm text-white flex flex-col h-[380px] overflow-hidden">
+            <div className="md:col-span-6 lg:col-span-5 bg-[#0B4550] rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm text-white flex flex-col h-[380px] overflow-hidden">
               <div className="flex justify-between items-center mb-6 shrink-0">
                 <div>
                   <h3 className="font-medium text-2xl">Available Classes</h3>
@@ -1323,7 +1334,7 @@ export default function ClientDashboard() {
                 <Zap size={40} className={generatedWorkout ? "text-[#E6FF2B]" : "text-[#F9F7F2]"} />
               </div>
 
-              <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 flex-1 flex flex-col justify-center relative group cursor-pointer hover:border-[#0B4550] transition-all" onClick={openWeightModal}>
+              <div className="bg-white rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm border border-gray-100 flex-1 flex flex-col justify-center relative group cursor-pointer hover:border-[#0B4550] transition-all" onClick={openWeightModal}>
                 <div className="flex justify-between items-end mb-4">
                   <div><h3 className="font-medium text-xl text-[#0B4550]">Weight Tracker</h3><p className="text-[#898A8D] font-medium text-xs uppercase tracking-widest">{weightProgress.toFixed(0)}% to Goal</p></div>
                   <div className="text-right">
@@ -1338,7 +1349,7 @@ export default function ClientDashboard() {
               </div>
             </div>
 
-            <div className="md:col-span-12 lg:col-span-7 bg-[#0B4550] rounded-[2.5rem] p-6 md:p-8 shadow-sm border border-[#0B4550] flex flex-col text-white relative overflow-hidden h-[380px]">
+            <div className="md:col-span-12 lg:col-span-7 bg-[#0B4550] rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm border border-[#0B4550] flex flex-col text-white relative overflow-hidden h-auto lg:h-[380px] min-h-[340px]">
               <div className="absolute -right-4 -bottom-4 opacity-10"><Calendar size={160} /></div>
               
               <div className="relative z-10 flex flex-col h-full">
@@ -1428,23 +1439,23 @@ export default function ClientDashboard() {
                   </div>
                 ) : (
                   activityHistory.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-4 md:p-6 bg-[#F9F7F2] rounded-3xl border border-transparent hover:border-[#E6FF2B] transition-all group">
-                      <div className="flex items-center gap-5">
-                        <div className={`w-10 h-10 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-sm transition-transform group-hover:scale-110 ${item.type === 'purchase' ? 'bg-emerald-50 text-emerald-500' :
+                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 md:p-6 bg-[#F9F7F2] rounded-3xl border border-transparent hover:border-[#E6FF2B] transition-all group gap-4 sm:gap-2">
+                      <div className="flex items-center gap-4 md:gap-5">
+                        <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-sm transition-transform group-hover:scale-110 shrink-0 ${item.type === 'purchase' ? 'bg-emerald-50 text-emerald-500' :
                             item.type === 'usage' ? 'bg-rose-50 text-rose-500' : 'bg-blue-50 text-blue-500'
                           }`}>
-                          {item.type === 'purchase' ? <CreditCard size={24} /> :
-                            item.type === 'usage' ? <Zap size={24} /> : <FileText size={24} />}
+                          {item.type === 'purchase' ? <CreditCard size={20} /> :
+                            item.type === 'usage' ? <Zap size={20} /> : <FileText size={20} />}
                         </div>
-                        <div>
-                          <p className="text-base md:text-lg font-bold text-[#0B4550]">{item.title}</p>
-                          <p className="text-sm font-medium text-[#898A8D]">
+                        <div className="min-w-0">
+                          <p className="text-base md:text-lg font-bold text-[#0B4550] truncate">{item.title}</p>
+                          <p className="text-xs md:text-sm font-medium text-[#898A8D] mt-0.5">
                             {item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             {item.method && ` • ${item.method}`}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-4 text-right">
+                      <div className="flex items-center justify-between sm:justify-end gap-4 text-right w-full sm:w-auto border-t sm:border-t-0 border-gray-100 pt-3.5 sm:pt-0">
                         {item.type === 'purchase' && item.invoiceNumber && (
                           <button 
                             onClick={() => {
@@ -1456,13 +1467,13 @@ export default function ClientDashboard() {
                             <FileText size={13} /> PDF Invoice
                           </button>
                         )}
-                        <div>
+                        <div className="text-right ml-auto">
                           <p className={`text-xl md:text-2xl font-black ${item.type === 'purchase' ? 'text-emerald-500' :
                               item.type === 'usage' ? 'text-rose-500' : 'text-[#0B4550]'
                             }`}>
                             {item.type === 'purchase' ? `RM ${Math.abs(item.amount)}` : `-${Math.abs(item.amount)}`}
                           </p>
-                          <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">
+                          <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mt-0.5">
                             {item.type === 'purchase' ? 'Paid' : 'Session'}
                           </p>
                         </div>
