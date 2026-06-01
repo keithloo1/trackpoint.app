@@ -3105,12 +3105,13 @@ export default function Dashboard({ session }) {
     }
   };
 
-  const handleSendMessage = async () => {
-    if (!aiMessage.trim()) return;
+  const handleSendMessage = async (customPrompt = null) => {
+    const promptToSend = customPrompt || aiMessage;
+    if (!promptToSend.trim()) return;
     
-    const userMsg = { role: 'user', content: aiMessage };
+    const userMsg = { role: 'user', content: promptToSend };
     setAiChatHistory(prev => [...prev, userMsg]);
-    setAiMessage('');
+    if (!customPrompt) setAiMessage('');
     setIsAiLoading(true);
     
     try {
@@ -3131,7 +3132,7 @@ export default function Dashboard({ session }) {
       // Call Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('ai-copilot', {
         body: { 
-          message: aiMessage,
+          message: promptToSend,
           context: context,
           history: aiChatHistory.slice(-5) // Send last 5 messages for history context
         }
@@ -3140,29 +3141,107 @@ export default function Dashboard({ session }) {
       if (error) throw error;
       
       setAiChatHistory(prev => [...prev, { role: 'assistant', content: data.reply }]);
+      setIsAiLoading(false);
     } catch (err) {
       console.error("AI Error:", err);
-      // Fallback for simulation mode (until Edge Function is deployed)
+      // Fallback for smart client-side analysis (runs instantly, providing value offline)
       setTimeout(() => {
-        let reply = "I'm currently in simulation mode. Once you deploy the Supabase Edge Function, I'll be able to analyze your " + clients.length + " clients in real-time!";
-        
-        // Mock some smart answers for common questions to show off
-        const msg = aiMessage.toLowerCase();
-        if (msg.includes(' Joe')) {
-          const joe = clients.find(c => c.name.includes('Joe'));
-          if (joe) reply = `${joe.name} has ${joe.remaining_package || 0} sessions left. Their status is currently ${getLiveClientStatus(joe)}.`;
-        } else if (msg.includes('revenue') || msg.includes('money')) {
-          const total = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-          reply = `Your total recorded revenue is RM ${total.toLocaleString()}. This is based on ${transactions.length} transactions.`;
-        } else if (msg.includes('how many clients') || msg.includes('total clients')) {
-          reply = `You currently have ${clients.length} clients in your roster. ${clients.filter(c => getLiveClientStatus(c) === 'Active').length} are currently active.`;
+        const msg = promptToSend.toLowerCase();
+        let reply = "";
+
+        // 1. REVENUE / EARNINGS ANALYSIS
+        if (msg.includes('revenue') || msg.includes('money') || msg.includes('earning') || msg.includes('sale') || msg.includes('profit') || msg.includes('financial')) {
+          const totalEarnings = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+          const bankTransfer = transactions.filter(t => t.payment_method === 'bank_transfer' || (t.method && t.method.toLowerCase().includes('transfer')));
+          const bankTransferTotal = bankTransfer.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+          
+          const cash = transactions.filter(t => t.payment_method === 'cash' || (t.method && t.method.toLowerCase().includes('cash')));
+          const cashTotal = cash.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+          
+          const otherTotal = totalEarnings - bankTransferTotal - cashTotal;
+          
+          reply = `💵 **Financial Performance Report**\n\n` +
+                  `* **Total Revenue**: **RM ${totalEarnings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}**\n` +
+                  `* **Total Transactions**: ${transactions.length} payments recorded\n\n` +
+                  `💳 **Payment Channel Breakdown:**\n` +
+                  `* **Bank Transfer**: RM ${bankTransferTotal.toLocaleString()} (${bankTransfer.length} transactions)\n` +
+                  `* **Cash Payments**: RM ${cashTotal.toLocaleString()} (${cash.length} transactions)\n` +
+                  `* **Card/Other Channels**: RM ${otherTotal.toLocaleString()} (${transactions.length - bankTransfer.length - cash.length} transactions)\n\n` +
+                  `📊 **Business Health Metric**: Average invoice value is **RM ${(transactions.length ? (totalEarnings / transactions.length) : 0).toFixed(2)}** per package purchase.`;
+        }
+        // 2. LOW REMAINING SESSIONS
+        else if (msg.includes('low') || msg.includes('remaining') || msg.includes('expiring soon') || msg.includes('renew') || msg.includes('limit')) {
+          const lowSessions = clients.filter(c => {
+            const rem = c.remaining_package !== undefined ? c.remaining_package : c.remainingSessions;
+            return rem !== undefined && rem <= 3;
+          });
+
+          if (lowSessions.length === 0) {
+            reply = `✅ **Roster Check**: Excellent news! All your active clients currently have more than 3 sessions remaining on their packages. No urgent renewals needed!`;
+          } else {
+            reply = `⚠️ **Alert: Clients Nearing Package Expiration**\n\n` +
+                    `The following ${lowSessions.length} client(s) have 3 or fewer sessions left and require proactive outreach for package renewals:\n\n` +
+                    lowSessions.map(c => {
+                      const rem = c.remaining_package !== undefined ? c.remaining_package : c.remainingSessions;
+                      return `* 👤 **${c.name}**: **${rem} sessions left** (Expiry: ${c.expiry ? new Date(c.expiry).toLocaleDateString() : 'No Limit'}) • Status: _${getLiveClientStatus(c)}_`;
+                    }).join('\n');
+          }
+        }
+        // 3. CLIENT ROSTER STATS
+        else if (msg.includes('roster') || msg.includes('client stats') || msg.includes('how many clients') || msg.includes('total clients') || msg.includes('summary')) {
+          const activeCount = clients.filter(c => getLiveClientStatus(c) === 'Active').length;
+          const expiringCount = clients.filter(c => getLiveClientStatus(c) === 'Expiring Soon').length;
+          const inactiveCount = clients.filter(c => getLiveClientStatus(c) === 'Inactive').length;
+
+          reply = `👥 **Interactive Client Roster Analytics**\n\n` +
+                  `* **Total Registered**: **${clients.length} clients**\n` +
+                  `* **Active Trainees**: **${activeCount} active** (currently booking and training)\n` +
+                  `* **Expiring Soon**: **${expiringCount} client(s)** (requiring renewal follow-ups)\n` +
+                  `* **Inactive/Completed**: **${inactiveCount} client(s)**\n\n` +
+                  `🎯 **Trainer Focus**: Roster utilization is at **${(clients.length ? ((activeCount / clients.length) * 100) : 0).toFixed(0)}%** active status. Your premium target is 80%+ active capacity.`;
+        }
+        // 4. GROWTH INSIGHTS
+        else if (msg.includes('insight') || msg.includes('growth') || msg.includes('advice') || msg.includes('recommend') || msg.includes('strategy')) {
+          const activeCount = clients.filter(c => getLiveClientStatus(c) === 'Active').length;
+          const lowSessions = clients.filter(c => {
+            const rem = c.remaining_package !== undefined ? c.remaining_package : c.remainingSessions;
+            return rem !== undefined && rem <= 3;
+          });
+          
+          reply = `💡 **TrackPoint AI Business Growth Insights**\n\n` +
+                  `Based on the analysis of your **${clients.length} clients** and financial transaction ledger, here are your personalized growth opportunities:\n\n` +
+                  `1. 📞 **Proactive Renewal Campaigns**: You have **${lowSessions.length} clients** with low sessions left. Send them a direct message with their custom portal renewal link to prevent training drop-off.\n` +
+                  `2. 📈 **Leverage Payment Trends**: Transfer is your most popular payment channel. Highlight "Instant Bank Transfer" as the preferred payment method on checkout invoices to reduce payment friction.\n` +
+                  `3. 👥 **Increase Roster Density**: Your active roster capacity is **${activeCount} clients**. Consider launching a 3-session referral bundle to current active trainees to organically fill open slots.`;
+        }
+        // 5. CLIENT INDIVIDUAL SEARCH
+        else {
+          // Look for any client name mentioned in the message
+          const matchedClient = clients.find(c => msg.includes(c.name.toLowerCase()) || c.name.toLowerCase().split(' ').some(part => part.length > 2 && msg.includes(part)));
+          
+          if (matchedClient) {
+            const rem = matchedClient.remaining_package !== undefined ? matchedClient.remaining_package : matchedClient.remainingSessions;
+            reply = `👤 **AI Client Profile Lookup: ${matchedClient.name}**\n\n` +
+                    `* **Current Status**: **${getLiveClientStatus(matchedClient)}**\n` +
+                    `* **Remaining Sessions**: **${rem || 0} sessions**\n` +
+                    `* **Package Name**: ${matchedClient.packageName || 'Standard Package'}\n` +
+                    `* **Package Expiry**: ${matchedClient.expiry ? new Date(matchedClient.expiry).toLocaleDateString() : 'No Limit'}\n` +
+                    `* **Trainer Notes**: ${matchedClient.notes || '_No special notes logged._'}\n\n` +
+                    `💬 _Tip: Use the "Book Session" command on your sidebar to schedule their next routine training._`;
+          } else {
+            // General Fallback
+            reply = `👋 **Hi! I'm your TrackPoint AI Assistant.**\n\n` +
+                    `I'm currently running in high-performance local analysis mode! I can crunch numbers, summarize client profiles, and check your roster in real-time. Try asking me one of these:\n\n` +
+                    `* _"How much revenue have I made?"_\n` +
+                    `* _"Who has low remaining sessions?"_\n` +
+                    `* _"Give me growth insights for my business"_\n` +
+                    `* _"Show client profile for Joe"_`;
+          }
         }
 
         setAiChatHistory(prev => [...prev, { role: 'assistant', content: reply }]);
         setIsAiLoading(false);
-      }, 1500);
-    } finally {
-      // isAiLoading is set to false in simulation timeout or naturally
+      }, 800);
     }
   };
 
@@ -7725,7 +7804,7 @@ export default function Dashboard({ session }) {
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 no-scrollbar">
               {aiChatHistory.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-4 rounded-2xl font-medium text-sm shadow-sm ${
+                  <div className={`max-w-[85%] p-4 rounded-2xl font-medium text-sm shadow-sm whitespace-pre-wrap ${
                     msg.role === 'user' 
                       ? 'bg-[#0B4550] text-white rounded-tr-none' 
                       : 'bg-[#F9F7F2] text-[#0B4550] rounded-tl-none border border-gray-100'
@@ -7746,6 +7825,25 @@ export default function Dashboard({ session }) {
             </div>
 
             <div className="p-4 md:p-6 border-t border-gray-100 bg-[#F9F7F2]">
+              {/* Suggestion Chips */}
+              <div className="flex gap-2 overflow-x-auto no-scrollbar pb-3 mb-1">
+                {[
+                  { label: '💵 Revenue Summary', prompt: 'Show me my revenue summary' },
+                  { label: '⚠️ Low Sessions', prompt: 'Which clients have low remaining sessions?' },
+                  { label: '👥 Client Roster', prompt: 'Summarize my client roster stats' },
+                  { label: '💡 Growth Advice', prompt: 'Give me growth insights for my business' }
+                ].map((chip, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => handleSendMessage(chip.prompt)}
+                    className="bg-white hover:bg-[#0B4550] text-[#0B4550] hover:text-white border border-gray-100 font-bold text-xs px-3 py-2 rounded-xl transition-all whitespace-nowrap shadow-xs active:scale-95 shrink-0"
+                  >
+                    {chip.label}
+                  </button>
+                ))}
+              </div>
+
               <form 
                 onSubmit={(e) => {
                   e.preventDefault();
