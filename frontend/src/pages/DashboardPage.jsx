@@ -724,6 +724,12 @@ export default function Dashboard({ session }) {
   const [showSessionNoteModal, setShowSessionNoteModal] = useState(false);
   const [isSavingSessionNote, setIsSavingSessionNote] = useState(false);
 
+  // MOVE CLIENT MODAL STATES
+  const [showMoveModal, setShowMoveModal] = useState(false);
+  const [movingAttendee, setMovingAttendee] = useState(null);
+  const [moveTargetDate, setMoveTargetDate] = useState(new Date().toISOString().split('T')[0]);
+  const [moveTargetSessionId, setMoveTargetSessionId] = useState('');
+
   const greeting = getGreeting();
   const quote = getDailyQuote();
   
@@ -2715,6 +2721,111 @@ export default function Dashboard({ session }) {
       setShowStudentDropdown(false);
     } catch (err) {
       alert("Error assigning students: " + err.message);
+    }
+  };
+
+  const handleMoveClientSubmit = async (e) => {
+    e.preventDefault();
+    if (!movingAttendee || !moveTargetSessionId) return;
+
+    const targetSession = sessions.find(s => s.id === moveTargetSessionId);
+    if (!targetSession) return;
+
+    if (targetSession.attendees && targetSession.attendees.length >= targetSession.capacity) {
+      alert("Target session capacity has been reached!");
+      return;
+    }
+
+    const alreadyBooked = targetSession.attendees?.some(a => a.client_id === movingAttendee.client_id);
+    if (alreadyBooked) {
+      alert(`${movingAttendee.name} is already booked in the target session.`);
+      return;
+    }
+
+    try {
+      // 1. Update the booking in Supabase
+      const { error: bookingErr } = await supabase
+        .from('bookings')
+        .update({ 
+          session_id: targetSession.id, 
+          session_date: targetSession.date, 
+          time_slot: targetSession.time 
+        })
+        .eq('id', movingAttendee.booking_id);
+
+      if (bookingErr) throw bookingErr;
+
+      // 2. Delete any transactions related to old session check-in to keep history clean
+      if (selectedSession && selectedSession.title) {
+        await supabase.from('transactions')
+          .delete()
+          .eq('client_name', movingAttendee.client_id)
+          .ilike('description', `%${selectedSession.title}%`);
+      }
+
+      // 3. Handle credit refund & charge
+      const oldCost = getClassCreditCost(selectedSession.title);
+      const newCost = getClassCreditCost(targetSession.title);
+      const costDiff = newCost - oldCost;
+
+      const client = clients.find(c => c.id === movingAttendee.client_id);
+      if (client && !client.unlimited && costDiff !== 0) {
+        const newRemaining = Math.max(0, (client.remaining_package || 0) - costDiff);
+        const newUsed = Math.max(0, (client.used_sessions || 0) + costDiff);
+
+        const { error: clientErr } = await supabase.from('clients')
+          .update({ remaining_package: newRemaining, used_sessions: newUsed })
+          .eq('id', client.id);
+
+        if (clientErr) console.error("Error updating client credits during move:", clientErr);
+
+        const updatedClient = {
+          ...client,
+          remaining_package: newRemaining,
+          used_sessions: newUsed
+        };
+
+        setClients(prev => prev.map(c => c.id === client.id ? updatedClient : c));
+      }
+
+      // 4. Update local React states
+      const updatedCurrentAttendees = (selectedSession.attendees || []).filter(a => a.booking_id !== movingAttendee.booking_id);
+      const movedAttendee = {
+        ...movingAttendee,
+        status: 'Booked'
+      };
+      const updatedTargetAttendees = [...(targetSession.attendees || []), movedAttendee];
+
+      const updatedSessions = sessions.map(s => {
+        if (s.id === selectedSession.id) {
+          return { ...s, attendees: updatedCurrentAttendees };
+        }
+        if (s.id === targetSession.id) {
+          return { ...s, attendees: updatedTargetAttendees };
+        }
+        return s;
+      });
+
+      setSessions(updatedSessions);
+      setSelectedSession({ ...selectedSession, attendees: updatedCurrentAttendees });
+
+      // Update Google Calendar for both events
+      syncToGoogleCalendar('UPDATE', {
+        ...selectedSession,
+        attendees: updatedCurrentAttendees
+      });
+      syncToGoogleCalendar('UPDATE', {
+        ...targetSession,
+        attendees: updatedTargetAttendees
+      });
+
+      setShowMoveModal(false);
+      setMovingAttendee(null);
+      setMoveTargetSessionId('');
+
+      alert(`Successfully moved ${movingAttendee.name} to ${targetSession.title} (${targetSession.time}) on ${targetSession.date}.`);
+    } catch (err) {
+      alert("Error moving client: " + err.message);
     }
   };
 
@@ -4956,6 +5067,12 @@ export default function Dashboard({ session }) {
                     setSelectedScheduleDate(newDate);
                   }}
                 />
+                <button 
+                  onClick={() => setSelectedScheduleDate(new Date())}
+                  className="px-4 py-2 bg-[#F9F7F2] text-[#0B4550] hover:bg-gray-200 rounded-xl font-bold text-sm transition-all shadow-sm"
+                >
+                  Today
+                </button>
               </div>
               <div className="flex gap-2 flex-1 justify-center border-l border-r border-gray-100 px-4 md:px-6">
                 {getWeekDays(selectedScheduleDate).map((dayObj) => {
@@ -5207,6 +5324,19 @@ export default function Dashboard({ session }) {
                                   {/* ATTENDANCE TOGGLE */}
                                   <button onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} className={`p-3 rounded-xl transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm border border-gray-200'}`} title="Toggle Attendance">
                                     <CheckSquare size={24} />
+                                  </button>
+                                  {/* MOVE CLIENT */}
+                                  <button 
+                                    onClick={() => {
+                                      setMovingAttendee(attendee);
+                                      setMoveTargetDate(selectedSession.date);
+                                      setMoveTargetSessionId('');
+                                      setShowMoveModal(true);
+                                    }} 
+                                    className="p-3 rounded-xl bg-white text-gray-300 hover:text-blue-500 hover:bg-blue-50 hover:border-blue-200 transition-colors shadow-sm border border-gray-200" 
+                                    title="Move / Reschedule client"
+                                  >
+                                    <ArrowRight size={24} />
                                   </button>
                                   {/* REMOVE FROM ROSTER */}
                                   <button onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} className="p-3 rounded-xl bg-white text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors shadow-sm border border-gray-200" title="Remove from roster">
@@ -6684,6 +6814,99 @@ export default function Dashboard({ session }) {
               </button>
             </form>
             
+          </div>
+        </div>
+      )}
+
+      {/* MODAL OVERLAY: MOVE CLIENT */}
+      {showMoveModal && movingAttendee && (
+        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-5 md:py-8 overflow-hidden">
+          <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full max-w-md shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
+            <button 
+              onClick={() => {
+                setShowMoveModal(false);
+                setMovingAttendee(null);
+                setMoveTargetSessionId('');
+              }} 
+              className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full"
+            >
+              <X size={24} />
+            </button>
+
+            <h2 className="text-3xl font-medium text-[#0B4550] mb-2">Reschedule Client</h2>
+            <p className="text-[#898A8D] font-medium text-base mb-6">
+              Move <span className="font-extrabold text-[#0B4550]">{movingAttendee.name}</span> to another class session.
+            </p>
+
+            <form onSubmit={handleMoveClientSubmit} className="space-y-6">
+              <div>
+                <label className="text-[#898A8D] font-medium text-xs uppercase tracking-widest mb-2 block">Select Target Date</label>
+                <input 
+                  type="date" 
+                  required 
+                  value={moveTargetDate} 
+                  onChange={(e) => {
+                    setMoveTargetDate(e.target.value);
+                    setMoveTargetSessionId('');
+                  }} 
+                  className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" 
+                />
+              </div>
+
+              <div>
+                <label className="text-[#898A8D] font-medium text-xs uppercase tracking-widest mb-2 block">Select Target Session</label>
+                {(() => {
+                  const targetSessions = sessions.filter(
+                    s => s.date === moveTargetDate && s.type !== 'Blocked' && s.id !== selectedSession.id
+                  );
+
+                  if (targetSessions.length === 0) {
+                    return (
+                      <p className="text-sm text-amber-600 bg-amber-50 rounded-xl p-4 font-semibold">
+                        No active sessions scheduled on this day.
+                      </p>
+                    );
+                  }
+
+                  return (
+                    <select 
+                      required 
+                      value={moveTargetSessionId} 
+                      onChange={(e) => setMoveTargetSessionId(e.target.value)} 
+                      className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-5 font-medium text-base text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer"
+                    >
+                      <option value="">-- Select Target Session --</option>
+                      {targetSessions.map(s => (
+                        <option key={s.id} value={s.id}>
+                          {s.title} ({s.time} - {s.attendees ? s.attendees.length : 0}/{s.capacity} Booked)
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
+              </div>
+
+              <div className="flex gap-4 pt-4">
+                <button 
+                  type="button" 
+                  onClick={() => {
+                    setShowMoveModal(false);
+                    setMovingAttendee(null);
+                    setMoveTargetSessionId('');
+                  }} 
+                  className="flex-1 py-4 rounded-2xl text-base font-bold text-gray-500 hover:bg-gray-100 transition-colors border border-gray-200"
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  disabled={!moveTargetSessionId}
+                  className="flex-1 bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-bold text-base hover:bg-[#0B4550]/90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Confirm Move
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
