@@ -730,6 +730,9 @@ export default function Dashboard({ session }) {
   const [moveTargetDate, setMoveTargetDate] = useState(new Date().toISOString().split('T')[0]);
   const [moveTargetSessionId, setMoveTargetSessionId] = useState('');
 
+  // ATTENDANCE TAB STATE
+  const [expandedDates, setExpandedDates] = useState({});
+
   const greeting = getGreeting();
   const quote = getDailyQuote();
   
@@ -1152,6 +1155,102 @@ export default function Dashboard({ session }) {
     });
     return years;
   }, [filteredTransactions]);
+
+  const groupedAttendance = useMemo(() => {
+    const years = {};
+    sessions.forEach(session => {
+      if (!session.date) return;
+
+      const attended = session.attendees?.filter(a => a.status === 'Attended') || [];
+      if (attended.length === 0) return;
+
+      const [yr, mo, dy] = session.date.split('-').map(num => parseInt(num, 10));
+      const sessionDate = new Date(yr, mo - 1, dy);
+      const year = sessionDate.getFullYear();
+      const monthName = sessionDate.toLocaleDateString('en-US', { month: 'long' });
+      const monthYear = `${monthName} ${year}`;
+
+      const durationMins = parseInt(session.duration, 10) || 60;
+
+      if (!years[year]) {
+        years[year] = {
+          year,
+          totalHours: 0,
+          totalClasses: 0,
+          totalAttendances: 0,
+          months: {}
+        };
+      }
+
+      if (!years[year].months[monthYear]) {
+        years[year].months[monthYear] = {
+          monthName,
+          monthYear,
+          year,
+          totalHours: 0,
+          totalClasses: 0,
+          totalAttendances: 0,
+          dates: {}
+        };
+      }
+
+      const dateStr = session.date;
+      if (!years[year].months[monthYear].dates[dateStr]) {
+        const formattedDate = sessionDate.toLocaleDateString('en-US', {
+          weekday: 'long',
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+        years[year].months[monthYear].dates[dateStr] = {
+          dateStr,
+          formattedDate,
+          timestamp: sessionDate.getTime(),
+          sessions: []
+        };
+      }
+
+      years[year].months[monthYear].dates[dateStr].sessions.push({
+        ...session,
+        attended,
+        durationMins
+      });
+
+      years[year].totalHours += durationMins / 60;
+      years[year].totalClasses += 1;
+      years[year].totalAttendances += attended.length;
+
+      years[year].months[monthYear].totalHours += durationMins / 60;
+      years[year].months[monthYear].totalClasses += 1;
+      years[year].months[monthYear].totalAttendances += attended.length;
+    });
+
+    return years;
+  }, [sessions]);
+
+  const attendanceMonthStats = useMemo(() => {
+    const today = new Date();
+    const currentYear = today.getFullYear();
+    const currentMonthName = today.toLocaleDateString('en-US', { month: 'long' });
+    const currentMonthYear = `${currentMonthName} ${currentYear}`;
+
+    let thisMonthHours = 0;
+    let thisMonthClasses = 0;
+    let thisMonthAttendances = 0;
+
+    if (groupedAttendance[currentYear]?.months[currentMonthYear]) {
+      const monthData = groupedAttendance[currentYear].months[currentMonthYear];
+      thisMonthHours = monthData.totalHours;
+      thisMonthClasses = monthData.totalClasses;
+      thisMonthAttendances = monthData.totalAttendances;
+    }
+
+    return {
+      hours: thisMonthHours,
+      classes: thisMonthClasses,
+      attendances: thisMonthAttendances
+    };
+  }, [groupedAttendance]);
 
   useEffect(() => {
     const fetchPackages = async () => {
@@ -3417,6 +3516,7 @@ export default function Dashboard({ session }) {
           <NavItem icon={<Home size={28} />} label="Dashboard" isActive={activePage === 'Dashboard'} onClick={() => {setActivePage('Dashboard'); setSelectedClient(null);}} />
           <NavItem icon={<Users size={28} />} label="Clients" isActive={activePage === 'Clients'} onClick={() => { handleNavigateToPage('Clients'); setSelectedClient(null); }} />
           <NavItem icon={<DollarSign size={28} />} label="Revenue" isActive={activePage === 'Revenue'} onClick={() => { handleNavigateToPage('Revenue'); setSelectedClient(null); }} />
+          <NavItem icon={<CheckSquare size={28} />} label="Attendance" isActive={activePage === 'Attendance'} onClick={() => { handleNavigateToPage('Attendance'); setSelectedClient(null); }} />
           <NavItem icon={<CalendarSearch size={28} />} label="Schedule" isActive={activePage === 'Schedule'} onClick={() => {setActivePage('Schedule'); setSelectedClient(null);}} />
           <NavItem icon={<Calendar size={28} />} label="Calendar" isActive={activePage === 'Calendar'} onClick={() => { setActivePage('Calendar'); setSelectedClient(null); }} />
           <NavItem icon={<BarChart2 size={28} />} label="Analytics" isActive={activePage === 'Analytics'} onClick={() => handleNavigateToPage('Analytics')} />
@@ -3450,7 +3550,7 @@ export default function Dashboard({ session }) {
           <Calendar size={24} />
           <span className="text-[10px] font-medium">Schedule</span>
         </button>
-        <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings'].includes(activePage) ? 'text-[#0B4550]' : 'text-gray-400'}`}>
+        <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 'text-[#0B4550]' : 'text-gray-400'}`}>
           <LayoutGrid size={24} />
           <span className="text-[10px] font-medium">More</span>
         </button>
@@ -3478,6 +3578,14 @@ export default function Dashboard({ session }) {
       <>
         <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Revenue History</h1>
         <p className="text-[#898A8D] font-medium text-base lg:text-xl">Manage payments and download invoices.</p>
+      </>
+    )}
+
+    {/* ATTENDANCE HEADER */}
+    {activePage === 'Attendance' && (
+      <>
+        <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Attendance History</h1>
+        <p className="text-[#898A8D] font-medium text-base lg:text-xl">Track client attendance and total training hours.</p>
       </>
     )}
 
@@ -3996,6 +4104,170 @@ export default function Dashboard({ session }) {
           </div>
         )
       )}
+
+        {/* VIEW: ATTENDANCE HISTORY */}
+        {activePage === 'Attendance' && (
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+            {/* STATS CARDS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+              <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden">
+                <h3 className="text-white/80 font-medium text-lg mb-2">Total Training Hours (This Month)</h3>
+                <h2 className="text-3xl md:text-4xl font-medium text-white flex items-center gap-2">
+                  <Clock size={28} className="text-[#E6FF2B]" />
+                  {attendanceMonthStats.hours.toFixed(1)} hrs
+                </h2>
+              </div>
+              <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
+                <h3 className="text-[#898A8D] font-medium text-lg mb-2">Classes Conducted (This Month)</h3>
+                <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550] flex items-center gap-2">
+                  <Calendar size={28} className="text-[#898A8D]" />
+                  {attendanceMonthStats.classes}
+                </h2>
+              </div>
+              <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
+                <h3 className="text-[#898A8D] font-medium text-lg mb-2">Client Attendances (This Month)</h3>
+                <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550] flex items-center gap-2">
+                  <Users size={28} className="text-[#898A8D]" />
+                  {attendanceMonthStats.attendances}
+                </h2>
+              </div>
+            </div>
+
+            {/* COLLAPSIBLE LOGS LIST */}
+            <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
+              <h3 className="font-medium text-2xl text-[#0B4550] mb-6 border-b-2 border-gray-100 pb-4">Completed Attendance Logs</h3>
+              {Object.keys(groupedAttendance).length === 0 ? (
+                <div className="text-center py-6 md:py-10 text-[#898A8D] font-medium">No completed attendance logs found. Make sure to mark clients as "Attended" in your roster.</div>
+              ) : (
+                <div className="space-y-8">
+                  {Object.values(groupedAttendance)
+                    .sort((a, b) => b.year - a.year)
+                    .map((yearData) => (
+                      <div key={yearData.year} className="space-y-6">
+                        {/* YEAR HEADER */}
+                        <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 border-b border-gray-100 pb-3 mt-4">
+                          <h4 className="text-base font-extrabold text-[#0B4550] flex items-center gap-2">
+                            <Calendar size={18} /> {yearData.year}
+                          </h4>
+                          <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                            Yearly Totals: <span className="text-[#0B4550] font-extrabold">{yearData.totalHours.toFixed(1)} Hours</span> ({yearData.totalClasses} classes, {yearData.totalAttendances} attendances)
+                          </div>
+                        </div>
+
+                        {/* MONTHS LIST */}
+                        <div className="space-y-4">
+                          {Object.values(yearData.months)
+                            .sort((a, b) => b.monthIndex - a.monthIndex)
+                            .map((monthData) => {
+                              const monthYearKey = monthData.monthYear;
+                              const expanded = expandedMonths[monthYearKey] !== false; // Default to open!
+
+                              return (
+                                <div key={monthYearKey} className="space-y-4">
+                                  {/* MONTH HEADER BAR */}
+                                  <div 
+                                    onClick={() => {
+                                      setExpandedMonths(prev => ({
+                                        ...prev,
+                                        [monthYearKey]: !expanded
+                                      }));
+                                    }}
+                                    className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 bg-[#F9F7F2] p-4 rounded-2xl border border-gray-100 shadow-sm sticky top-0 z-10 cursor-pointer hover:bg-gray-100 transition-colors group/header"
+                                  >
+                                    <div className="flex items-center gap-3">
+                                      <ChevronRight size={18} className={`text-[#0B4550] transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`} />
+                                      <h4 className="font-bold text-[#0B4550] text-sm uppercase tracking-wider">{monthData.monthName}</h4>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="text-[10px] font-bold text-[#898A8D] uppercase">Hours Conducted</p>
+                                      <p className="text-sm font-bold text-[#0B4550]">{monthData.totalHours.toFixed(1)} hrs ({monthData.totalClasses} classes)</p>
+                                    </div>
+                                  </div>
+
+                                  {/* DATE DROPDOWNS */}
+                                  {expanded && (
+                                    <div className="space-y-3 pl-2">
+                                      {Object.values(monthData.dates)
+                                        .sort((a, b) => b.timestamp - a.timestamp)
+                                        .map((dateData) => {
+                                          const dateKey = dateData.dateStr;
+                                          const dateExpanded = expandedDates[dateKey] === true;
+
+                                          return (
+                                            <div key={dateKey} className="border border-gray-50 rounded-2xl overflow-hidden shadow-sm">
+                                              {/* COLLAPSIBLE DATE ROW */}
+                                              <div 
+                                                onClick={() => {
+                                                  setExpandedDates(prev => ({
+                                                    ...prev,
+                                                    [dateKey]: !dateExpanded
+                                                  }));
+                                                }}
+                                                className="flex items-center justify-between p-3.5 bg-gray-50/50 hover:bg-gray-150/50 transition-colors cursor-pointer"
+                                              >
+                                                <div className="flex items-center gap-2">
+                                                  <ChevronRight size={16} className={`text-[#898A8D] transition-transform duration-300 ${dateExpanded ? 'rotate-90' : ''}`} />
+                                                  <span className="font-bold text-[#0B4550] text-base">{dateData.formattedDate}</span>
+                                                </div>
+                                                <div className="text-right text-xs font-bold text-[#898A8D]">
+                                                  {dateData.sessions.length} class(es)
+                                                </div>
+                                              </div>
+
+                                              {/* CLASSES LIST */}
+                                              {dateExpanded && (
+                                                <div className="p-4 bg-white border-t border-gray-50 space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                                  {dateData.sessions.map((s) => (
+                                                    <div key={s.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-4 rounded-xl bg-gray-50 border border-gray-100 hover:border-[#0B4550] transition-all">
+                                                      <div className="space-y-1">
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                          <span className="font-bold text-[#0B4550] text-lg">{s.title}</span>
+                                                          <span className={`text-xs px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${s.type === '1-on-1' ? 'bg-indigo-100 text-indigo-700' : 'bg-teal-100 text-teal-700'}`}>
+                                                            {s.type}
+                                                          </span>
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center gap-3 text-xs font-semibold text-[#898A8D]">
+                                                          <span className="flex items-center gap-1"><Clock size={14} /> {s.time}</span>
+                                                          <span>•</span>
+                                                          <span>Duration: {s.duration}</span>
+                                                          {s.location && (
+                                                            <>
+                                                              <span>•</span>
+                                                              <span>Location: {s.location}</span>
+                                                            </>
+                                                          )}
+                                                        </div>
+                                                      </div>
+                                                      <div className="flex-1 md:max-w-md bg-white border border-gray-100 rounded-xl p-3 shadow-sm">
+                                                        <span className="text-[10px] font-bold text-[#898A8D] uppercase tracking-wider block mb-1.5">Attended Clients ({s.attended.length})</span>
+                                                        <div className="flex flex-wrap gap-1.5">
+                                                          {s.attended.map(a => (
+                                                            <span key={a.client_id} className="inline-flex items-center bg-[#0B4550]/5 text-[#0B4550] px-2.5 py-1 rounded-lg text-sm font-bold border border-[#0B4550]/10">
+                                                              {a.name}
+                                                            </span>
+                                                          ))}
+                                                        </div>
+                                                      </div>
+                                                    </div>
+                                                  ))}
+                                                </div>
+                                              )}
+                                            </div>
+                                          );
+                                        })}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* VIEW: CLIENTS */}
         {activePage === 'Clients' && (
@@ -7982,6 +8254,14 @@ export default function Dashboard({ session }) {
               >
                 <Monitor size={28} />
                 <span className="text-xs font-semibold">Class Mode</span>
+              </button>
+
+              <button 
+                onClick={() => { handleNavigateToPage('Attendance'); setShowMoreMenu(false); }}
+                className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${activePage === 'Attendance' ? 'bg-[#F9F7F2] text-[#0B4550] font-bold' : 'text-[#898A8D] hover:bg-gray-50'}`}
+              >
+                <CheckSquare size={28} />
+                <span className="text-xs font-semibold">Attendance</span>
               </button>
 
               <button 
