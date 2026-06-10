@@ -1187,6 +1187,7 @@ export default function Dashboard({ session }) {
           monthName,
           monthYear,
           year,
+          monthIndex: mo - 1,
           totalHours: 0,
           totalClasses: 0,
           totalAttendances: 0,
