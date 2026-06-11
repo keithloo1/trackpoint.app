@@ -280,6 +280,16 @@ const getSessionDisplayTitle = (s) => {
   return s.title;
 };
 
+const useIsMobile = () => {
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+  return isMobile;
+};
+
 export default function Dashboard({ session }) {
   const [currentTime, setCurrentTime] = useState(new Date());
 
@@ -365,6 +375,8 @@ export default function Dashboard({ session }) {
   };
 
   const [activePage, setActivePage] = useState('Dashboard');
+  const [mobileDashboardTab, setMobileDashboardTab] = useState('schedule');
+  const [showMobileRosterDrawer, setShowMobileRosterDrawer] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [isArchiveMode, setIsArchiveMode] = useState(false);
   const [viewMode, setViewMode] = useState('grid');
@@ -3499,12 +3511,358 @@ export default function Dashboard({ session }) {
     }
   };
 
+  const isMobile = useIsMobile();
+
+  const renderMobileAttendanceLogs = () => {
+    if (Object.keys(groupedAttendance).length === 0) {
+      return (
+        <div className="text-center py-6 text-[#898A8D] font-medium bg-white rounded-2xl border border-gray-100">
+          No completed attendance logs found.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {Object.values(groupedAttendance)
+          .sort((a, b) => b.year - a.year)
+          .map((yearData) => (
+            <div key={yearData.year} className="space-y-3">
+              {/* Year Header */}
+              <div className="border-b border-gray-100 pb-2 mt-2 flex justify-between items-center">
+                <span className="font-extrabold text-[#0B4550] flex items-center gap-1 text-xs uppercase tracking-wider">
+                  <Calendar size={12} /> {yearData.year}
+                </span>
+                <span className="text-[10px] font-bold text-[#898A8D] uppercase tracking-wider">
+                  {yearData.totalHours.toFixed(1)} hrs ({yearData.totalClasses} classes)
+                </span>
+              </div>
+
+              {/* Months */}
+              {Object.values(yearData.months)
+                .sort((a, b) => b.monthIndex - a.monthIndex)
+                .map((monthData) => {
+                  const monthYearKey = monthData.monthYear;
+                  const expanded = expandedMonths[monthYearKey] !== false;
+
+                  return (
+                    <div key={monthYearKey} className="space-y-2">
+                      {/* Month Trigger */}
+                      <div 
+                        onClick={() => {
+                          setExpandedMonths(prev => ({ ...prev, [monthYearKey]: !expanded }));
+                        }}
+                        className="flex justify-between items-center bg-[#F9F7F2] px-3.5 py-2.5 rounded-xl border border-gray-100 cursor-pointer active:brightness-95 transition-all"
+                      >
+                        <div className="flex items-center gap-2">
+                          <ChevronRight size={14} className={`text-[#0B4550] transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`} />
+                          <span className="font-bold text-[#0B4550] text-xs uppercase tracking-wider">{monthData.monthName}</span>
+                        </div>
+                        <span className="text-xs font-bold text-[#0B4550]">{monthData.totalHours.toFixed(1)} hrs</span>
+                      </div>
+
+                      {/* Dates */}
+                      {expanded && (
+                        <div className="pl-2.5 space-y-2">
+                          {Object.values(monthData.dates)
+                            .sort((a, b) => b.timestamp - a.timestamp)
+                            .map((dateData) => {
+                              const dateKey = `${monthYearKey}-${dateData.date}`;
+                              const dateExpanded = expandedDates[dateKey] === true;
+
+                              return (
+                                <div key={dateKey} className="border border-gray-100 rounded-xl overflow-hidden bg-white shadow-xs">
+                                  {/* Date Trigger */}
+                                  <div 
+                                    onClick={() => {
+                                      setExpandedDates(prev => ({ ...prev, [dateKey]: !dateExpanded }));
+                                    }}
+                                    className="flex justify-between items-center p-3 bg-gray-50/50 cursor-pointer active:bg-gray-100 transition-colors"
+                                  >
+                                    <span className="font-bold text-xs text-[#0B4550]">{dateData.formattedDate}</span>
+                                    <span className="text-[10px] font-bold text-[#898A8D]">{dateData.sessions.length} class(es)</span>
+                                  </div>
+
+                                  {/* Sessions list */}
+                                  {dateExpanded && (
+                                    <div className="p-3 space-y-3 border-t border-gray-100 bg-white">
+                                      {dateData.sessions.map((s) => (
+                                        <div key={s.id} className="p-3 rounded-xl bg-gray-50 border border-gray-100 space-y-2.5">
+                                          <div className="flex justify-between items-start">
+                                            <div>
+                                              <span className="font-bold text-sm text-[#0B4550] block">{s.title}</span>
+                                              <span className="text-[10px] font-semibold text-[#898A8D] block mt-0.5">{s.time} • {s.duration}</span>
+                                            </div>
+                                            <span className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${s.type === '1-on-1' ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
+                                              {s.type}
+                                            </span>
+                                          </div>
+                                          {s.attended && s.attended.length > 0 && (
+                                            <div className="pt-2 border-t border-gray-250/20">
+                                              <span className="text-[9px] font-bold text-[#898A8D] uppercase tracking-wider block mb-1">Attended Clients ({s.attended.length})</span>
+                                              <div className="flex flex-wrap gap-1">
+                                                {s.attended.map(a => (
+                                                  <span key={a.client_id} className="inline-flex bg-[#0B4550]/5 text-[#0B4550] px-2 py-0.5 rounded-lg text-[10px] font-bold border border-[#0B4550]/10">
+                                                    {a.name}
+                                                  </span>
+                                                ))}
+                                              </div>
+                                            </div>
+                                          )}
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          ))
+        }
+      </div>
+    );
+  };
+
+  const renderMobileRosterDrawer = () => {
+    if (!selectedSession) return null;
+    const attendedCount = selectedSession.attendees ? selectedSession.attendees.length : 0;
+    
+    return (
+      <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-xs z-[100] flex items-end justify-center" onClick={() => setShowMobileRosterDrawer(false)}>
+        <div 
+          className="bg-white rounded-t-[2rem] w-full max-h-[85vh] overflow-y-auto p-5 shadow-2xl relative animate-in slide-in-from-bottom duration-300"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Handle */}
+          <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
+          
+          {/* Header */}
+          <div className="flex justify-between items-start mb-5">
+            <div>
+              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${selectedSession.type === '1-on-1' ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
+                {selectedSession.type}
+              </span>
+              <h2 className="text-lg font-bold text-[#0B4550] mt-1">{getSessionDisplayTitle(selectedSession)}</h2>
+              <div className="flex flex-col gap-0.5 mt-1 text-xs text-[#898A8D] font-semibold">
+                <span className="flex items-center gap-1"><Clock size={12} /> {formatDbDate(selectedSession.date)} • {selectedSession.time}</span>
+                <span className="flex items-center gap-1"><MapPin size={12} /> {selectedSession.location ? selectedSession.location.split(' | Coach: ')[0] : 'Main Floor'}</span>
+              </div>
+            </div>
+            <button 
+              onClick={() => setShowMobileRosterDrawer(false)}
+              className="p-2 bg-gray-100 rounded-full text-[#898A8D] hover:text-[#0B4550]"
+            >
+              <X size={18} />
+            </button>
+          </div>
+
+          {selectedSession.type !== 'Blocked' ? (
+            <div className="space-y-5">
+              
+              {/* Assign Student Dropdown */}
+              <div className="relative">
+                <button 
+                  onClick={() => {
+                    setShowStudentDropdown(!showStudentDropdown);
+                    setSearchStudentQuery('');
+                  }}
+                  className="w-full bg-[#F9F7F2] border border-gray-200 rounded-xl px-4 py-3 text-xs text-[#0B4550] font-bold flex justify-between items-center outline-none"
+                >
+                  <span>
+                    {selectedStudentIds.length === 0 
+                      ? 'Book / Assign Students...' 
+                      : `${selectedStudentIds.length} student(s) selected`}
+                  </span>
+                  <ChevronDown size={16} className={`transition-transform duration-200 ${showStudentDropdown ? 'rotate-180' : ''}`} />
+                </button>
+
+                {showStudentDropdown && (
+                  <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-[110] p-3 flex flex-col max-h-56">
+                    <div className="relative mb-2 shrink-0">
+                      <input 
+                        type="text" 
+                        placeholder="Search clients..." 
+                        value={searchStudentQuery}
+                        onChange={(e) => setSearchStudentQuery(e.target.value)}
+                        className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2 pl-8 pr-4 text-xs font-semibold text-[#0B4550] outline-none"
+                      />
+                      <Search className="absolute left-2.5 top-2.5 text-gray-400" size={12} />
+                    </div>
+
+                    <div className="overflow-y-auto flex-1 space-y-1 pr-1">
+                      {(() => {
+                        const filtered = clients
+                          .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(searchStudentQuery.toLowerCase()))
+                          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                        if (filtered.length === 0) {
+                          return <p className="text-[11px] text-gray-400 text-center py-3">No clients found.</p>;
+                        }
+
+                        return filtered.map(c => {
+                          const isSelected = selectedStudentIds.includes(c.id);
+                          const isAlreadyRostered = selectedSession.attendees?.some(a => a.client_id === c.id);
+
+                          return (
+                            <label 
+                              key={c.id} 
+                              className={`flex items-center gap-2 p-2 rounded-lg transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-[#F9F7F2]'}`}
+                            >
+                              <input 
+                                type="checkbox"
+                                disabled={isAlreadyRostered}
+                                checked={isAlreadyRostered || isSelected}
+                                onChange={() => {
+                                  if (isAlreadyRostered) return;
+                                  setSelectedStudentIds(prev => 
+                                    prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                  );
+                                }}
+                                className="w-4 h-4 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550]"
+                              />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-bold text-[#0B4550] truncate">{c.name}</p>
+                                <p className="text-[10px] text-[#898A8D] font-medium">
+                                  {c.unlimited 
+                                    ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}` 
+                                    : `${c.remaining_package || 0} left`}
+                                </p>
+                              </div>
+                              {isAlreadyRostered && (
+                                <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Booked</span>
+                              )}
+                            </label>
+                          );
+                        });
+                      })()}
+                    </div>
+
+                    <div className="border-t border-gray-100 pt-2 mt-2 flex gap-2 shrink-0">
+                      <button 
+                        type="button"
+                        onClick={() => {
+                          setSelectedStudentIds([]);
+                          setShowStudentDropdown(false);
+                        }}
+                        className="flex-1 py-1.5 rounded-lg text-xs font-bold text-gray-505 hover:bg-gray-50"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="button"
+                        disabled={selectedStudentIds.length === 0}
+                        onClick={() => {
+                          handleAssignMultipleClients();
+                          setShowStudentDropdown(false);
+                        }}
+                        className="flex-[2] py-1.5 rounded-lg text-xs font-extrabold text-[#E6FF2B] bg-[#0B4550] disabled:opacity-50"
+                      >
+                        Assign ({selectedStudentIds.length})
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Roster List */}
+              <div>
+                <h3 className="font-bold text-sm text-[#0B4550] mb-2">Roster ({attendedCount} / {selectedSession.capacity})</h3>
+
+                {selectedSession.attendees.length === 0 ? (
+                  <div className="text-center py-6 bg-[#F9F7F2] rounded-xl border border-gray-100">
+                    <p className="text-xs font-medium text-[#898A8D]">No bookings yet.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1">
+                    {selectedSession.attendees.map((attendee) => (
+                      <div key={attendee.booking_id} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                        <div className="w-8 h-8 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-[10px] font-medium shrink-0">
+                          {getInitials(attendee.name)}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <span className="text-xs font-bold text-[#0B4550] block truncate">{attendee.name}</span>
+                          <span className={`text-[9px] font-bold uppercase tracking-widest ${attendee.status === 'Attended' ? 'text-emerald-500' : 'text-[#898A8D]'}`}>
+                            {attendee.status}
+                          </span>
+                        </div>
+                        
+                        <button 
+                          onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} 
+                          className={`p-2 rounded-lg transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 border border-gray-200'}`}
+                        >
+                          <CheckSquare size={16} />
+                        </button>
+                        
+                        <button 
+                          onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} 
+                          className="p-2 rounded-lg bg-white text-gray-300 hover:text-red-500 border border-gray-200"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Review & Confirm Attendance */}
+              {selectedSession.attendees.length > 0 && (
+                <button 
+                  onClick={() => {
+                    setShowMobileRosterDrawer(false);
+                    handleOpenAttendanceSummaryModal();
+                  }}
+                  className="w-full py-3 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.99]"
+                >
+                  <CheckSquare size={14} /> Review & Confirm Attendance
+                </button>
+              )}
+
+              {/* Edit / Cancel Class */}
+              <div className="flex gap-2 border-t border-gray-100 pt-3">
+                <button 
+                  onClick={() => {
+                    setShowMobileRosterDrawer(false);
+                    handleOpenEditEvent();
+                  }}
+                  className="flex-1 py-2.5 bg-[#F9F7F2] text-[#0B4550] font-bold rounded-xl text-[11px]"
+                >
+                  Edit Class
+                </button>
+                <button 
+                  onClick={() => {
+                    handleDeleteSession(selectedSession.id);
+                    setShowMobileRosterDrawer(false);
+                  }}
+                  className="flex-1 py-2.5 bg-rose-50 text-rose-600 font-bold rounded-xl text-[11px]"
+                >
+                  Cancel Class
+                </button>
+              </div>
+
+            </div>
+          ) : (
+            <div className="text-center py-6 bg-[#F9F7F2] rounded-xl border border-gray-100">
+              <p className="text-xs font-medium text-[#898A8D]">Time block reserved for personal tasks.</p>
+            </div>
+          )}
+
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col lg:flex-row h-screen w-full bg-[#F9F7F2] font-sans text-[#0B4550] overflow-hidden">
       
       {/* SIDEBAR - Hidden when in ClassMode or on mobile */}
-      {activePage !== 'ClassMode' && (
-      <aside className="hidden lg:flex w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+      {!isMobile && activePage !== 'ClassMode' && (
+      <aside className="w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex">
         <div className="flex items-center px-4 md:px-6 py-5 md:py-8">
           <button 
             onClick={() => {
@@ -3541,28 +3899,28 @@ export default function Dashboard({ session }) {
       </aside>
       )}
   
-      {/* MOBILE BOTTOM NAVIGATION - Visible only on small screens (lg:hidden), hidden in ClassMode */}
-      {activePage !== 'ClassMode' && (
-      <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-around items-center py-3 px-2 z-[50] shadow-[0_-4px_24px_rgba(0,0,0,0.04)]">
+      {/* MOBILE BOTTOM NAVIGATION - Visible only on small screens, hidden in ClassMode */}
+      {isMobile && activePage !== 'ClassMode' && (
+      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-around items-center py-3 px-2 z-[50] shadow-[0_-4px_24px_rgba(0,0,0,0.04)]">
         <button onClick={() => setActivePage('Dashboard')} className={`flex flex-col items-center gap-1 ${activePage === 'Dashboard' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
-          <Home size={24} />
-          <span className="text-[10px] font-medium">Home</span>
+          <Home size={22} />
+          <span className="text-[9px] font-bold">Home</span>
         </button>
         <button onClick={() => handleNavigateToPage('Clients')} className={`flex flex-col items-center gap-1 ${activePage === 'Clients' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
-          <Users size={24} />
-          <span className="text-[10px] font-medium">Clients</span>
+          <Users size={22} />
+          <span className="text-[9px] font-bold">Clients</span>
         </button>
         <button onClick={() => handleNavigateToPage('Revenue')} className={`flex flex-col items-center gap-1 ${activePage === 'Revenue' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
-          <DollarSign size={24} />
-          <span className="text-[10px] font-medium">Revenue</span>
+          <DollarSign size={22} />
+          <span className="text-[9px] font-bold">Revenue</span>
         </button>
         <button onClick={() => setActivePage('Schedule')} className={`flex flex-col items-center gap-1 ${activePage === 'Schedule' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
-          <Calendar size={24} />
-          <span className="text-[10px] font-medium">Schedule</span>
+          <Calendar size={22} />
+          <span className="text-[9px] font-bold">Schedule</span>
         </button>
         <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 'text-[#0B4550]' : 'text-gray-400'}`}>
-          <LayoutGrid size={24} />
-          <span className="text-[10px] font-medium">More</span>
+          <LayoutGrid size={22} />
+          <span className="text-[9px] font-bold">More</span>
         </button>
       </div>
       )}
@@ -3573,6 +3931,30 @@ export default function Dashboard({ session }) {
 
         {/* UNIVERSAL DYNAMIC HEADER - Hidden in ClassMode */}
 {activePage !== 'ClassMode' && (
+  isMobile ? (
+    <header className="flex items-center justify-between mb-6 gap-2 bg-white p-3.5 rounded-2xl shadow-xs border border-gray-150/40">
+      <div className="flex items-center gap-3">
+        <img src={companyLogo || newLogo} alt={companyName} className="h-10 w-auto object-contain max-h-[40px]" />
+        <div>
+          <h1 className="text-sm font-extrabold text-[#0B4550]">
+            {activePage === 'Dashboard' ? `${greeting}, ${trainerName.split(' ')[0]}` : activePage}
+          </h1>
+          <p className="text-[10px] text-[#898A8D] font-bold">{todayFormattedFull}</p>
+        </div>
+      </div>
+      <div className="flex items-center gap-2">
+        <button 
+          onClick={() => setShowAICopilot(true)}
+          className="w-9 h-9 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center relative hover:scale-105 transition-all shadow-xs border border-gray-100/50"
+        >
+          <Sparkles size={18} />
+        </button>
+        <div className="w-9 h-9 rounded-full bg-[#0B4550] flex items-center justify-center text-[#E6FF2B] text-xs font-bold border-2 border-white shadow-xs">
+          {getInitials(trainerName)}
+        </div>
+      </div>
+    </header>
+  ) : (
 <header className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-8 gap-4 md:gap-6">
   <div className="flex-1">
     {/* DASHBOARD HEADER */}
@@ -3644,10 +4026,127 @@ export default function Dashboard({ session }) {
     </div>
   </div>
 </header>
+  )
 )}
         {/* VIEW: DASHBOARD OVERVIEW */}
         {activePage === 'Dashboard' && (
-          <div className="animate-in fade-in duration-500">
+          isMobile ? (
+            <div className="space-y-6 animate-in fade-in duration-300">
+              {/* Daily Quote Card */}
+              <div className="bg-white p-4 rounded-2xl border-l-4 border-[#E6FF2B] shadow-xs">
+                <p className="text-[#0B4550] text-sm italic font-medium">{quote}</p>
+              </div>
+
+              {/* Quick Metrics Cards */}
+              <div className="grid grid-cols-2 gap-3">
+                <div 
+                  onClick={() => handleNavigateToPage('Revenue')}
+                  className="bg-[#0B4550] p-4 rounded-2xl text-white shadow-xs flex flex-col justify-between h-24 cursor-pointer"
+                >
+                  <span className="text-white/70 text-xs font-medium">Revenue</span>
+                  <span className="text-lg font-bold truncate">
+                    {isRevenueHidden ? 'RM ••••' : `RM ${dashboardMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                  </span>
+                </div>
+                <div 
+                  onClick={() => handleNavigateToPage('Clients', 'Active')}
+                  className="bg-white border border-gray-100 p-4 rounded-2xl shadow-xs flex flex-col justify-between h-24 cursor-pointer"
+                >
+                  <span className="text-[#898A8D] text-xs font-medium">Active Clients</span>
+                  <span className="text-[#0B4550] text-xl font-bold">{activeClientsCount}</span>
+                </div>
+              </div>
+
+              {/* TABS TOGGLE: Classes vs History */}
+              <div className="flex bg-white rounded-xl p-1 shadow-sm border border-gray-100">
+                <button 
+                  onClick={() => setMobileDashboardTab('schedule')}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${mobileDashboardTab === 'schedule' ? 'bg-[#0B4550] text-[#E6FF2B]' : 'text-[#898A8D]'}`}
+                >
+                  Today's Classes
+                </button>
+                <button 
+                  onClick={() => setMobileDashboardTab('history')}
+                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${mobileDashboardTab === 'history' ? 'bg-[#0B4550] text-[#E6FF2B]' : 'text-[#898A8D]'}`}
+                >
+                  Attendance Logs
+                </button>
+              </div>
+
+              {/* TAB CONTENT: Today's Classes */}
+              {mobileDashboardTab === 'schedule' && (
+                <div className="space-y-4">
+                  <h3 className="font-bold text-base text-[#0B4550]">Today's Schedule</h3>
+                  
+                  {(() => {
+                    const todayStr = new Date().toLocaleDateString('sv-SE');
+                    const todaySessions = sessions
+                      .filter(s => s.date === todayStr)
+                      .sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
+
+                    if (todaySessions.length === 0) {
+                      return (
+                        <div className="text-center py-10 bg-white rounded-2xl border border-gray-100 shadow-xs">
+                          <Calendar size={40} className="mx-auto text-gray-300 mb-2" />
+                          <p className="text-[#898A8D] font-medium text-sm">No classes scheduled for today.</p>
+                          <button 
+                            onClick={() => setActivePage('Schedule')}
+                            className="mt-3 text-xs font-bold text-[#0B4550] bg-[#F9F7F2] px-4 py-2 rounded-lg border border-gray-100"
+                          >
+                            Go to Schedule
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return todaySessions.map(session => {
+                      const isPast = isSessionPast(session);
+                      const attendedCount = session.attendees ? session.attendees.length : 0;
+                      return (
+                        <div 
+                          key={session.id}
+                          onClick={() => {
+                            setSelectedSession(session);
+                            setShowMobileRosterDrawer(true);
+                          }}
+                          className={`bg-white border border-gray-100 rounded-2xl p-4 shadow-xs flex justify-between items-center transition-all active:scale-[0.99] cursor-pointer ${isPast ? 'opacity-75' : ''}`}
+                        >
+                          <div className="space-y-1">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="font-bold text-[#0B4550] text-sm">{getSessionDisplayTitle(session)}</span>
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${session.type === '1-on-1' ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
+                                {session.type}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs font-semibold text-[#898A8D]">
+                              <span className="flex items-center gap-1"><Clock size={12} /> {session.time}</span>
+                              <span>•</span>
+                              <span>{session.duration}</span>
+                            </div>
+                          </div>
+                          <div className="text-right shrink-0">
+                            <span className="text-xs font-extrabold text-[#0B4550] block">
+                              {attendedCount} / {session.capacity}
+                            </span>
+                            <span className="text-[9px] text-[#898A8D] font-bold block uppercase tracking-wider">Booked</span>
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              )}
+
+              {/* TAB CONTENT: Attendance Logs */}
+              {mobileDashboardTab === 'history' && (
+                <div className="space-y-4">
+                  <h3 className="font-bold text-base text-[#0B4550]">Attendance Logs</h3>
+                  {renderMobileAttendanceLogs()}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-8 gap-4">
               <div className="bg-white px-4 md:px-6 py-3 rounded-xl border-l-4 border-[#E6FF2B] shadow-sm max-w-2xl">
                 <p className="text-[#0B4550] font-medium text-lg italic">{quote}</p>
@@ -3919,6 +4418,7 @@ export default function Dashboard({ session }) {
               </div>
             </div>
           </div>
+          )
         )}
 
         {/* VIEW: REVENUE */}
@@ -5417,7 +5917,7 @@ export default function Dashboard({ session }) {
                       const displayCoach = locationParts[1] || '';
 
                       return (
-                        <div key={session.id} onClick={() => setSelectedSession(session)} className={`flex gap-3 sm:gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-70 hover:opacity-100' : ''}`}>
+                        <div key={session.id} onClick={() => { setSelectedSession(session); if (isMobile) setShowMobileRosterDrawer(true); }} className={`flex gap-3 sm:gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-70 hover:opacity-100' : ''}`}>
                           <div className="w-20 sm:w-24 text-right shrink-0">
                             <p className={`text-base sm:text-xl font-medium ${isSelected ? 'text-[#0B4550]' : 'text-[#898A8D]'} ${isPast ? 'line-through opacity-60' : ''}`}>{session.time}</p>
                             <p className="text-xs sm:text-sm font-medium text-[#898A8D]">{session.duration}</p>
@@ -5453,8 +5953,8 @@ export default function Dashboard({ session }) {
                 </div>
               </div>
 
-              <div className="lg:col-span-1">
-                {selectedSession && (
+              {!isMobile && (
+                selectedSession && (
                   <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 sticky top-4">
                     <span className="inline-block px-4 py-1.5 rounded-xl bg-gray-100 text-[#898A8D] font-medium text-sm mb-4">{selectedSession.type}</span>
                     <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550] mb-6 leading-tight">{getSessionDisplayTitle(selectedSession)}</h2>
@@ -5661,8 +6161,8 @@ export default function Dashboard({ session }) {
                       <Trash2 size={18} /> Cancel & Delete Event
                     </button>
                   </div>
-                )}
-              </div>
+                )
+              )}
             </div>
           </div>
         )}
@@ -8386,6 +8886,7 @@ export default function Dashboard({ session }) {
           </div>
         </div>
       )}
+      {showMobileRosterDrawer && renderMobileRosterDrawer()}
     </div>
   );
 }
