@@ -1226,6 +1226,15 @@ export default function Dashboard({ session }) {
       years[year].months[monthYear].totalAttendances += attended.length;
     });
 
+    // Sort sessions chronologically by time for each date
+    Object.values(years).forEach(yearData => {
+      Object.values(yearData.months).forEach(monthData => {
+        Object.values(monthData.dates).forEach(dateData => {
+          dateData.sessions.sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
+        });
+      });
+    });
+
     return years;
   }, [sessions]);
 
