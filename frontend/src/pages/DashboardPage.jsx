@@ -705,7 +705,7 @@ export default function Dashboard({ session }) {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [newClientData, setNewClientData] = useState({
     name: '', email: '', phone: '', dob: '', address: '',
-    package: '10 Class Pack', expiry_date: '', unlimited: false, 
+    package: '', expiry_date: '', unlimited: false, 
     client_type: 'Group', member_status: 'Member', 
     initial_package: '', remaining_package: '', date_paid: ''
   });
@@ -965,7 +965,8 @@ export default function Dashboard({ session }) {
 
     const packageCounts = {};
     clients.forEach(c => {
-      if (c.package) {
+      const hasValidPackage = c.package && packagesList.some(p => p.name === c.package);
+      if (hasValidPackage) {
         packageCounts[c.package] = (packageCounts[c.package] || 0) + 1;
       }
     });
@@ -1435,6 +1436,7 @@ export default function Dashboard({ session }) {
         await loadSystemSettings(clientData);
         const normalClients = clientData.filter(c => c.email !== 'system_settings@trackpoint.app');
         setClients(normalClients.map(mapClientWithAddress));
+        cleanUpAccidentalPackages(normalClients);
       }
       setIsLoadingClients(false);
     };
@@ -1501,12 +1503,33 @@ export default function Dashboard({ session }) {
     }
   };
 
+  const cleanUpAccidentalPackages = async (normalClients) => {
+    try {
+      const clientsWithBadDefault = normalClients.filter(c => c.package === '10 Class Pack');
+      if (clientsWithBadDefault.length > 0) {
+        const { data: realPkgs } = await supabase.from('packages').select('name');
+        const hasRealTenClassPack = realPkgs && realPkgs.some(p => p.name === '10 Class Pack');
+        if (!hasRealTenClassPack) {
+          const clientIds = clientsWithBadDefault.map(c => c.id);
+          await supabase
+            .from('clients')
+            .update({ package: '' })
+            .in('id', clientIds);
+          setClients(prev => prev.map(c => c.package === '10 Class Pack' ? { ...c, package: '' } : c));
+        }
+      }
+    } catch (err) {
+      console.error("Error in package default migration:", err);
+    }
+  };
+
   const fetchClients = async () => {
     const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
     if (data) {
       await loadSystemSettings(data);
       const normalClients = data.filter(c => c.email !== 'system_settings@trackpoint.app');
       setClients(normalClients.map(mapClientWithAddress));
+      cleanUpAccidentalPackages(normalClients);
     }
   };
 
@@ -1860,7 +1883,7 @@ export default function Dashboard({ session }) {
 
       if (error) throw error;
       setShowAddModal(false);
-      setNewClientData({ name: '', email: '', phone: '', dob: '', address: '', package: '10 Class Pack', expiry_date: '', unlimited: false, client_type: 'Group', member_status: 'Member', initial_package: '', remaining_package: '', date_paid: '' });
+      setNewClientData({ name: '', email: '', phone: '', dob: '', address: '', package: '', expiry_date: '', unlimited: false, client_type: 'Group', member_status: 'Member', initial_package: '', remaining_package: '', date_paid: '' });
       fetchClients();
     } catch (error) {
       alert("Error adding client: " + error.message);
@@ -1923,7 +1946,7 @@ export default function Dashboard({ session }) {
               const phone = row['Phone'] || '';
               const clientType = row['Client Type'] || 'Group';
               const memberStatus = row['Member Status'] || 'Member';
-              const packageType = row['Package Type'] || row['Package'] || '10 Class Pack';
+              const packageType = row['Package Type'] || row['Package'] || '';
               const initialPkg = parseInt(row['Initial Pkg'] || row['Initial Package']) || 0;
               const remainingPkg = parseInt(row['Remaining'] || row['Remaining Package']) || 0;
               const datePaid = row['Date Paid'] || null;
@@ -4937,7 +4960,7 @@ export default function Dashboard({ session }) {
                                   <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Follow Up</span>
                                 )}
                               </div>
-                              <p className="text-[#898A8D] font-medium text-sm">{client.package || 'No package selected'}</p>
+                              <p className="text-[#898A8D] font-medium text-sm">{client.package || 'No package'}</p>
                             </div>
                           </div>
                         </div>
