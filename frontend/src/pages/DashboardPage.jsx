@@ -341,21 +341,35 @@ export default function Dashboard({ session }) {
   };
 
   const handleNavigateToPage = (pageName, initialTab = null) => {
+    let targetTab = initialTab;
+    if (!targetTab) {
+      if (pageName === 'Clients') {
+        targetTab = 'All Clients';
+      } else if (pageName === 'Revenue') {
+        targetTab = 'Month';
+      } else if (pageName === 'Analytics') {
+        targetTab = '1M';
+      }
+    }
+
     if (pageName === 'Revenue' || pageName === 'Analytics' || pageName === 'Clients') {
       if (isRevenueUnlocked) {
         setActivePage(pageName);
-        if (initialTab) {
-          setActiveTab(initialTab);
+        if (targetTab) {
+          setActiveTab(targetTab);
         }
       } else {
         setPendingPageAction(pageName);
-        setPendingTabAction(initialTab);
+        setPendingTabAction(targetTab);
         setSecurityPinInput('');
         setSecurityPinError(false);
         setShowSecurityPinModal(true);
       }
     } else {
       setActivePage(pageName);
+      if (targetTab) {
+        setActiveTab(targetTab);
+      }
     }
   };
 
@@ -716,6 +730,9 @@ export default function Dashboard({ session }) {
   const [newEventData, setNewEventData] = useState({
     title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: '', recurrence: 'none', recurrenceCount: 4, recurrenceDays: []
   });
+  const [eventAssignedClients, setEventAssignedClients] = useState([]);
+  const [searchEventClientsQuery, setSearchEventClientsQuery] = useState('');
+  const [showEventClientsDropdown, setShowEventClientsDropdown] = useState(false);
 
   // EDIT EVENT MODAL STATES
   const [showEditEventModal, setShowEditEventModal] = useState(false);
@@ -1632,6 +1649,64 @@ export default function Dashboard({ session }) {
 
       if (error) throw error;
 
+      // Assign clients selected in the modal
+      if (insertedData && insertedData.length > 0 && eventAssignedClients && eventAssignedClients.length > 0) {
+        const bookingsToInsert = [];
+        const clientUpdates = {}; // Track client session balance changes
+
+        insertedData.forEach(session => {
+          eventAssignedClients.forEach(clientId => {
+            bookingsToInsert.push({
+              client_id: clientId,
+              session_id: session.id,
+              session_date: session.date,
+              time_slot: session.time,
+              status: 'Booked'
+            });
+
+            // Deduct session credits
+            const client = clients.find(c => c.id === clientId);
+            if (client && !client.unlimited) {
+              const creditCost = getClassCreditCost(session.title);
+              if (!clientUpdates[clientId]) {
+                clientUpdates[clientId] = {
+                  remaining: client.remaining_package || 0,
+                  used: client.used_sessions || 0
+                };
+              }
+              clientUpdates[clientId].remaining = Math.max(0, clientUpdates[clientId].remaining - creditCost);
+              clientUpdates[clientId].used = clientUpdates[clientId].used + creditCost;
+            }
+          });
+        });
+
+        // Insert all bookings in a single query!
+        if (bookingsToInsert.length > 0) {
+          const { error: bookingsErr } = await supabase.from('bookings').insert(bookingsToInsert);
+          if (bookingsErr) console.error("Error inserting pre-assigned client bookings:", bookingsErr);
+        }
+
+        // Apply all client package updates in database
+        for (const clientId of Object.keys(clientUpdates)) {
+          const update = clientUpdates[clientId];
+          await supabase.from('clients')
+            .update({ remaining_package: update.remaining, used_sessions: update.used })
+            .eq('id', clientId);
+        }
+
+        // Refresh clients state local list
+        setClients(prev => prev.map(c => {
+          if (clientUpdates[c.id]) {
+            return {
+              ...c,
+              remaining_package: clientUpdates[c.id].remaining,
+              used_sessions: clientUpdates[c.id].used
+            };
+          }
+          return c;
+        }));
+      }
+
       // Direct Google Calendar Live Sync push (NEW!)
       if (insertedData && insertedData.length > 0) {
         insertedData.forEach(session => {
@@ -1652,6 +1727,9 @@ export default function Dashboard({ session }) {
         recurrenceCount: 4,
         recurrenceDays: []
       });
+      setEventAssignedClients([]);
+      setSearchEventClientsQuery('');
+      setShowEventClientsDropdown(false);
       fetchSessions();
       alert(`Successfully scheduled ${sessionsToInsert.length} session(s)!`);
     } catch (error) {
@@ -7921,6 +7999,86 @@ export default function Dashboard({ session }) {
                   </div>
                 );
               })()}
+
+              {newEventData.type !== 'Blocked' && (
+                <div className="relative">
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">
+                    Assign Clients to Class
+                  </label>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setShowEventClientsDropdown(!showEventClientsDropdown);
+                      setSearchEventClientsQuery('');
+                    }}
+                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl px-5 py-3 text-lg text-[#0B4550] font-medium flex justify-between items-center outline-none focus:border-[#E6FF2B] cursor-pointer"
+                  >
+                    <span className="truncate">
+                      {eventAssignedClients.length === 0 
+                        ? 'Select clients to book...' 
+                        : `${eventAssignedClients.length} client(s) selected`}
+                    </span>
+                    <ChevronDown size={18} className={`transition-transform duration-200 ${showEventClientsDropdown ? 'rotate-180' : ''}`} />
+                  </button>
+
+                  {showEventClientsDropdown && (
+                    <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200 max-h-80 flex flex-col">
+                      {/* SEARCH BAR */}
+                      <div className="relative mb-3 shrink-0">
+                        <input 
+                          type="text" 
+                          placeholder="Search clients..." 
+                          value={searchEventClientsQuery}
+                          onChange={(e) => setSearchEventClientsQuery(e.target.value)}
+                          className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2.5 pl-9 pr-4 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                        />
+                        <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+                      </div>
+
+                      {/* CLIENTS CHECKBOX LIST */}
+                      <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
+                        {(() => {
+                          const filtered = clients
+                            .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(searchEventClientsQuery.toLowerCase()))
+                            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                          if (filtered.length === 0) {
+                            return <p className="text-sm text-gray-400 text-center py-4">No clients found.</p>;
+                          }
+
+                          return filtered.map(c => {
+                            const isSelected = eventAssignedClients.includes(c.id);
+
+                            return (
+                              <label 
+                                key={c.id} 
+                                className="flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer hover:bg-[#F9F7F2]"
+                              >
+                                <input 
+                                  type="checkbox"
+                                  checked={isSelected}
+                                  onChange={() => {
+                                    setEventAssignedClients(prev => 
+                                      prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                    );
+                                  }}
+                                  className="w-5 h-5 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550] cursor-pointer"
+                                />
+                                <div className="flex flex-col text-left">
+                                  <span className="font-bold text-[#0B4550] text-sm">{c.name}</span>
+                                  <span className="text-[11px] text-[#898A8D] font-medium">
+                                    {c.package || 'No package'} • {c.unlimited ? 'Unlimited' : `${c.remaining_package || 0} left`}
+                                  </span>
+                                </div>
+                              </label>
+                            );
+                          });
+                        })()}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <button type="submit" disabled={isAddingEvent} className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-medium text-xl hover:bg-[#0B4550]/90 transition-all shadow-md mt-4 flex justify-center">
                 {isAddingEvent ? <RotateCw className="animate-spin" size={28} /> : 'Save to Schedule'}
