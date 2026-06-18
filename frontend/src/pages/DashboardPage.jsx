@@ -735,6 +735,14 @@ export default function Dashboard({ session }) {
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [selectedScheduleDate, setSelectedScheduleDate] = useState(new Date());
 
+  // State for scheduled session workout logs
+  const [sessionDetailTab, setSessionDetailTab] = useState('roster');
+  const [sessionWorkoutTitle, setSessionWorkoutTitle] = useState('');
+  const [sessionWorkoutDate, setSessionWorkoutDate] = useState('');
+  const [sessionWorkoutContent, setSessionWorkoutContent] = useState('');
+  const [isSyncingSessionWorkout, setIsSyncingSessionWorkout] = useState(false);
+  const [sessionWorkoutSyncMsg, setSessionWorkoutSyncMsg] = useState('');
+
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return { clients: [], sessions: [] };
     const q = searchQuery.toLowerCase();
@@ -1459,6 +1467,30 @@ export default function Dashboard({ session }) {
       fetchClientHistory(selectedClient);
     }
   }, [selectedClient]);
+
+  useEffect(() => {
+    if (selectedSession) {
+      setSessionDetailTab('roster');
+      setSessionWorkoutTitle(selectedSession.title || 'Workout Log');
+      
+      // Format date from YYYY-MM-DD to DD/MM/YYYY
+      let displayDate = '';
+      if (selectedSession.date) {
+        const parts = selectedSession.date.split('-');
+        if (parts.length === 3) {
+          displayDate = `${parseInt(parts[2])}/${parseInt(parts[1])}/${parts[0]}`;
+        } else {
+          displayDate = selectedSession.date;
+        }
+      }
+      setSessionWorkoutDate(displayDate);
+
+      // Load draft from localStorage
+      const cachedContent = localStorage.getItem('session_workout_' + selectedSession.id);
+      setSessionWorkoutContent(cachedContent || '');
+      setSessionWorkoutSyncMsg('');
+    }
+  }, [selectedSession]);
 
   const fetchClientHistory = async (client) => {
     if (!client) return;
@@ -2421,6 +2453,102 @@ export default function Dashboard({ session }) {
       setClients(clients.map(c => c.id === selectedClient.id ? { ...c, notes: notesToSave } : c));
       setWorkoutLogsSavedMsg(true);
       setTimeout(() => setWorkoutLogsSavedMsg(false), 2000);
+    }
+  };
+
+  const handleSyncSessionWorkout = async () => {
+    if (!selectedSession) return;
+    setIsSyncingSessionWorkout(true);
+    setSessionWorkoutSyncMsg('');
+    try {
+      // 1. Save draft to localStorage
+      localStorage.setItem('session_workout_' + selectedSession.id, sessionWorkoutContent);
+
+      // 2. Filter attended attendees
+      const attendedAttendees = (selectedSession.attendees || []).filter(
+        (a) => a.status === 'Attended'
+      );
+
+      if (attendedAttendees.length === 0) {
+        alert("No students in the roster are marked as 'Attended'. Please mark attendance first.");
+        setIsSyncingSessionWorkout(false);
+        return;
+      }
+
+      // 3. Sync to each attended student
+      let syncedCount = 0;
+      for (const attendee of attendedAttendees) {
+        // Find the client in our active clients list
+        const client = clients.find(c => c.id === attendee.client_id);
+        if (!client) continue;
+
+        // Parse their current notes and metadata
+        const parsed = parseNotesAndMetadata(client.notes || '');
+        let updatedLogs = [...(parsed.workoutLogs || [])];
+
+        // Check if a workout log for this session date & title already exists
+        const existingLogIndex = updatedLogs.findIndex(
+          (log) => log.date === sessionWorkoutDate && log.title === sessionWorkoutTitle
+        );
+
+        if (existingLogIndex > -1) {
+          // Update existing log content
+          updatedLogs[existingLogIndex] = {
+            ...updatedLogs[existingLogIndex],
+            content: sessionWorkoutContent
+          };
+        } else {
+          // Prepend new log
+          const newLog = {
+            id: `session_log_${selectedSession.id}_${Date.now()}_${Math.random().toString(36).substring(2, 11)}`,
+            title: sessionWorkoutTitle,
+            date: sessionWorkoutDate,
+            content: sessionWorkoutContent
+          };
+          updatedLogs = [newLog, ...updatedLogs];
+        }
+
+        // Serialize updated metadata back to notes string
+        const notesToSave = serializeNotesAndMetadata(
+          parsed.notes,
+          parsed.trialMeta,
+          parsed.sessionNotes,
+          parsed.address,
+          updatedLogs
+        );
+
+        // Update database
+        const { error } = await supabase
+          .from('clients')
+          .update({ notes: notesToSave })
+          .eq('id', client.id);
+
+        if (error) throw error;
+
+        // Update local component state
+        setClients(prevClients => 
+          prevClients.map(c => c.id === client.id ? { ...c, notes: notesToSave } : c)
+        );
+
+        // If this attended client is currently selected in the Client Detail view, reflect it immediately
+        if (selectedClient && selectedClient.id === client.id) {
+          setWorkoutLogs(updatedLogs);
+          setSelectedClient(prev => ({ ...prev, notes: notesToSave }));
+          if (updatedLogs.length > 0) {
+            setActiveWorkoutLogId(updatedLogs[0].id);
+          }
+        }
+
+        syncedCount++;
+      }
+
+      setSessionWorkoutSyncMsg(`Synced successfully with ${syncedCount} attended student(s)!`);
+      setTimeout(() => setSessionWorkoutSyncMsg(''), 4000);
+    } catch (err) {
+      console.error("Error syncing session workout log:", err);
+      alert("Failed to sync workout log: " + err.message);
+    } finally {
+      setIsSyncingSessionWorkout(false);
     }
   };
 
@@ -3942,164 +4070,241 @@ export default function Dashboard({ session }) {
 
           {selectedSession.type !== 'Blocked' ? (
             <div className="space-y-5">
-              
-              {/* Assign Student Dropdown */}
-              <div className="relative">
+              {/* Tabs Header */}
+              <div className="flex border-b border-gray-100 gap-4 mb-2">
                 <button 
-                  onClick={() => {
-                    setShowStudentDropdown(!showStudentDropdown);
-                    setSearchStudentQuery('');
-                  }}
-                  className="w-full bg-[#F9F7F2] border border-gray-200 rounded-xl px-4 py-3 text-xs text-[#0B4550] font-bold flex justify-between items-center outline-none"
+                  type="button"
+                  onClick={() => setSessionDetailTab('roster')}
+                  className={`pb-2 text-sm font-extrabold transition-all relative ${sessionDetailTab === 'roster' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
                 >
-                  <span>
-                    {selectedStudentIds.length === 0 
-                      ? 'Book / Assign Students...' 
-                      : `${selectedStudentIds.length} student(s) selected`}
-                  </span>
-                  <ChevronDown size={16} className={`transition-transform duration-200 ${showStudentDropdown ? 'rotate-180' : ''}`} />
+                  Roster
+                  {sessionDetailTab === 'roster' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
                 </button>
+                <button 
+                  type="button"
+                  onClick={() => setSessionDetailTab('workout')}
+                  className={`pb-2 text-sm font-extrabold transition-all relative ${sessionDetailTab === 'workout' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
+                >
+                  Workout Log
+                  {sessionDetailTab === 'workout' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
+                </button>
+              </div>
 
-                {showStudentDropdown && (
-                  <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-[110] p-3 flex flex-col max-h-56">
-                    <div className="relative mb-2 shrink-0">
+              {sessionDetailTab === 'roster' ? (
+                <>
+                  {/* Assign Student Dropdown */}
+                  <div className="relative">
+                    <button 
+                      onClick={() => {
+                        setShowStudentDropdown(!showStudentDropdown);
+                        setSearchStudentQuery('');
+                      }}
+                      className="w-full bg-[#F9F7F2] border border-gray-200 rounded-xl px-4 py-3 text-xs text-[#0B4550] font-bold flex justify-between items-center outline-none"
+                    >
+                      <span>
+                        {selectedStudentIds.length === 0 
+                          ? 'Book / Assign Students...' 
+                          : `${selectedStudentIds.length} student(s) selected`}
+                      </span>
+                      <ChevronDown size={16} className={`transition-transform duration-200 ${showStudentDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showStudentDropdown && (
+                      <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-[110] p-3 flex flex-col max-h-56">
+                        <div className="relative mb-2 shrink-0">
+                          <input 
+                            type="text" 
+                            placeholder="Search clients..." 
+                            value={searchStudentQuery}
+                            onChange={(e) => setSearchStudentQuery(e.target.value)}
+                            className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2 pl-8 pr-4 text-xs font-semibold text-[#0B4550] outline-none"
+                          />
+                          <Search className="absolute left-2.5 top-2.5 text-gray-400" size={12} />
+                        </div>
+
+                        <div className="overflow-y-auto flex-1 space-y-1 pr-1">
+                          {(() => {
+                            const filtered = clients
+                              .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(searchStudentQuery.toLowerCase()))
+                              .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                            if (filtered.length === 0) {
+                              return <p className="text-[11px] text-gray-400 text-center py-3">No clients found.</p>;
+                            }
+
+                            return filtered.map(c => {
+                              const isSelected = selectedStudentIds.includes(c.id);
+                              const isAlreadyRostered = selectedSession.attendees?.some(a => a.client_id === c.id);
+
+                              return (
+                                <label 
+                                  key={c.id} 
+                                  className={`flex items-center gap-2 p-2 rounded-lg transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-[#F9F7F2]'}`}
+                                >
+                                  <input 
+                                    type="checkbox"
+                                    disabled={isAlreadyRostered}
+                                    checked={isAlreadyRostered || isSelected}
+                                    onChange={() => {
+                                      if (isAlreadyRostered) return;
+                                      setSelectedStudentIds(prev => 
+                                        prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                      );
+                                    }}
+                                    className="w-4 h-4 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550]"
+                                  />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-xs font-bold text-[#0B4550] truncate">{c.name}</p>
+                                    <p className="text-[10px] text-[#898A8D] font-medium">
+                                      {c.unlimited 
+                                        ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}` 
+                                        : `${c.remaining_package || 0} left`}
+                                    </p>
+                                  </div>
+                                  {isAlreadyRostered && (
+                                    <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Booked</span>
+                                  )}
+                                </label>
+                              );
+                            });
+                          })()}
+                        </div>
+
+                        <div className="border-t border-gray-100 pt-2 mt-2 flex gap-2 shrink-0">
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setSelectedStudentIds([]);
+                              setShowStudentDropdown(false);
+                            }}
+                            className="flex-1 py-1.5 rounded-lg text-xs font-bold text-gray-505 hover:bg-gray-50"
+                          >
+                            Cancel
+                          </button>
+                          <button 
+                            type="button"
+                            disabled={selectedStudentIds.length === 0}
+                            onClick={() => {
+                              handleAssignMultipleClients();
+                              setShowStudentDropdown(false);
+                            }}
+                            className="flex-[2] py-1.5 rounded-lg text-xs font-extrabold text-[#E6FF2B] bg-[#0B4550] disabled:opacity-50"
+                          >
+                            Assign ({selectedStudentIds.length})
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Roster List */}
+                  <div>
+                    <h3 className="font-bold text-sm text-[#0B4550] mb-2">Roster ({attendedCount} / {selectedSession.capacity})</h3>
+
+                    {selectedSession.attendees.length === 0 ? (
+                      <div className="text-center py-6 bg-[#F9F7F2] rounded-xl border border-gray-100">
+                        <p className="text-xs font-medium text-[#898A8D]">No bookings yet.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1">
+                        {selectedSession.attendees.map((attendee) => (
+                          <div key={attendee.booking_id} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
+                            <div className="w-8 h-8 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-[10px] font-medium shrink-0">
+                              {getInitials(attendee.name)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <span className="text-xs font-bold text-[#0B4550] block truncate">{attendee.name}</span>
+                              <span className={`text-[9px] font-bold uppercase tracking-widest ${attendee.status === 'Attended' ? 'text-emerald-500' : 'text-[#898A8D]'}`}>
+                                {attendee.status}
+                              </span>
+                            </div>
+                            
+                            <button 
+                              onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} 
+                              className={`p-2 rounded-lg transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 border border-gray-200'}`}
+                            >
+                              <CheckSquare size={16} />
+                            </button>
+                            
+                            <button 
+                              onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} 
+                              className="p-2 rounded-lg bg-white text-gray-300 hover:text-red-500 border border-gray-200"
+                            >
+                              <Trash2 size={16} />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Review & Confirm Attendance */}
+                  {selectedSession.attendees.length > 0 && (
+                    <button 
+                      onClick={() => {
+                        setShowMobileRosterDrawer(false);
+                        handleOpenAttendanceSummaryModal();
+                      }}
+                      className="w-full py-3 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.99]"
+                    >
+                      <CheckSquare size={14} /> Review & Confirm Attendance
+                    </button>
+                  )}
+                </>
+              ) : (
+                <div className="flex flex-col gap-3">
+                  <h3 className="font-bold text-sm text-[#0B4550]">Class Workout Log</h3>
+                  <div className="flex flex-col gap-3 bg-[#F9F7F2] p-4 rounded-xl border border-gray-100">
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold text-[#898A8D] uppercase tracking-wider">Workout Title</label>
                       <input 
                         type="text" 
-                        placeholder="Search clients..." 
-                        value={searchStudentQuery}
-                        onChange={(e) => setSearchStudentQuery(e.target.value)}
-                        className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2 pl-8 pr-4 text-xs font-semibold text-[#0B4550] outline-none"
+                        value={sessionWorkoutTitle}
+                        onChange={(e) => setSessionWorkoutTitle(e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-[#0B4550] outline-none"
+                        placeholder="Workout Title..."
                       />
-                      <Search className="absolute left-2.5 top-2.5 text-gray-400" size={12} />
                     </div>
-
-                    <div className="overflow-y-auto flex-1 space-y-1 pr-1">
-                      {(() => {
-                        const filtered = clients
-                          .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(searchStudentQuery.toLowerCase()))
-                          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-                        if (filtered.length === 0) {
-                          return <p className="text-[11px] text-gray-400 text-center py-3">No clients found.</p>;
-                        }
-
-                        return filtered.map(c => {
-                          const isSelected = selectedStudentIds.includes(c.id);
-                          const isAlreadyRostered = selectedSession.attendees?.some(a => a.client_id === c.id);
-
-                          return (
-                            <label 
-                              key={c.id} 
-                              className={`flex items-center gap-2 p-2 rounded-lg transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-[#F9F7F2]'}`}
-                            >
-                              <input 
-                                type="checkbox"
-                                disabled={isAlreadyRostered}
-                                checked={isAlreadyRostered || isSelected}
-                                onChange={() => {
-                                  if (isAlreadyRostered) return;
-                                  setSelectedStudentIds(prev => 
-                                    prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
-                                  );
-                                }}
-                                className="w-4 h-4 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550]"
-                              />
-                              <div className="flex-1 min-w-0">
-                                <p className="text-xs font-bold text-[#0B4550] truncate">{c.name}</p>
-                                <p className="text-[10px] text-[#898A8D] font-medium">
-                                  {c.unlimited 
-                                    ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}` 
-                                    : `${c.remaining_package || 0} left`}
-                                </p>
-                              </div>
-                              {isAlreadyRostered && (
-                                <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Booked</span>
-                              )}
-                            </label>
-                          );
-                        });
-                      })()}
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold text-[#898A8D] uppercase tracking-wider">Date</label>
+                      <input 
+                        type="text" 
+                        value={sessionWorkoutDate}
+                        onChange={(e) => setSessionWorkoutDate(e.target.value)}
+                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-[#0B4550] outline-none"
+                        placeholder="Date..."
+                      />
                     </div>
-
-                    <div className="border-t border-gray-100 pt-2 mt-2 flex gap-2 shrink-0">
-                      <button 
-                        type="button"
-                        onClick={() => {
-                          setSelectedStudentIds([]);
-                          setShowStudentDropdown(false);
-                        }}
-                        className="flex-1 py-1.5 rounded-lg text-xs font-bold text-gray-505 hover:bg-gray-50"
-                      >
-                        Cancel
-                      </button>
-                      <button 
-                        type="button"
-                        disabled={selectedStudentIds.length === 0}
-                        onClick={() => {
-                          handleAssignMultipleClients();
-                          setShowStudentDropdown(false);
-                        }}
-                        className="flex-[2] py-1.5 rounded-lg text-xs font-extrabold text-[#E6FF2B] bg-[#0B4550] disabled:opacity-50"
-                      >
-                        Assign ({selectedStudentIds.length})
-                      </button>
+                    <div className="flex flex-col gap-1">
+                      <label className="text-[9px] font-bold text-[#898A8D] uppercase tracking-wider">Workout Notes</label>
+                      <textarea 
+                        value={sessionWorkoutContent}
+                        onChange={(e) => setSessionWorkoutContent(e.target.value)}
+                        className="w-full h-32 bg-white border border-gray-200 rounded-lg p-3 text-xs font-semibold text-[#0B4550] outline-none resize-none"
+                        placeholder="Workouts done today..."
+                      />
                     </div>
                   </div>
-                )}
-              </div>
 
-              {/* Roster List */}
-              <div>
-                <h3 className="font-bold text-sm text-[#0B4550] mb-2">Roster ({attendedCount} / {selectedSession.capacity})</h3>
-
-                {selectedSession.attendees.length === 0 ? (
-                  <div className="text-center py-6 bg-[#F9F7F2] rounded-xl border border-gray-100">
-                    <p className="text-xs font-medium text-[#898A8D]">No bookings yet.</p>
+                  <div className="flex flex-col gap-2 mt-1">
+                    {sessionWorkoutSyncMsg && (
+                      <span className="text-emerald-500 font-bold text-xs flex items-center gap-1">
+                        <Check size={12}/> {sessionWorkoutSyncMsg}
+                      </span>
+                    )}
+                    <button 
+                      onClick={handleSyncSessionWorkout}
+                      disabled={isSyncingSessionWorkout}
+                      className="w-full bg-[#0B4550] text-[#E6FF2B] py-3 rounded-lg font-bold text-xs hover:scale-[1.01] transition-all flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+                    >
+                      {isSyncingSessionWorkout ? <RotateCw className="animate-spin" size={14}/> : <Save size={14}/>}
+                      Sync with Attended Clients
+                    </button>
+                    <p className="text-[9px] text-gray-400 font-medium text-center leading-normal">
+                      Syncs to workout logs of all check-ins ("Attended").
+                    </p>
                   </div>
-                ) : (
-                  <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1">
-                    {selectedSession.attendees.map((attendee) => (
-                      <div key={attendee.booking_id} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                        <div className="w-8 h-8 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-[10px] font-medium shrink-0">
-                          {getInitials(attendee.name)}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <span className="text-xs font-bold text-[#0B4550] block truncate">{attendee.name}</span>
-                          <span className={`text-[9px] font-bold uppercase tracking-widest ${attendee.status === 'Attended' ? 'text-emerald-500' : 'text-[#898A8D]'}`}>
-                            {attendee.status}
-                          </span>
-                        </div>
-                        
-                        <button 
-                          onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} 
-                          className={`p-2 rounded-lg transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 border border-gray-200'}`}
-                        >
-                          <CheckSquare size={16} />
-                        </button>
-                        
-                        <button 
-                          onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} 
-                          className="p-2 rounded-lg bg-white text-gray-300 hover:text-red-500 border border-gray-200"
-                        >
-                          <Trash2 size={16} />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Review & Confirm Attendance */}
-              {selectedSession.attendees.length > 0 && (
-                <button 
-                  onClick={() => {
-                    setShowMobileRosterDrawer(false);
-                    handleOpenAttendanceSummaryModal();
-                  }}
-                  className="w-full py-3 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.99]"
-                >
-                  <CheckSquare size={14} /> Review & Confirm Attendance
-                </button>
+                </div>
               )}
 
               {/* Edit / Cancel Class */}
@@ -6418,170 +6623,248 @@ export default function Dashboard({ session }) {
 
                     {selectedSession.type !== 'Blocked' ? (
                       <>
-                        <div className="flex justify-between items-end mb-6">
-                          <h3 className="text-2xl font-medium text-[#0B4550]">Roster</h3>
-                          <span className="text-[#898A8D] font-medium text-lg">Capacity: {selectedSession.capacity}</span>
+                        {/* Tabs Header */}
+                        <div className="flex border-b border-gray-100 mb-6 gap-6">
+                          <button 
+                            type="button"
+                            onClick={() => setSessionDetailTab('roster')}
+                            className={`pb-3 text-lg font-bold transition-all relative ${sessionDetailTab === 'roster' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
+                          >
+                            Roster
+                            {sessionDetailTab === 'roster' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setSessionDetailTab('workout')}
+                            className={`pb-3 text-lg font-bold transition-all relative ${sessionDetailTab === 'workout' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
+                          >
+                            Workout Log
+                            {sessionDetailTab === 'workout' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
+                          </button>
                         </div>
 
-                        {/* ASSIGN STUDENT DROPDOWN */}
-                        <div className="mb-6 p-4 bg-[#F9F7F2] rounded-2xl border border-gray-100 relative">
-                          <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider mb-2">Book / Assign Students</p>
-                          <div className="relative">
-                            <button 
-                              type="button"
-                              onClick={() => {
-                                setShowStudentDropdown(!showStudentDropdown);
-                                setSearchStudentQuery('');
-                              }}
-                              className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-[#0B4550] font-bold flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 outline-none focus:border-[#0B4550] shadow-sm hover:bg-gray-50 transition-colors"
-                            >
-                              <span>
-                                {selectedStudentIds.length === 0 
-                                  ? 'Select students to book...' 
-                                  : `${selectedStudentIds.length} student(s) selected`}
-                              </span>
-                              <ChevronDown size={18} className={`transition-transform duration-200 ${showStudentDropdown ? 'rotate-180' : ''}`} />
-                            </button>
-
-                            {showStudentDropdown && (
-                              <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200 max-h-80 flex flex-col">
-                                {/* SEARCH BAR */}
-                                <div className="relative mb-3 shrink-0">
-                                  <input 
-                                    type="text" 
-                                    placeholder="Search clients..." 
-                                    value={searchStudentQuery}
-                                    onChange={(e) => setSearchStudentQuery(e.target.value)}
-                                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2.5 pl-9 pr-4 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
-                                  />
-                                  <Search className="absolute left-3 top-3 text-gray-400" size={16} />
-                                </div>
-
-                                {/* CLIENTS CHECKBOX LIST */}
-                                <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
-                                  {(() => {
-                                    const filtered = clients
-                                      .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(searchStudentQuery.toLowerCase()))
-                                      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-                                    if (filtered.length === 0) {
-                                      return <p className="text-sm text-gray-400 text-center py-4">No clients found.</p>;
-                                    }
-
-                                    return filtered.map(c => {
-                                      const isSelected = selectedStudentIds.includes(c.id);
-                                      const isAlreadyRostered = selectedSession.attendees?.some(a => a.client_id === c.id);
-
-                                      return (
-                                        <label 
-                                          key={c.id} 
-                                          className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-[#F9F7F2]'}`}
-                                        >
-                                          <input 
-                                            type="checkbox"
-                                            disabled={isAlreadyRostered}
-                                            checked={isAlreadyRostered || isSelected}
-                                            onChange={() => {
-                                              if (isAlreadyRostered) return;
-                                              setSelectedStudentIds(prev => 
-                                                prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
-                                              );
-                                            }}
-                                            className="w-5 h-5 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550] cursor-pointer"
-                                          />
-                                          <div className="flex-1 min-w-0">
-                                            <p className="text-sm font-bold text-[#0B4550] truncate">{c.name}</p>
-                                            <p className="text-[11px] text-[#898A8D] font-medium">
-                                              {c.unlimited 
-                                                ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}` 
-                                                : `${c.remaining_package || 0} sessions left`}
-                                            </p>
-                                          </div>
-                                          {isAlreadyRostered && (
-                                            <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Booked</span>
-                                          )}
-                                        </label>
-                                      );
-                                    });
-                                  })()}
-                                </div>
-
-                                {/* SUBMIT BATCH BUTTON */}
-                                <div className="border-t border-gray-100 pt-3 mt-3 flex gap-2 shrink-0">
-                                  <button 
-                                    type="button"
-                                    onClick={() => {
-                                      setSelectedStudentIds([]);
-                                      setShowStudentDropdown(false);
-                                    }}
-                                    className="flex-1 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 transition-colors"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button 
-                                    type="button"
-                                    disabled={selectedStudentIds.length === 0}
-                                    onClick={handleAssignMultipleClients}
-                                    className="flex-[2] py-2 rounded-xl text-xs font-extrabold text-[#E6FF2B] bg-[#0B4550] hover:bg-[#0B4550]/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                                  >
-                                    Assign Selected ({selectedStudentIds.length})
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        {selectedSession.attendees.length === 0 ? (
-                          <div className="text-center py-6 md:py-10 bg-[#F9F7F2] rounded-2xl border border-gray-100">
-                             <p className="text-lg font-medium text-[#898A8D]">No bookings yet.</p>
-                          </div>
-                        ) : (
+                        {sessionDetailTab === 'roster' ? (
                           <>
-                            <div className="space-y-3 mb-4">
-                              {selectedSession.attendees.map((attendee) => (
-                                <div key={attendee.booking_id} className="flex items-center gap-4 p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-[#0B4550] transition-colors">
-                                  <div className="w-12 h-12 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-lg font-medium">
-                                    {getInitials(attendee.name)}
-                                  </div>
-                                  <div className="flex-1">
-                                    <span className="text-lg font-medium text-[#0B4550] block">{attendee.name}</span>
-                                    <span className={`text-xs font-medium uppercase tracking-widest ${attendee.status === 'Attended' ? 'text-emerald-500' : 'text-[#898A8D]'}`}>
-                                      {attendee.status}
-                                    </span>
-                                  </div>
-                                  {/* ATTENDANCE TOGGLE */}
-                                  <button onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} className={`p-3 rounded-xl transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm border border-gray-200'}`} title="Toggle Attendance">
-                                    <CheckSquare size={24} />
-                                  </button>
-                                  {/* MOVE CLIENT */}
-                                  <button 
-                                    onClick={() => {
-                                      setMovingAttendee(attendee);
-                                      setMoveTargetDate(selectedSession.date);
-                                      setMoveTargetSessionId('');
-                                      setShowMoveModal(true);
-                                    }} 
-                                    className="p-3 rounded-xl bg-white text-gray-300 hover:text-blue-500 hover:bg-blue-50 hover:border-blue-200 transition-colors shadow-sm border border-gray-200" 
-                                    title="Move / Reschedule client"
-                                  >
-                                    <ArrowRight size={24} />
-                                  </button>
-                                  {/* REMOVE FROM ROSTER */}
-                                  <button onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} className="p-3 rounded-xl bg-white text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors shadow-sm border border-gray-200" title="Remove from roster">
-                                    <Trash2 size={24} />
-                                  </button>
-                                </div>
-                              ))}
+                            <div className="flex justify-between items-end mb-6">
+                              <h3 className="text-2xl font-medium text-[#0B4550]">Roster</h3>
+                              <span className="text-[#898A8D] font-medium text-lg">Capacity: {selectedSession.capacity}</span>
                             </div>
-                            <button 
-                              onClick={handleOpenAttendanceSummaryModal} 
-                              className="w-full py-4 rounded-2xl bg-[#10B981] hover:bg-[#059669] text-white font-extrabold transition-all flex items-center justify-center gap-2 shadow-md mb-6 hover:shadow-lg active:scale-95 duration-200"
-                              title="Review and Finalize Attendance and Credits"
-                            >
-                              <CheckSquare size={20} /> Review & Confirm Attendance
-                            </button>
+
+                            {/* ASSIGN STUDENT DROPDOWN */}
+                            <div className="mb-6 p-4 bg-[#F9F7F2] rounded-2xl border border-gray-100 relative">
+                              <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider mb-2">Book / Assign Students</p>
+                              <div className="relative">
+                                <button 
+                                  type="button"
+                                  onClick={() => {
+                                    setShowStudentDropdown(!showStudentDropdown);
+                                    setSearchStudentQuery('');
+                                  }}
+                                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-[#0B4550] font-bold flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 outline-none focus:border-[#0B4550] shadow-sm hover:bg-gray-50 transition-colors"
+                                >
+                                  <span>
+                                    {selectedStudentIds.length === 0 
+                                      ? 'Select students to book...' 
+                                      : `${selectedStudentIds.length} student(s) selected`}
+                                  </span>
+                                  <ChevronDown size={18} className={`transition-transform duration-200 ${showStudentDropdown ? 'rotate-180' : ''}`} />
+                                </button>
+
+                                {showStudentDropdown && (
+                                  <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200 max-h-80 flex flex-col">
+                                    {/* SEARCH BAR */}
+                                    <div className="relative mb-3 shrink-0">
+                                      <input 
+                                        type="text" 
+                                        placeholder="Search clients..." 
+                                        value={searchStudentQuery}
+                                        onChange={(e) => setSearchStudentQuery(e.target.value)}
+                                        className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2.5 pl-9 pr-4 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                                      />
+                                      <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+                                    </div>
+
+                                    {/* CLIENTS CHECKBOX LIST */}
+                                    <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
+                                      {(() => {
+                                        const filtered = clients
+                                          .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(searchStudentQuery.toLowerCase()))
+                                          .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                                        if (filtered.length === 0) {
+                                          return <p className="text-sm text-gray-400 text-center py-4">No clients found.</p>;
+                                        }
+
+                                        return filtered.map(c => {
+                                          const isSelected = selectedStudentIds.includes(c.id);
+                                          const isAlreadyRostered = selectedSession.attendees?.some(a => a.client_id === c.id);
+
+                                          return (
+                                            <label 
+                                              key={c.id} 
+                                              className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-[#F9F7F2]'}`}
+                                            >
+                                              <input 
+                                                type="checkbox"
+                                                disabled={isAlreadyRostered}
+                                                checked={isAlreadyRostered || isSelected}
+                                                onChange={() => {
+                                                  if (isAlreadyRostered) return;
+                                                  setSelectedStudentIds(prev => 
+                                                    prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                                  );
+                                                }}
+                                                className="w-5 h-5 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550] cursor-pointer"
+                                              />
+                                              <div className="flex-1 min-w-0">
+                                                <p className="text-sm font-bold text-[#0B4550] truncate">{c.name}</p>
+                                                <p className="text-[11px] text-[#898A8D] font-medium">
+                                                  {c.unlimited 
+                                                    ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}` 
+                                                    : `${c.remaining_package || 0} sessions left`}
+                                                </p>
+                                              </div>
+                                              {isAlreadyRostered && (
+                                                <span className="text-[10px] font-black text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider">Booked</span>
+                                              )}
+                                            </label>
+                                          );
+                                        });
+                                      })()}
+                                    </div>
+
+                                    {/* SUBMIT BATCH BUTTON */}
+                                    <div className="border-t border-gray-100 pt-3 mt-3 flex gap-2 shrink-0">
+                                      <button 
+                                        type="button"
+                                        onClick={() => {
+                                          setSelectedStudentIds([]);
+                                          setShowStudentDropdown(false);
+                                        }}
+                                        className="flex-1 py-2 rounded-xl text-xs font-bold text-gray-500 hover:bg-gray-100 transition-colors"
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button 
+                                        type="button"
+                                        disabled={selectedStudentIds.length === 0}
+                                        onClick={handleAssignMultipleClients}
+                                        className="flex-[2] py-2 rounded-xl text-xs font-extrabold text-[#E6FF2B] bg-[#0B4550] hover:bg-[#0B4550]/90 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Assign Selected ({selectedStudentIds.length})
+                                      </button>
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {selectedSession.attendees.length === 0 ? (
+                              <div className="text-center py-6 md:py-10 bg-[#F9F7F2] rounded-2xl border border-gray-100">
+                                 <p className="text-lg font-medium text-[#898A8D]">No bookings yet.</p>
+                              </div>
+                            ) : (
+                              <>
+                                <div className="space-y-3 mb-4">
+                                  {selectedSession.attendees.map((attendee) => (
+                                    <div key={attendee.booking_id} className="flex items-center gap-4 p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-[#0B4550] transition-colors">
+                                      <div className="w-12 h-12 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-lg font-medium">
+                                        {getInitials(attendee.name)}
+                                      </div>
+                                      <div className="flex-1">
+                                        <span className="text-lg font-medium text-[#0B4550] block">{attendee.name}</span>
+                                        <span className={`text-xs font-medium uppercase tracking-widest ${attendee.status === 'Attended' ? 'text-emerald-500' : 'text-[#898A8D]'}`}>
+                                          {attendee.status}
+                                        </span>
+                                      </div>
+                                      {/* ATTENDANCE TOGGLE */}
+                                      <button onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} className={`p-3 rounded-xl transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 hover:text-emerald-500 shadow-sm border border-gray-200'}`} title="Toggle Attendance">
+                                        <CheckSquare size={24} />
+                                      </button>
+                                      {/* MOVE CLIENT */}
+                                      <button 
+                                        onClick={() => {
+                                          setMovingAttendee(attendee);
+                                          setMoveTargetDate(selectedSession.date);
+                                          setMoveTargetSessionId('');
+                                          setShowMoveModal(true);
+                                        }} 
+                                        className="p-3 rounded-xl bg-white text-gray-300 hover:text-blue-500 hover:bg-blue-50 hover:border-blue-200 transition-colors shadow-sm border border-gray-200" 
+                                        title="Move / Reschedule client"
+                                      >
+                                        <ArrowRight size={24} />
+                                      </button>
+                                      {/* REMOVE FROM ROSTER */}
+                                      <button onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} className="p-3 rounded-xl bg-white text-gray-300 hover:text-red-500 hover:bg-red-50 hover:border-red-200 transition-colors shadow-sm border border-gray-200" title="Remove from roster">
+                                        <Trash2 size={24} />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                                <button 
+                                  onClick={handleOpenAttendanceSummaryModal} 
+                                  className="w-full py-4 rounded-2xl bg-[#10B981] hover:bg-[#059669] text-white font-extrabold transition-all flex items-center justify-center gap-2 shadow-md mb-6 hover:shadow-lg active:scale-95 duration-200"
+                                  title="Review and Finalize Attendance and Credits"
+                                >
+                                  <CheckSquare size={20} /> Review & Confirm Attendance
+                                </button>
+                              </>
+                            )}
                           </>
+                        ) : (
+                          <div className="flex flex-col gap-4">
+                            <h3 className="text-2xl font-medium text-[#0B4550]">Workout Log</h3>
+                            <div className="flex flex-col gap-4 bg-[#F9F7F2] p-5 rounded-2xl border border-gray-100">
+                              <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Workout Title</label>
+                                <input 
+                                  type="text" 
+                                  value={sessionWorkoutTitle}
+                                  onChange={(e) => setSessionWorkoutTitle(e.target.value)}
+                                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors"
+                                  placeholder="Workout Title..."
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Date</label>
+                                <input 
+                                  type="text" 
+                                  value={sessionWorkoutDate}
+                                  onChange={(e) => setSessionWorkoutDate(e.target.value)}
+                                  className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors"
+                                  placeholder="Date (e.g. 18/6/2026)"
+                                />
+                              </div>
+                              <div className="flex flex-col gap-1.5">
+                                <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Workout Notes</label>
+                                <textarea 
+                                  value={sessionWorkoutContent}
+                                  onChange={(e) => setSessionWorkoutContent(e.target.value)}
+                                  className="w-full h-40 bg-white border border-gray-200 rounded-xl p-4 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors resize-none"
+                                  placeholder="Start typing workouts performed today..."
+                                />
+                              </div>
+                            </div>
+
+                            <div className="flex flex-col gap-2.5 mt-2">
+                              {sessionWorkoutSyncMsg && (
+                                <span className="text-emerald-500 font-bold text-xs flex items-center gap-1">
+                                  <Check size={14}/> {sessionWorkoutSyncMsg}
+                                </span>
+                              )}
+                              <button 
+                                onClick={handleSyncSessionWorkout}
+                                disabled={isSyncingSessionWorkout}
+                                className="w-full bg-[#0B4550] text-[#E6FF2B] py-3.5 rounded-xl font-bold text-sm hover:scale-[1.01] transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                              >
+                                {isSyncingSessionWorkout ? <RotateCw className="animate-spin" size={16}/> : <Save size={16}/>}
+                                Sync with Attended Clients
+                              </button>
+                              <p className="text-[10px] text-gray-400 font-medium text-center leading-normal">
+                                Syncing will write or update this workout log in the "Workout Logs" tab for all clients currently marked as "Attended" in this class.
+                              </p>
+                            </div>
+                          </div>
                         )}
                       </>
                     ) : (
