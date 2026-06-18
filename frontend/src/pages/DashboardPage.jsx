@@ -134,23 +134,42 @@ const parseNotesAndMetadata = (rawNotes) => {
     notes: '', 
     trialMeta: { checklist: [false, false, false, false], status: 'Pending' },
     sessionNotes: {},
-    address: ''
+    address: '',
+    workoutLogs: []
   };
   
   let notes = '';
   let trialMeta = { checklist: [false, false, false, false], status: 'Pending' };
   let sessionNotes = {};
   let address = '';
+  let workoutLogs = [];
 
-  // Extract Session Notes first
+  // Extract Workout Logs
+  if (rawNotes.includes('---WORKOUT_LOGS---')) {
+    const workoutParts = rawNotes.split('---WORKOUT_LOGS---');
+    let workoutContent = workoutParts[1] || '';
+    const delimiters = ['---TRIAL_META---', '---SESSION_NOTES---', '---ADDRESS_META---'];
+    for (const d of delimiters) {
+      if (workoutContent.includes(d)) {
+        workoutContent = workoutContent.split(d)[0];
+      }
+    }
+    try {
+      workoutLogs = JSON.parse(workoutContent.trim());
+    } catch (e) {
+      console.error("Error parsing workout logs: ", e);
+    }
+  }
+
+  // Extract Session Notes
   if (rawNotes.includes('---SESSION_NOTES---')) {
     const sessionParts = rawNotes.split('---SESSION_NOTES---');
     let sessionContent = sessionParts[1] || '';
-    if (sessionContent.includes('---ADDRESS_META---')) {
-      sessionContent = sessionContent.split('---ADDRESS_META---')[0];
-    }
-    if (sessionContent.includes('---TRIAL_META---')) {
-      sessionContent = sessionContent.split('---TRIAL_META---')[0];
+    const delimiters = ['---TRIAL_META---', '---ADDRESS_META---', '---WORKOUT_LOGS---'];
+    for (const d of delimiters) {
+      if (sessionContent.includes(d)) {
+        sessionContent = sessionContent.split(d)[0];
+      }
     }
     try {
       sessionNotes = JSON.parse(sessionContent.trim());
@@ -163,11 +182,11 @@ const parseNotesAndMetadata = (rawNotes) => {
   if (rawNotes.includes('---ADDRESS_META---')) {
     const addressParts = rawNotes.split('---ADDRESS_META---');
     let addressContent = addressParts[1] || '';
-    if (addressContent.includes('---SESSION_NOTES---')) {
-      addressContent = addressContent.split('---SESSION_NOTES---')[0];
-    }
-    if (addressContent.includes('---TRIAL_META---')) {
-      addressContent = addressContent.split('---TRIAL_META---')[0];
+    const delimiters = ['---SESSION_NOTES---', '---TRIAL_META---', '---WORKOUT_LOGS---'];
+    for (const d of delimiters) {
+      if (addressContent.includes(d)) {
+        addressContent = addressContent.split(d)[0];
+      }
     }
     address = addressContent.trim();
   }
@@ -176,11 +195,11 @@ const parseNotesAndMetadata = (rawNotes) => {
   if (rawNotes.includes('---TRIAL_META---')) {
     const trialParts = rawNotes.split('---TRIAL_META---');
     let trialContent = trialParts[1] || '';
-    if (trialContent.includes('---SESSION_NOTES---')) {
-      trialContent = trialContent.split('---SESSION_NOTES---')[0];
-    }
-    if (trialContent.includes('---ADDRESS_META---')) {
-      trialContent = trialContent.split('---ADDRESS_META---')[0];
+    const delimiters = ['---SESSION_NOTES---', '---ADDRESS_META---', '---WORKOUT_LOGS---'];
+    for (const d of delimiters) {
+      if (trialContent.includes(d)) {
+        trialContent = trialContent.split(d)[0];
+      }
     }
     try {
       trialMeta = JSON.parse(trialContent.trim());
@@ -191,7 +210,7 @@ const parseNotesAndMetadata = (rawNotes) => {
 
   // Clean raw notes of all metadata sections to get the user's plain text notes
   let cleanNotes = rawNotes;
-  const sections = ['---TRIAL_META---', '---SESSION_NOTES---', '---ADDRESS_META---'];
+  const sections = ['---TRIAL_META---', '---SESSION_NOTES---', '---ADDRESS_META---', '---WORKOUT_LOGS---'];
   for (const sec of sections) {
     if (cleanNotes.includes(sec)) {
       cleanNotes = cleanNotes.split(sec)[0];
@@ -199,14 +218,15 @@ const parseNotesAndMetadata = (rawNotes) => {
   }
   notes = cleanNotes.trim();
 
-  return { notes, trialMeta, sessionNotes, address };
+  return { notes, trialMeta, sessionNotes, address, workoutLogs };
 };
 
-const serializeNotesAndMetadata = (notes, trialMeta, sessionNotes = {}, address = '') => {
+const serializeNotesAndMetadata = (notes, trialMeta, sessionNotes = {}, address = '', workoutLogs = []) => {
   let result = `${notes.trim()}`;
   result += `\n\n---TRIAL_META---\n${JSON.stringify(trialMeta)}`;
   result += `\n\n---SESSION_NOTES---\n${JSON.stringify(sessionNotes)}`;
   result += `\n\n---ADDRESS_META---\n${address.trim()}`;
+  result += `\n\n---WORKOUT_LOGS---\n${JSON.stringify(workoutLogs)}`;
   return result;
 };
 
@@ -702,11 +722,61 @@ export default function Dashboard({ session }) {
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [notesSavedMsg, setNotesSavedMsg] = useState(false);
   
+  // State for client profile tabs & workout logs
+  const [clientDetailTab, setClientDetailTab] = useState('notes');
+  const [workoutLogs, setWorkoutLogs] = useState([]);
+  const [activeWorkoutLogId, setActiveWorkoutLogId] = useState(null);
+  const [isSavingWorkoutLogs, setIsSavingWorkoutLogs] = useState(false);
+  const [workoutLogsSavedMsg, setWorkoutLogsSavedMsg] = useState(false);
+  
   // State for Schedule (NOW LIVE!)
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
   const [currentCalendarDate, setCurrentCalendarDate] = useState(new Date());
   const [selectedScheduleDate, setSelectedScheduleDate] = useState(new Date());
+
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return { clients: [], sessions: [] };
+    const q = searchQuery.toLowerCase();
+    
+    const matchedClients = clients.filter(c => 
+      c.status !== 'Archived' && (
+        (c.name || '').toLowerCase().includes(q) ||
+        (c.email || '').toLowerCase().includes(q) ||
+        (c.phone || '').toLowerCase().includes(q)
+      )
+    ).slice(0, 5);
+    
+    const matchedSessions = sessions.filter(s => 
+      s.type !== 'Blocked' && (
+        (s.title || '').toLowerCase().includes(q) ||
+        (s.location || '').toLowerCase().includes(q) ||
+        (s.date || '').toLowerCase().includes(q)
+      )
+    ).slice(0, 5);
+    
+    return {
+      clients: matchedClients,
+      sessions: matchedSessions
+    };
+  }, [searchQuery, clients, sessions]);
+
+  const handleSelectClientFromSearch = (client) => {
+    setSelectedClient(client);
+    setActivePage('Clients');
+    setSearchQuery('');
+  };
+
+  const handleSelectSessionFromSearch = (session) => {
+    setSelectedSession(session);
+    setActivePage('Calendar');
+    if (session.date) {
+      const sDate = new Date(session.date);
+      setCurrentCalendarDate(sDate);
+      setSelectedScheduleDate(sDate);
+    }
+    setSearchQuery('');
+  };
 
   // State for Todo List
   const [todos, setTodos] = useState([]);
@@ -1051,6 +1121,47 @@ export default function Dashboard({ session }) {
       m.clientCount += pre6MonthsClients;
     });
 
+    // Calculate total payments per client
+    const clientRevenueMap = {};
+    transactions.forEach(t => {
+      const amt = Number(t.amount) || 0;
+      if (amt > 0) {
+        const clientKey = t.client_name || 'Unknown';
+        clientRevenueMap[clientKey] = (clientRevenueMap[clientKey] || 0) + amt;
+      }
+    });
+
+    const clientRevenueList = Object.keys(clientRevenueMap).map(clientId => {
+      const client = clients.find(c => c.id === clientId);
+      return {
+        id: clientId,
+        name: client ? client.name : 'Unknown Client',
+        totalPaid: clientRevenueMap[clientId]
+      };
+    }).sort((a, b) => b.totalPaid - a.totalPaid);
+
+    const totalPositiveRevenue = clientRevenueList.reduce((sum, item) => sum + item.totalPaid, 0);
+
+    const topRevenueClients = clientRevenueList.slice(0, 5);
+    const otherRevenueSum = clientRevenueList.slice(5).reduce((sum, item) => sum + item.totalPaid, 0);
+
+    const colors = ['#0B4550', '#E6FF2B', '#898A8D', '#0ea5e9', '#f43f5e'];
+    const pieChartData = topRevenueClients.map((item, idx) => ({
+      name: item.name,
+      amount: item.totalPaid,
+      percentage: totalPositiveRevenue > 0 ? ((item.totalPaid / totalPositiveRevenue) * 100).toFixed(1) : "0.0",
+      color: colors[idx % colors.length]
+    }));
+
+    if (otherRevenueSum > 0) {
+      pieChartData.push({
+        name: 'Others',
+        amount: otherRevenueSum,
+        percentage: totalPositiveRevenue > 0 ? ((otherRevenueSum / totalPositiveRevenue) * 100).toFixed(1) : "0.0",
+        color: '#10b981'
+      });
+    }
+
     return {
       revenueGrowthStr,
       revenueGrowthPositive,
@@ -1059,7 +1170,10 @@ export default function Dashboard({ session }) {
       retentionRate,
       attendanceRate,
       topPackages,
-      chartData: last6Months
+      chartData: last6Months,
+      clientRevenueList,
+      totalPositiveRevenue,
+      pieChartData
     };
   }, [transactions, clients, sessions]);
 
@@ -1317,9 +1431,16 @@ export default function Dashboard({ session }) {
 
   useEffect(() => {
     if (selectedClient) {
+      setClientDetailTab('notes');
       const parsed = parseNotesAndMetadata(selectedClient.notes);
       setClientNotes(parsed.notes);
       setTrialMeta(parsed.trialMeta);
+      setWorkoutLogs(parsed.workoutLogs || []);
+      if (parsed.workoutLogs && parsed.workoutLogs.length > 0) {
+        setActiveWorkoutLogId(parsed.workoutLogs[0].id);
+      } else {
+        setActiveWorkoutLogId(null);
+      }
       setEditClientForm({
         name: selectedClient.name || '',
         email: selectedClient.email || '',
@@ -2232,7 +2353,7 @@ export default function Dashboard({ session }) {
   const handleSaveNotes = async () => {
     setIsSavingNotes(true);
     const parsed = parseNotesAndMetadata(selectedClient.notes);
-    const notesToSave = serializeNotesAndMetadata(clientNotes, parsed.trialMeta, parsed.sessionNotes);
+    const notesToSave = serializeNotesAndMetadata(clientNotes, parsed.trialMeta, parsed.sessionNotes, parsed.address, parsed.workoutLogs);
 
     const { error } = await supabase.from('clients').update({ notes: notesToSave }).eq('id', selectedClient.id);
     setIsSavingNotes(false);
@@ -2246,10 +2367,67 @@ export default function Dashboard({ session }) {
     }
   };
 
+  const handleCreateWorkoutLog = () => {
+    const today = new Date();
+    const dayStr = `${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`;
+    const newLog = {
+      id: 'log_' + Date.now(),
+      title: 'Workout Log',
+      date: dayStr,
+      content: ''
+    };
+    
+    const updated = [newLog, ...workoutLogs];
+    setWorkoutLogs(updated);
+    setActiveWorkoutLogId(newLog.id);
+  };
+
+  const handleUpdateActiveWorkoutLog = (field, value) => {
+    setWorkoutLogs(prev => prev.map(log => {
+      if (log.id === activeWorkoutLogId) {
+        return { ...log, [field]: value };
+      }
+      return log;
+    }));
+  };
+
+  const handleDeleteWorkoutLog = (id) => {
+    if (!window.confirm("Are you sure you want to delete this workout log?")) return;
+    const updated = workoutLogs.filter(log => log.id !== id);
+    setWorkoutLogs(updated);
+    if (activeWorkoutLogId === id) {
+      setActiveWorkoutLogId(updated.length > 0 ? updated[0].id : null);
+    }
+  };
+
+  const handleSaveWorkoutLogs = async () => {
+    if (!selectedClient) return;
+    setIsSavingWorkoutLogs(true);
+    const parsed = parseNotesAndMetadata(selectedClient.notes);
+    const notesToSave = serializeNotesAndMetadata(
+      clientNotes, 
+      parsed.trialMeta, 
+      parsed.sessionNotes, 
+      parsed.address, 
+      workoutLogs
+    );
+
+    const { error } = await supabase.from('clients').update({ notes: notesToSave }).eq('id', selectedClient.id);
+    setIsSavingWorkoutLogs(false);
+    if (error) {
+      alert("Error saving workout logs: " + error.message);
+    } else {
+      setSelectedClient({ ...selectedClient, notes: notesToSave });
+      setClients(clients.map(c => c.id === selectedClient.id ? { ...c, notes: notesToSave } : c));
+      setWorkoutLogsSavedMsg(true);
+      setTimeout(() => setWorkoutLogsSavedMsg(false), 2000);
+    }
+  };
+
   const handleSaveTrialMeta = async (newMeta) => {
     setTrialMeta(newMeta);
     const parsed = parseNotesAndMetadata(selectedClient.notes);
-    const notesToSave = serializeNotesAndMetadata(clientNotes, newMeta, parsed.sessionNotes);
+    const notesToSave = serializeNotesAndMetadata(clientNotes, newMeta, parsed.sessionNotes, parsed.address, parsed.workoutLogs);
     
     const updatedClient = { ...selectedClient, notes: notesToSave };
     setSelectedClient(updatedClient);
@@ -2652,7 +2830,7 @@ export default function Dashboard({ session }) {
       delete sanitizedForm.address; // Prevent PostgREST column missing error
 
       const parsedNotes = parseNotesAndMetadata(selectedClient.notes);
-      const updatedNotes = serializeNotesAndMetadata(parsedNotes.notes, parsedNotes.trialMeta, parsedNotes.sessionNotes, clientAddress);
+      const updatedNotes = serializeNotesAndMetadata(parsedNotes.notes, parsedNotes.trialMeta, parsedNotes.sessionNotes, clientAddress, parsedNotes.workoutLogs);
       sanitizedForm.notes = updatedNotes;
 
       const { error } = await supabase.from('clients').update(sanitizedForm).eq('id', selectedClient.id);
@@ -3074,7 +3252,7 @@ export default function Dashboard({ session }) {
         delete updatedSessionNotes[editingSessionNoteBookingId];
       }
 
-      const notesToSave = serializeNotesAndMetadata(parsed.notes, parsed.trialMeta, updatedSessionNotes);
+      const notesToSave = serializeNotesAndMetadata(parsed.notes, parsed.trialMeta, updatedSessionNotes, parsed.address, parsed.workoutLogs);
 
       const { error } = await supabase
         .from('clients')
@@ -4108,11 +4286,66 @@ export default function Dashboard({ session }) {
       <Search className="absolute left-4 lg:left-5 top-1/2 -translate-y-1/2 text-[#898A8D]" size={20} />
       <input 
         type="text" 
-        placeholder="Search clients..." 
+        placeholder="Search clients, classes, coaches..." 
         value={searchQuery}
         onChange={(e) => setSearchQuery(e.target.value)}
         className="w-full lg:w-72 pl-12 lg:pl-14 pr-4 py-2.5 lg:py-3 bg-white border-none rounded-full text-base lg:text-lg font-medium focus:outline-none focus:ring-2 focus:ring-[#E6FF2B] shadow-sm text-[#0B4550] placeholder-[#898A8D]"
       />
+      {searchQuery.trim() && (
+        <div className="absolute right-0 left-0 lg:left-auto lg:w-96 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-[999] p-4 max-h-[400px] overflow-y-auto flex flex-col gap-4">
+          {/* CLIENTS RESULTS */}
+          <div>
+            <h4 className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2 border-b border-gray-50 pb-1">Clients ({searchResults.clients.length})</h4>
+            <div className="flex flex-col gap-1">
+              {searchResults.clients.map(c => (
+                <button 
+                  key={c.id} 
+                  onClick={() => handleSelectClientFromSearch(c)}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#F9F7F2] transition-all text-left text-sm font-semibold text-[#0B4550]"
+                >
+                  <div className="flex items-center gap-2.5 truncate">
+                    <span className="w-8 h-8 rounded-full bg-[#0B4550]/10 text-[#0B4550] flex items-center justify-center text-xs font-bold shrink-0">{getInitials(c.name)}</span>
+                    <div className="flex flex-col truncate">
+                      <span className="truncate">{c.name}</span>
+                      <span className="text-xs text-[#898A8D] truncate font-medium">{c.email || 'No email'}</span>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-gray-300" />
+                </button>
+              ))}
+              {searchResults.clients.length === 0 && (
+                <p className="text-xs text-gray-400 font-medium text-center py-2">No matching clients.</p>
+              )}
+            </div>
+          </div>
+          
+          {/* SCHEDULE RESULTS */}
+          <div>
+            <h4 className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2 border-b border-gray-50 pb-1">Schedule ({searchResults.sessions.length})</h4>
+            <div className="flex flex-col gap-1">
+              {searchResults.sessions.map(s => (
+                <button 
+                  key={s.id} 
+                  onClick={() => handleSelectSessionFromSearch(s)}
+                  className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#F9F7F2] transition-all text-left text-sm font-semibold text-[#0B4550]"
+                >
+                  <div className="flex items-center gap-2.5 truncate">
+                    <span className="w-8 h-8 rounded-full bg-[#E6FF2B]/20 text-[#0B4550] flex items-center justify-center shrink-0"><Calendar size={14} /></span>
+                    <div className="flex flex-col truncate">
+                      <span className="truncate">{s.title || 'Blocked Slot'}</span>
+                      <span className="text-xs text-[#898A8D] font-medium truncate">{formatDbDate(s.date)} • {s.time}</span>
+                    </div>
+                  </div>
+                  <ChevronRight size={14} className="text-gray-300" />
+                </button>
+              ))}
+              {searchResults.sessions.length === 0 && (
+                <p className="text-xs text-gray-400 font-medium text-center py-2">No matching classes.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
 
     {/* Notification Bell */}
@@ -5343,25 +5576,138 @@ export default function Dashboard({ session }) {
                   </div>
 
                   <div className="lg:col-span-3 flex flex-col gap-4 md:gap-6">
-                    <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col relative h-80 shrink-0">
-                      <h3 className="font-medium text-2xl text-[#0B4550] mb-6">Trainer Notes</h3>
-                      <textarea 
-                        value={clientNotes}
-                        onChange={(e) => setClientNotes(e.target.value)}
-                        className="w-full flex-1 bg-[#F9F7F2] border-2 border-gray-100 rounded-2xl p-4 md:p-6 text-lg font-medium text-[#0B4550] focus:outline-none focus:border-[#E6FF2B] transition-colors resize-none" 
-                        placeholder="Add workout notes, injury updates, or goals here..."
-                      ></textarea>
-                      <div className="flex justify-end items-center gap-4 mt-4">
-                        {notesSavedMsg && <span className="text-emerald-500 font-medium flex items-center gap-1"><Check size={18}/> Saved!</span>}
+                    <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col relative h-[440px] shrink-0 overflow-hidden">
+                      {/* Tabs Header */}
+                      <div className="flex border-b border-gray-100 mb-6 gap-6 shrink-0">
                         <button 
-                          onClick={handleSaveNotes}
-                          disabled={isSavingNotes}
-                          className="bg-[#0B4550] text-white px-5 md:px-8 py-2 rounded-xl font-medium text-base hover:bg-[#0B4550]/90 transition-all shadow-sm flex items-center gap-2"
+                          onClick={() => setClientDetailTab('notes')}
+                          className={`pb-3 text-xl font-bold transition-all relative ${clientDetailTab === 'notes' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
                         >
-                          {isSavingNotes ? <RotateCw className="animate-spin" size={18}/> : <Save size={18}/>}
-                          Save Notes
+                          Trainer Notes
+                          {clientDetailTab === 'notes' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
+                        </button>
+                        <button 
+                          onClick={() => setClientDetailTab('workouts')}
+                          className={`pb-3 text-xl font-bold transition-all relative ${clientDetailTab === 'workouts' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
+                        >
+                          Workout Logs
+                          {clientDetailTab === 'workouts' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
                         </button>
                       </div>
+
+                      {clientDetailTab === 'notes' ? (
+                        <div className="flex flex-col flex-1 overflow-hidden">
+                          <textarea 
+                            value={clientNotes}
+                            onChange={(e) => setClientNotes(e.target.value)}
+                            className="w-full flex-1 bg-[#F9F7F2] border-2 border-gray-100 rounded-2xl p-4 md:p-6 text-lg font-medium text-[#0B4550] focus:outline-none focus:border-[#E6FF2B] transition-colors resize-none" 
+                            placeholder="Add workout notes, injury updates, or goals here..."
+                          ></textarea>
+                          <div className="flex justify-end items-center gap-4 mt-4 shrink-0">
+                            {notesSavedMsg && <span className="text-emerald-500 font-medium flex items-center gap-1"><Check size={18}/> Saved!</span>}
+                            <button 
+                              onClick={handleSaveNotes}
+                              disabled={isSavingNotes}
+                              className="bg-[#0B4550] text-white px-5 md:px-8 py-2 rounded-xl font-medium text-base hover:bg-[#0B4550]/90 transition-all shadow-sm flex items-center gap-2"
+                            >
+                              {isSavingNotes ? <RotateCw className="animate-spin" size={18}/> : <Save size={18}/>}
+                              Save Notes
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
+                          {/* Left Pane: Workouts List */}
+                          <div className="col-span-1 border-r border-gray-100 flex flex-col pr-4 overflow-hidden h-full">
+                            <button 
+                              onClick={handleCreateWorkoutLog}
+                              className="w-full bg-[#0B4550] text-[#E6FF2B] py-2 px-3 rounded-xl font-bold text-sm hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 shadow-sm shrink-0"
+                            >
+                              <Plus size={16} /> New Workout
+                            </button>
+                            
+                            <div className="flex-1 overflow-y-auto space-y-1.5 mt-3 pr-1 no-scrollbar">
+                              {workoutLogs.map((log) => {
+                                const isSelected = activeWorkoutLogId === log.id;
+                                return (
+                                  <div 
+                                    key={log.id} 
+                                    onClick={() => setActiveWorkoutLogId(log.id)}
+                                    className={`p-3 rounded-xl cursor-pointer transition-all flex flex-col text-left group border ${isSelected ? 'bg-[#F9F7F2] border-gray-200 shadow-xs' : 'border-transparent hover:bg-gray-50'}`}
+                                  >
+                                    <div className="flex justify-between items-center gap-1">
+                                      <span className="text-[10px] text-[#898A8D] font-bold">{log.date || 'No Date'}</span>
+                                      <button 
+                                        onClick={(e) => { e.stopPropagation(); handleDeleteWorkoutLog(log.id); }}
+                                        className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-0.5 rounded transition-opacity"
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
+                                    <span className="text-sm font-bold text-[#0B4550] mt-1 truncate">{log.title || 'Untitled Workout'}</span>
+                                    <span className="text-xs text-[#898A8D] truncate mt-0.5 font-medium">{log.content || 'No details...'}</span>
+                                  </div>
+                                );
+                              })}
+                              {workoutLogs.length === 0 && (
+                                <div className="text-center py-12 text-xs text-gray-400 font-semibold">No workouts logged yet.</div>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Right Pane: Workout Log Editor */}
+                          <div className="col-span-2 flex flex-col overflow-hidden h-full">
+                            {(() => {
+                              const activeLog = workoutLogs.find(l => l.id === activeWorkoutLogId);
+                              if (!activeLog) {
+                                return (
+                                  <div className="flex flex-col items-center justify-center flex-1 text-center text-gray-400 gap-2">
+                                    <FileText size={36} className="stroke-1" />
+                                    <p className="text-xs font-semibold">Select or create a workout to view/edit details.</p>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div className="flex flex-col flex-1 overflow-hidden h-full">
+                                  <div className="flex gap-2 items-center mb-3 shrink-0">
+                                    <input 
+                                      type="text" 
+                                      value={activeLog.title}
+                                      onChange={(e) => handleUpdateActiveWorkoutLog('title', e.target.value)}
+                                      className="text-lg font-black text-[#0B4550] bg-transparent border-none outline-none flex-1 placeholder-gray-300"
+                                      placeholder="Workout Title..."
+                                    />
+                                    <input 
+                                      type="text"
+                                      value={activeLog.date}
+                                      onChange={(e) => handleUpdateActiveWorkoutLog('date', e.target.value)}
+                                      className="text-xs font-bold text-[#898A8D] bg-transparent border-none outline-none w-28 text-right placeholder-gray-300"
+                                      placeholder="Date (e.g. 15/6/2026)"
+                                    />
+                                  </div>
+                                  <textarea 
+                                    value={activeLog.content}
+                                    onChange={(e) => handleUpdateActiveWorkoutLog('content', e.target.value)}
+                                    className="w-full flex-1 bg-[#F9F7F2]/50 border border-gray-100 rounded-2xl p-4 text-sm font-semibold text-[#0B4550] focus:outline-none focus:border-[#E6FF2B] transition-colors resize-none overflow-y-auto"
+                                    placeholder="Start writing workout details (e.g., sets, reps, notes)..."
+                                  />
+                                  <div className="flex justify-end gap-3 items-center shrink-0 border-t border-gray-50 pt-3 mt-3">
+                                    {workoutLogsSavedMsg && <span className="text-emerald-500 text-xs font-bold flex items-center gap-1"><Check size={14}/> Saved!</span>}
+                                    <button 
+                                      onClick={handleSaveWorkoutLogs}
+                                      disabled={isSavingWorkoutLogs}
+                                      className="bg-[#0B4550] text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-[#0B4550]/90 transition-all flex items-center gap-1.5"
+                                    >
+                                      {isSavingWorkoutLogs ? <RotateCw className="animate-spin" size={14}/> : <Save size={14}/>}
+                                      Save Logs
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })()}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
@@ -6531,6 +6877,81 @@ export default function Dashboard({ session }) {
                       </div>
                     );
                   })}
+                </div>
+              </div>
+            </div>
+
+            {/* Client Revenue Contribution & SVG Pie Chart */}
+            <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mt-8 flex flex-col">
+              <div>
+                <h3 className="font-medium text-2xl text-[#0B4550]">Client Revenue Contribution</h3>
+                <p className="text-sm text-[#898A8D] mt-1">Share of total revenue generated per client (sum of positive transactions)</p>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 items-center">
+                {/* Left: SVG Donut Chart */}
+                <div className="lg:col-span-1 flex flex-col items-center justify-center p-4">
+                  {analyticsData.pieChartData && analyticsData.pieChartData.length > 0 ? (
+                    <div className="relative w-52 h-52 flex items-center justify-center">
+                      <svg width="100%" height="100%" viewBox="0 0 120 120" className="transform rotate-[-90deg]">
+                        {(() => {
+                          const radius = 40;
+                          const circumference = 2 * Math.PI * radius; // ~251.327
+                          let cumulativeOffset = 0;
+                          return analyticsData.pieChartData.map((slice, idx) => {
+                            const percentage = parseFloat(slice.percentage) || 0;
+                            const strokeLength = (percentage / 100) * circumference;
+                            const strokeOffset = cumulativeOffset;
+                            cumulativeOffset += strokeLength;
+
+                            return (
+                              <circle
+                                key={idx}
+                                cx="60"
+                                cy="60"
+                                r={radius}
+                                fill="transparent"
+                                stroke={slice.color}
+                                strokeWidth="14"
+                                strokeDasharray={`${strokeLength} ${circumference}`}
+                                strokeDashoffset={-strokeOffset}
+                                className="transition-all duration-300 hover:stroke-[16px] cursor-pointer"
+                                title={`${slice.name}: ${slice.percentage}%`}
+                              />
+                            );
+                          });
+                        })()}
+                      </svg>
+                      <div className="absolute flex flex-col items-center justify-center">
+                        <span className="text-[10px] uppercase font-bold text-[#898A8D] tracking-wider">Total Revenue</span>
+                        <span className="text-xl font-black text-[#0B4550]">RM {analyticsData.totalPositiveRevenue.toLocaleString()}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center text-gray-400 py-12">No data available</div>
+                  )}
+                </div>
+
+                {/* Right: Clients contribution breakdown list */}
+                <div className="lg:col-span-2 flex flex-col gap-3">
+                  <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-2 no-scrollbar">
+                    {analyticsData.pieChartData && analyticsData.pieChartData.length > 0 ? (
+                      analyticsData.pieChartData.map((slice, idx) => (
+                        <div key={idx} className="flex justify-between items-center p-3 rounded-2xl bg-gray-50 border border-gray-100">
+                          <div className="flex items-center gap-3">
+                            <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }}></span>
+                            <span className="text-base font-semibold text-[#0B4550]">{slice.name}</span>
+                          </div>
+                          <div className="flex items-center gap-4 text-right">
+                            <span className="text-sm font-bold text-[#898A8D]">{slice.percentage}%</span>
+                            <span className="text-base font-black text-[#0B4550]">RM {slice.amount.toLocaleString()}</span>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="text-center text-gray-400 py-8 font-medium">No client transactions found.</div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
