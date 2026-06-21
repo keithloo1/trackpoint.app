@@ -418,6 +418,7 @@ export default function Dashboard({ session }) {
   const [packageViewMode, setPackageViewMode] = useState('grid');
   const [packageSortBy, setPackageSortBy] = useState('newest');
   const [searchQuery, setSearchQuery] = useState('');
+  const [clientSearchQuery, setClientSearchQuery] = useState('');
   const [editingTodoId, setEditingTodoId] = useState(null);
   const [showBacklogModal, setShowBacklogModal] = useState(false);
   const [backlogSelectedPrice, setBacklogSelectedPrice] = useState("");
@@ -3481,8 +3482,9 @@ export default function Dashboard({ session }) {
     if (isArchiveMode && !isArchived) return false;
     if (!isArchiveMode && isArchived) return false;
 
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
+    const queryToUse = clientSearchQuery || searchQuery;
+    if (queryToUse) {
+      const q = queryToUse.toLowerCase();
       const matchesSearch = 
         (c.name || '').toLowerCase().includes(q) || 
         (c.email || '').toLowerCase().includes(q) ||
@@ -3498,11 +3500,11 @@ export default function Dashboard({ session }) {
       return c.member_status === 'Follow Up';
     }
 
-    if (activeTab !== 'All Clients' && !searchQuery && (c.member_status === 'Trial' || c.member_status === 'Follow Up')) {
+    if (activeTab !== 'All Clients' && !searchQuery && !clientSearchQuery && (c.member_status === 'Trial' || c.member_status === 'Follow Up')) {
       return false;
     }
     
-    if (activeTab === 'All Clients' || searchQuery) return true;
+    if (activeTab === 'All Clients' || searchQuery || clientSearchQuery) return true;
     const liveStatus = getLiveClientStatus(c);
     return liveStatus === activeTab;
   });
@@ -4042,27 +4044,27 @@ export default function Dashboard({ session }) {
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end justify-center" onClick={() => setShowMobileRosterDrawer(false)}>
         <div 
-          className="bg-[#141414] border-t border-[#222] rounded-t-[2.5rem] w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative animate-in slide-in-from-bottom duration-300 pb-[calc(2rem+env(safe-area-inset-bottom))]"
+          className="bg-white border-t border-gray-150 rounded-t-[2.5rem] w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative animate-in slide-in-from-bottom duration-300 pb-[calc(2rem+env(safe-area-inset-bottom))]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Handle */}
-          <div className="w-12 h-1.5 bg-[#333] rounded-full mx-auto mb-6"></div>
+          <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
           
           {/* Header */}
           <div className="flex justify-between items-start mb-6">
             <div>
-              <span className={`text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider ${selectedSession.type === '1-on-1' ? 'bg-[#E6FF2B]/20 text-[#E6FF2B]' : 'bg-teal-500/20 text-teal-400'}`}>
+              <span className={`text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider ${selectedSession.type === '1-on-1' ? 'bg-[#0B4550]/10 text-[#0B4550]' : 'bg-teal-50 text-teal-600'}`}>
                 {selectedSession.type}
               </span>
-              <h2 className="text-xl font-black text-white mt-2">{getSessionDisplayTitle(selectedSession)}</h2>
-              <div className="flex flex-col gap-1 mt-1.5 text-xs text-gray-400 font-bold">
+              <h2 className="text-xl font-black text-[#0B4550] mt-2">{getSessionDisplayTitle(selectedSession)}</h2>
+              <div className="flex flex-col gap-1 mt-1.5 text-xs text-[#898A8D] font-bold">
                 <span className="flex items-center gap-1.5"><Clock size={14} /> {formatDbDate(selectedSession.date)} • {selectedSession.time}</span>
                 <span className="flex items-center gap-1.5"><MapPin size={14} /> {selectedSession.location ? selectedSession.location.split(' | Coach: ')[0] : 'Main Floor'}</span>
               </div>
             </div>
             <button 
               onClick={() => setShowMobileRosterDrawer(false)}
-              className="p-2.5 bg-[#222] rounded-full text-gray-400 hover:text-white transition-colors"
+              className="p-2.5 bg-[#F9F7F2] rounded-full text-[#898A8D] hover:text-[#0B4550] transition-colors"
             >
               <X size={20} />
             </button>
@@ -4071,22 +4073,22 @@ export default function Dashboard({ session }) {
           {selectedSession.type !== 'Blocked' ? (
             <div className="space-y-6">
               {/* Tabs Header */}
-              <div className="flex border-b border-[#333] gap-6 mb-2">
+              <div className="flex border-b border-gray-100 gap-6 mb-2">
                 <button 
                   type="button"
                   onClick={() => setSessionDetailTab('roster')}
-                  className={`pb-3 text-sm font-black transition-all relative ${sessionDetailTab === 'roster' ? 'text-white' : 'text-gray-500'}`}
+                  className={`pb-3 text-sm font-black transition-all relative ${sessionDetailTab === 'roster' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
                 >
                   Roster
-                  {sessionDetailTab === 'roster' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E6FF2B] rounded-full"></span>}
+                  {sessionDetailTab === 'roster' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
                 </button>
                 <button 
                   type="button"
                   onClick={() => setSessionDetailTab('workout')}
-                  className={`pb-3 text-sm font-black transition-all relative ${sessionDetailTab === 'workout' ? 'text-white' : 'text-gray-500'}`}
+                  className={`pb-3 text-sm font-black transition-all relative ${sessionDetailTab === 'workout' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
                 >
                   Workout Log
-                  {sessionDetailTab === 'workout' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E6FF2B] rounded-full"></span>}
+                  {sessionDetailTab === 'workout' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
                 </button>
               </div>
 
@@ -4099,27 +4101,27 @@ export default function Dashboard({ session }) {
                         setShowStudentDropdown(!showStudentDropdown);
                         setSearchStudentQuery('');
                       }}
-                      className="w-full bg-[#222] border border-[#333] rounded-2xl px-5 py-4 text-sm text-white font-bold flex justify-between items-center outline-none"
+                      className="w-full bg-[#F9F7F2] border border-gray-150 rounded-2xl px-5 py-4 text-sm text-[#0B4550] font-bold flex justify-between items-center outline-none"
                     >
                       <span>
                         {selectedStudentIds.length === 0 
                           ? 'Book / Assign Students...' 
                           : `${selectedStudentIds.length} student(s) selected`}
                       </span>
-                      <ChevronDown size={18} className={`transition-transform duration-200 text-gray-400 ${showStudentDropdown ? 'rotate-180' : ''}`} />
+                      <ChevronDown size={18} className={`transition-transform duration-200 text-[#0B4550] ${showStudentDropdown ? 'rotate-180' : ''}`} />
                     </button>
 
                     {showStudentDropdown && (
-                      <div className="absolute left-0 right-0 mt-2 bg-[#1A1A1A] border border-[#333] rounded-2xl shadow-xl z-[110] p-4 flex flex-col max-h-64">
+                      <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-[110] p-4 flex flex-col max-h-64">
                         <div className="relative mb-3 shrink-0">
                           <input 
                             type="text" 
                             placeholder="Search clients..." 
                             value={searchStudentQuery}
                             onChange={(e) => setSearchStudentQuery(e.target.value)}
-                            className="w-full bg-[#222] border border-[#333] rounded-xl py-3 pl-10 pr-4 text-xs font-semibold text-white outline-none placeholder-gray-500 focus:border-[#E6FF2B]"
+                            className="w-full bg-[#F9F7F2] border border-gray-150 rounded-xl py-3 pl-10 pr-4 text-xs font-semibold text-[#0B4550] outline-none placeholder-gray-400 focus:border-[#0B4550]"
                           />
-                          <Search className="absolute left-3.5 top-3.5 text-gray-400" size={14} />
+                          <Search className="absolute left-3.5 top-3.5 text-[#898A8D]" size={14} />
                         </div>
 
                         <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
@@ -4129,7 +4131,7 @@ export default function Dashboard({ session }) {
                               .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
                             if (filtered.length === 0) {
-                              return <p className="text-xs text-gray-500 text-center py-4 font-bold">No clients found.</p>;
+                              return <p className="text-xs text-[#898A8D] text-center py-4 font-bold">No clients found.</p>;
                             }
 
                             return filtered.map(c => {
@@ -4139,7 +4141,7 @@ export default function Dashboard({ session }) {
                               return (
                                 <label 
                                   key={c.id} 
-                                  className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-40 cursor-not-allowed bg-[#222]' : 'hover:bg-[#222]'}`}
+                                  className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-40 cursor-not-allowed bg-[#F9F7F2]' : 'hover:bg-[#F9F7F2]'}`}
                                 >
                                   <input 
                                     type="checkbox"
@@ -4151,18 +4153,18 @@ export default function Dashboard({ session }) {
                                         prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
                                       );
                                     }}
-                                    className="w-5 h-5 text-[#E6FF2B] bg-[#222] border-[#444] rounded focus:ring-[#E6FF2B] focus:ring-offset-[#1A1A1A]"
+                                    className="w-5 h-5 text-[#0B4550] bg-white border-gray-300 rounded focus:ring-[#0B4550] focus:ring-offset-white"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold text-white truncate">{c.name}</p>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
+                                    <p className="text-sm font-bold text-[#0B4550] truncate">{c.name}</p>
+                                    <p className="text-[10px] text-[#898A8D] font-bold uppercase tracking-wider mt-0.5">
                                       {c.unlimited 
                                         ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}` 
                                         : `${c.remaining_package || 0} left`}
                                     </p>
                                   </div>
                                   {isAlreadyRostered && (
-                                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full uppercase tracking-wider">Booked</span>
+                                    <span className="text-[9px] font-black text-emerald-600 bg-emerald-50 px-2 py-1 rounded-full uppercase tracking-wider">Booked</span>
                                   )}
                                 </label>
                               );
@@ -4170,14 +4172,14 @@ export default function Dashboard({ session }) {
                           })()}
                         </div>
 
-                        <div className="border-t border-[#333] pt-3 mt-3 flex gap-3 shrink-0">
+                        <div className="border-t border-gray-100 pt-3 mt-3 flex gap-3 shrink-0">
                           <button 
                             type="button"
                             onClick={() => {
                               setSelectedStudentIds([]);
                               setShowStudentDropdown(false);
                             }}
-                            className="flex-1 py-3 rounded-xl text-xs font-bold text-gray-400 bg-[#222]"
+                            className="flex-1 py-3 rounded-xl text-xs font-bold text-[#898A8D] bg-[#F9F7F2]"
                           >
                             Cancel
                           </button>
@@ -4188,7 +4190,7 @@ export default function Dashboard({ session }) {
                               handleAssignMultipleClients();
                               setShowStudentDropdown(false);
                             }}
-                            className="flex-[2] py-3 rounded-xl text-xs font-black text-[#0A0A0A] bg-[#E6FF2B] disabled:opacity-50 disabled:bg-[#333] disabled:text-gray-500"
+                            className="flex-[2] py-3 rounded-xl text-xs font-black text-[#E6FF2B] bg-[#0B4550] disabled:opacity-50 disabled:bg-gray-150 disabled:text-[#898A8D]"
                           >
                             Assign ({selectedStudentIds.length})
                           </button>
@@ -4199,36 +4201,36 @@ export default function Dashboard({ session }) {
 
                   {/* Roster List */}
                   <div>
-                    <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider mb-3">Roster ({attendedCount} / {selectedSession.capacity})</h3>
+                    <h3 className="font-bold text-sm text-[#898A8D] uppercase tracking-wider mb-3">Roster ({attendedCount} / {selectedSession.capacity})</h3>
 
                     {selectedSession.attendees.length === 0 ? (
-                      <div className="text-center py-8 bg-[#222] rounded-2xl border border-[#333]">
-                        <p className="text-sm font-bold text-gray-500">No bookings yet.</p>
+                      <div className="text-center py-8 bg-[#F9F7F2] rounded-2xl border border-gray-100">
+                        <p className="text-sm font-bold text-[#898A8D]">No bookings yet.</p>
                       </div>
                     ) : (
                       <div className="space-y-3 max-h-[35vh] overflow-y-auto pr-1 no-scrollbar">
                         {selectedSession.attendees.map((attendee) => (
-                          <div key={attendee.booking_id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#222] border border-[#333]">
-                            <div className="w-10 h-10 rounded-full bg-[#111] text-[#E6FF2B] border border-[#333] flex items-center justify-center text-xs font-bold shrink-0">
+                          <div key={attendee.booking_id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#F9F7F2] border border-gray-100">
+                            <div className="w-10 h-10 rounded-full bg-white text-[#0B4550] border border-gray-150 flex items-center justify-center text-xs font-bold shrink-0">
                               {getInitials(attendee.name)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <span className="text-sm font-bold text-white block truncate">{attendee.name}</span>
-                              <span className={`text-[10px] font-black uppercase tracking-widest mt-0.5 block ${attendee.status === 'Attended' ? 'text-emerald-400' : 'text-gray-500'}`}>
+                              <span className="text-sm font-bold text-[#0B4550] block truncate">{attendee.name}</span>
+                              <span className={`text-[10px] font-black uppercase tracking-widest mt-0.5 block ${attendee.status === 'Attended' ? 'text-emerald-600' : 'text-[#898A8D]'}`}>
                                 {attendee.status}
                               </span>
                             </div>
                             
                             <button 
                               onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} 
-                              className={`p-3 rounded-xl transition-all ${attendee.status === 'Attended' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-[#141414] text-gray-500 border border-[#333]'}`}
+                              className={`p-3 rounded-xl transition-all ${attendee.status === 'Attended' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-white text-[#898A8D] border border-gray-150'}`}
                             >
                               <CheckSquare size={18} />
                             </button>
                             
                             <button 
                               onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} 
-                              className="p-3 rounded-xl bg-[#141414] text-gray-500 hover:text-rose-400 border border-[#333] transition-all"
+                              className="p-3 rounded-xl bg-white text-[#898A8D] hover:text-red-500 border border-gray-150 transition-all"
                             >
                               <Trash2 size={18} />
                             </button>
@@ -4253,34 +4255,34 @@ export default function Dashboard({ session }) {
                 </>
               ) : (
                 <div className="flex flex-col gap-4">
-                  <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider">Class Workout Log</h3>
-                  <div className="flex flex-col gap-4 bg-[#222] p-5 rounded-2xl border border-[#333]">
+                  <h3 className="font-bold text-sm text-[#898A8D] uppercase tracking-wider">Class Workout Log</h3>
+                  <div className="flex flex-col gap-4 bg-[#F9F7F2] p-5 rounded-2xl border border-gray-100">
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Workout Title</label>
+                      <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Workout Title</label>
                       <input 
                         type="text" 
                         value={sessionWorkoutTitle}
                         onChange={(e) => setSessionWorkoutTitle(e.target.value)}
-                        className="w-full bg-[#141414] border border-[#333] rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#E6FF2B]"
+                        className="w-full bg-white border border-gray-150 rounded-xl px-4 py-3 text-xs font-bold text-[#0B4550] outline-none focus:border-[#0B4550]"
                         placeholder="Workout Title..."
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Date</label>
+                      <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Date</label>
                       <input 
                         type="text" 
                         value={sessionWorkoutDate}
                         onChange={(e) => setSessionWorkoutDate(e.target.value)}
-                        className="w-full bg-[#141414] border border-[#333] rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#E6FF2B]"
+                        className="w-full bg-white border border-gray-150 rounded-xl px-4 py-3 text-xs font-bold text-[#0B4550] outline-none focus:border-[#0B4550]"
                         placeholder="Date..."
                       />
                     </div>
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Workout Notes</label>
+                      <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Workout Notes</label>
                       <textarea 
                         value={sessionWorkoutContent}
                         onChange={(e) => setSessionWorkoutContent(e.target.value)}
-                        className="w-full h-32 bg-[#141414] border border-[#333] rounded-xl p-4 text-xs font-semibold text-white outline-none resize-none focus:border-[#E6FF2B]"
+                        className="w-full h-32 bg-white border border-gray-150 rounded-xl p-4 text-xs font-semibold text-[#0B4550] outline-none resize-none focus:border-[#0B4550]"
                         placeholder="Workouts done today..."
                       />
                     </div>
@@ -4288,19 +4290,19 @@ export default function Dashboard({ session }) {
 
                   <div className="flex flex-col gap-2.5 mt-2">
                     {sessionWorkoutSyncMsg && (
-                      <span className="text-emerald-400 font-bold text-xs flex items-center gap-1.5">
+                      <span className="text-emerald-600 font-bold text-xs flex items-center gap-1.5">
                         <Check size={14}/> {sessionWorkoutSyncMsg}
                       </span>
                     )}
                     <button 
                       onClick={handleSyncSessionWorkout}
                       disabled={isSyncingSessionWorkout}
-                      className="w-full bg-[#E6FF2B] text-[#0A0A0A] py-4 rounded-2xl font-black text-sm hover:scale-[1.01] transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
+                      className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-black text-sm hover:scale-[1.01] transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
                     >
                       {isSyncingSessionWorkout ? <RotateCw className="animate-spin" size={16}/> : <Save size={16}/>}
                       Sync with Attended Clients
                     </button>
-                    <p className="text-[10px] text-gray-500 font-bold text-center leading-normal px-4">
+                    <p className="text-[10px] text-[#898A8D] font-bold text-center leading-normal px-4">
                       Syncs to workout logs of all check-ins ("Attended").
                     </p>
                   </div>
@@ -4308,13 +4310,13 @@ export default function Dashboard({ session }) {
               )}
 
               {/* Edit / Cancel Class */}
-              <div className="flex gap-3 border-t border-[#333] pt-5 mt-2">
+              <div className="flex gap-3 border-t border-gray-100 pt-5 mt-2">
                 <button 
                   onClick={() => {
                     setShowMobileRosterDrawer(false);
                     handleOpenEditEvent();
                   }}
-                  className="flex-1 py-4 bg-[#222] text-white font-black rounded-2xl text-xs flex justify-center items-center gap-2 border border-[#333]"
+                  className="flex-1 py-4 bg-[#F9F7F2] text-[#0B4550] font-black rounded-2xl text-xs flex justify-center items-center gap-2 border border-gray-150"
                 >
                   <Edit3 size={16}/> Edit
                 </button>
@@ -4323,7 +4325,7 @@ export default function Dashboard({ session }) {
                     handleDeleteSession(selectedSession.id);
                     setShowMobileRosterDrawer(false);
                   }}
-                  className="flex-1 py-4 bg-rose-500/10 text-rose-500 font-black rounded-2xl text-xs flex justify-center items-center gap-2 border border-rose-500/20"
+                  className="flex-1 py-4 bg-red-50 text-red-500 font-black rounded-2xl text-xs flex justify-center items-center gap-2 border border-red-100"
                 >
                   <Trash2 size={16}/> Cancel Class
                 </button>
@@ -4385,24 +4387,24 @@ export default function Dashboard({ session }) {
   
       {/* MOBILE BOTTOM NAVIGATION - Visible only on small screens, hidden in ClassMode */}
       {activePage !== 'ClassMode' && (
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0A0A0A] border-t border-[#222] flex justify-around items-center py-4 px-2 z-[50] pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
-        <button onClick={() => setActivePage('Dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Dashboard' ? 'text-[#E6FF2B] scale-110' : 'text-gray-500 hover:text-gray-400'}`}>
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 flex justify-around items-center py-4 px-2 z-[50] pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <button onClick={() => setActivePage('Dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Dashboard' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
           <Home size={24} strokeWidth={activePage === 'Dashboard' ? 2.5 : 2} />
           <span className="text-[10px] font-bold">Home</span>
         </button>
-        <button onClick={() => handleNavigateToPage('Clients')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Clients' ? 'text-[#E6FF2B] scale-110' : 'text-gray-500 hover:text-gray-400'}`}>
+        <button onClick={() => handleNavigateToPage('Clients')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Clients' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
           <Users size={24} strokeWidth={activePage === 'Clients' ? 2.5 : 2} />
           <span className="text-[10px] font-bold">Clients</span>
         </button>
-        <button onClick={() => handleNavigateToPage('Revenue')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Revenue' ? 'text-[#E6FF2B] scale-110' : 'text-gray-500 hover:text-gray-400'}`}>
+        <button onClick={() => handleNavigateToPage('Revenue')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Revenue' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
           <DollarSign size={24} strokeWidth={activePage === 'Revenue' ? 2.5 : 2} />
           <span className="text-[10px] font-bold">Revenue</span>
         </button>
-        <button onClick={() => setActivePage('Schedule')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Schedule' ? 'text-[#E6FF2B] scale-110' : 'text-gray-500 hover:text-gray-400'}`}>
+        <button onClick={() => setActivePage('Schedule')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Schedule' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
           <Calendar size={24} strokeWidth={activePage === 'Schedule' ? 2.5 : 2} />
           <span className="text-[10px] font-bold">Schedule</span>
         </button>
-        <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 transition-all ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 'text-[#E6FF2B] scale-110' : 'text-gray-500 hover:text-gray-400'}`}>
+        <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 transition-all ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
           <LayoutGrid size={24} strokeWidth={['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 2.5 : 2} />
           <span className="text-[10px] font-bold">More</span>
         </button>
@@ -4410,31 +4412,31 @@ export default function Dashboard({ session }) {
       )}
   
       {/* MAIN CONTENT AREA */}
-      {/* pb-24 ensures content isn't hidden behind the mobile bottom nav */}
-      <main className="flex-1 h-full overflow-y-auto p-4 md:p-6 lg:p-8 pb-24 lg:pb-8 relative">
+      {/* pb-36 ensures content isn't hidden behind the mobile bottom nav */}
+      <main className="flex-1 h-full overflow-y-auto p-4 md:p-6 lg:p-8 pb-36 lg:pb-8 relative">
 
         {/* UNIVERSAL DYNAMIC HEADER - Hidden in ClassMode */}
 {activePage !== 'ClassMode' && (
   <>
     {/* MOBILE HEADER */}
-    <header className="md:hidden flex items-center justify-between mb-6 gap-2 bg-[#141414] p-4 rounded-3xl shadow-xl border border-[#222]">
+    <header className="md:hidden flex items-center justify-between mb-6 gap-2 bg-white p-4 rounded-3xl shadow-sm border border-gray-150">
       <div className="flex items-center gap-3">
-        <img src={companyLogo || newLogo} alt={companyName} className="h-10 w-auto object-contain max-h-[40px] brightness-0 invert" />
+        <img src={companyLogo || newLogo} alt={companyName} className="h-10 w-auto object-contain max-h-[40px]" />
         <div>
-          <h1 className="text-sm font-black text-white tracking-wide">
+          <h1 className="text-sm font-black text-[#0B4550] tracking-wide">
             {activePage === 'Dashboard' ? `${greeting}, ${trainerName.split(' ')[0]}` : activePage}
           </h1>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{todayFormattedFull}</p>
+          <p className="text-[10px] text-[#898A8D] font-bold uppercase tracking-widest">{todayFormattedFull}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
         <button 
           onClick={() => setShowAICopilot(true)}
-          className="w-10 h-10 bg-[#222] text-[#E6FF2B] rounded-full flex items-center justify-center relative hover:scale-105 transition-all shadow-inner border border-[#333]"
+          className="w-10 h-10 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center relative hover:scale-105 transition-all shadow-sm border border-gray-150"
         >
           <Sparkles size={18} />
         </button>
-        <div className="w-10 h-10 rounded-full bg-[#E6FF2B] flex items-center justify-center text-[#0A0A0A] text-xs font-black border-2 border-[#141414] shadow-md">
+        <div className="w-10 h-10 rounded-full bg-[#E6FF2B] flex items-center justify-center text-[#0B4550] text-xs font-black border-2 border-white shadow-md">
           {getInitials(trainerName)}
         </div>
       </div>
@@ -4577,20 +4579,20 @@ export default function Dashboard({ session }) {
               {/* Main Balance / Revenue Card */}
               <div 
                 onClick={() => handleNavigateToPage('Revenue')}
-                className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] p-6 rounded-[2rem] border border-[#222] shadow-2xl relative overflow-hidden cursor-pointer group"
+                className="bg-gradient-to-br from-[#0B4550] to-[#08353E] p-6 rounded-[2rem] shadow-md relative overflow-hidden cursor-pointer group"
               >
                 <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">
                   <ArrowUpRight size={80} className="text-[#E6FF2B]" />
                 </div>
                 <div className="relative z-10 flex flex-col h-full justify-between">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Total Revenue</span>
+                    <span className="text-white/75 text-xs font-bold uppercase tracking-widest">Total Revenue</span>
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
                         handleToggleRevenueVisibility();
                       }}
-                      className="text-gray-500 hover:text-white p-1"
+                      className="text-white/60 hover:text-white p-1"
                     >
                       {isRevenueHidden ? <EyeOff size={14} /> : <Eye size={14} />}
                     </button>
@@ -4610,39 +4612,39 @@ export default function Dashboard({ session }) {
               <div className="grid grid-cols-2 gap-4">
                 <div 
                   onClick={() => handleNavigateToPage('Clients', 'Active')}
-                  className="bg-[#141414] p-5 rounded-[2rem] border border-[#222] shadow-lg flex flex-col justify-between cursor-pointer"
+                  className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-between cursor-pointer"
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#222] flex items-center justify-center mb-3">
-                    <Users size={14} className="text-[#E6FF2B]" />
+                  <div className="w-8 h-8 rounded-full bg-[#F9F7F2] flex items-center justify-center mb-3">
+                    <Users size={14} className="text-[#0B4550]" />
                   </div>
-                  <span className="text-3xl font-black text-white mb-1">{activeClientsCount}</span>
-                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Active Clients</span>
+                  <span className="text-3xl font-black text-[#0B4550] mb-1">{activeClientsCount}</span>
+                  <span className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest">Active Clients</span>
                 </div>
                 <div 
                   onClick={() => handleNavigateToPage('Schedule')}
-                  className="bg-[#141414] p-5 rounded-[2rem] border border-[#222] shadow-lg flex flex-col justify-between cursor-pointer"
+                  className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-between cursor-pointer"
                 >
-                  <div className="w-8 h-8 rounded-full bg-[#222] flex items-center justify-center mb-3">
-                    <Calendar size={14} className="text-[#E6FF2B]" />
+                  <div className="w-8 h-8 rounded-full bg-[#F9F7F2] flex items-center justify-center mb-3">
+                    <Calendar size={14} className="text-[#0B4550]" />
                   </div>
-                  <span className="text-3xl font-black text-white mb-1">
+                  <span className="text-3xl font-black text-[#0B4550] mb-1">
                     {sessions.filter(s => s.date === new Date().toLocaleDateString('sv-SE')).length}
                   </span>
-                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Classes Today</span>
+                  <span className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest">Classes Today</span>
                 </div>
               </div>
 
               {/* Segmented Control for Schedule vs Logs */}
-              <div className="bg-[#141414] rounded-[1.5rem] p-1.5 flex border border-[#222]">
+              <div className="bg-[#F9F7F2] rounded-[1.5rem] p-1.5 flex border border-gray-100">
                 <button 
                   onClick={() => setMobileDashboardTab('schedule')}
-                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDashboardTab === 'schedule' ? 'bg-[#E6FF2B] text-[#0A0A0A] shadow-md' : 'text-gray-500'}`}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDashboardTab === 'schedule' ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}
                 >
                   Schedule
                 </button>
                 <button 
                   onClick={() => setMobileDashboardTab('history')}
-                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDashboardTab === 'history' ? 'bg-[#E6FF2B] text-[#0A0A0A] shadow-md' : 'text-gray-500'}`}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDashboardTab === 'history' ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}
                 >
                   History
                 </button>
@@ -4659,8 +4661,8 @@ export default function Dashboard({ session }) {
 
                     if (todaySessions.length === 0) {
                       return (
-                        <div className="text-center py-12 bg-[#141414] rounded-[2rem] border border-[#222]">
-                          <p className="text-gray-500 font-bold text-sm">No classes today.</p>
+                        <div className="text-center py-12 bg-white rounded-[2rem] border border-gray-100">
+                          <p className="text-[#898A8D] font-bold text-sm">No classes today.</p>
                         </div>
                       );
                     }
@@ -4672,18 +4674,18 @@ export default function Dashboard({ session }) {
                         <div 
                           key={session.id}
                           onClick={() => { setSelectedSession(session); setShowMobileRosterDrawer(true); }}
-                          className={`bg-[#141414] border border-[#222] rounded-[1.5rem] p-5 flex justify-between items-center transition-all active:scale-[0.98] cursor-pointer ${isPast ? 'opacity-50' : ''}`}
+                          className={`bg-white border border-gray-100 rounded-[1.5rem] p-5 flex justify-between items-center transition-all active:scale-[0.98] cursor-pointer ${isPast ? 'opacity-50' : ''}`}
                         >
                           <div className="space-y-2">
-                            <span className="font-black text-white text-base block">{getSessionDisplayTitle(session)}</span>
-                            <div className="flex items-center gap-3 text-xs font-bold text-gray-500 uppercase tracking-widest">
-                              <span className="flex items-center gap-1.5 text-[#E6FF2B]"><Clock size={12} /> {session.time}</span>
+                            <span className="font-black text-[#0B4550] text-base block">{getSessionDisplayTitle(session)}</span>
+                            <div className="flex items-center gap-3 text-xs font-bold text-[#898A8D] uppercase tracking-widest">
+                              <span className="flex items-center gap-1.5 text-[#0B4550]"><Clock size={12} /> {session.time}</span>
                               <span>{session.type}</span>
                             </div>
                           </div>
-                          <div className="text-right shrink-0 bg-[#1A1A1A] px-4 py-3 rounded-2xl border border-[#333]">
-                            <span className="text-lg font-black text-white block leading-none">{attendedCount}</span>
-                            <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest mt-1 block">Booked</span>
+                          <div className="text-right shrink-0 bg-[#F9F7F2] px-4 py-3 rounded-2xl border border-gray-100">
+                            <span className="text-lg font-black text-[#0B4550] block leading-none">{attendedCount}</span>
+                            <span className="text-[8px] text-[#898A8D] font-bold uppercase tracking-widest mt-1 block">Booked</span>
                           </div>
                         </div>
                       );
@@ -4694,7 +4696,7 @@ export default function Dashboard({ session }) {
 
               {/* History Tab Content */}
               {mobileDashboardTab === 'history' && (
-                <div className="bg-[#141414] rounded-[1.5rem] p-4 border border-[#222]">
+                <div className="bg-white rounded-[1.5rem] p-4 border border-gray-100">
                   {renderMobileAttendanceLogs()}
                 </div>
               )}
@@ -5003,19 +5005,19 @@ export default function Dashboard({ session }) {
             {/* NEW: Backlog Button */}
             <button 
               onClick={() => setShowBacklogModal(true)}
-              className="bg-[#0A0A0A] md:bg-[#0B4550] text-[#E6FF2B] md:text-white px-4 md:px-6 py-3 rounded-[1.5rem] md:rounded-full font-bold md:font-medium hover:bg-opacity-90 transition-all flex items-center gap-2 shadow-lg md:shadow-sm border border-[#222] md:border-none w-full md:w-auto justify-center md:justify-start"
+              className="bg-[#0B4550] text-[#E6FF2B] px-4 md:px-6 py-3 rounded-[1.5rem] md:rounded-full font-black md:font-medium hover:bg-opacity-90 transition-all flex items-center gap-2 shadow-sm border-transparent w-full md:w-auto justify-center md:justify-start"
             >
               <Plus size={20} />
               Add Historical Data
             </button>
 
             {/* Your existing tabs */}
-            <div className="flex bg-[#141414] md:bg-white rounded-[1.5rem] md:rounded-full p-1.5 shadow-lg md:shadow-sm border border-[#222] md:border-gray-100 w-full md:w-auto overflow-x-auto no-scrollbar">
+            <div className="flex bg-[#F9F7F2] md:bg-white rounded-[1.5rem] md:rounded-full p-1.5 shadow-lg md:shadow-sm border border-gray-100 w-full md:w-auto overflow-x-auto no-scrollbar">
               {['Day', 'Week', 'Month', 'Year', 'All Time'].map((tab) => (
                 <button 
                   key={tab} 
                   onClick={() => setActiveRevenuePeriod(tab)} 
-                  className={`flex-1 min-w-[60px] md:flex-none px-4 md:px-6 py-2 rounded-xl md:rounded-full text-[10px] md:text-lg font-black md:font-medium uppercase tracking-widest md:normal-case md:tracking-normal transition-all ${activeRevenuePeriod === tab ? 'bg-[#E6FF2B] md:bg-[#898A8D] text-[#0A0A0A] md:text-white shadow-md md:shadow-none' : 'text-gray-500 md:text-[#898A8D] hover:text-white md:hover:text-[#0B4550]'}`}
+                  className={`flex-1 min-w-[60px] md:flex-none px-4 md:px-6 py-2 rounded-xl md:rounded-full text-[10px] md:text-lg font-black md:font-medium uppercase tracking-widest md:normal-case md:tracking-normal transition-all ${activeRevenuePeriod === tab ? 'bg-[#0B4550] md:bg-[#898A8D] text-[#E6FF2B] md:text-white shadow-md md:shadow-none' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
                 >
                   {tab}
                 </button>
@@ -5059,19 +5061,19 @@ export default function Dashboard({ session }) {
             
             {/* MOBILE REVENUE STATS */}
             <div className="md:hidden grid grid-cols-2 gap-4 mb-6">
-               <div className="bg-[#141414] rounded-[2rem] p-5 border border-[#222] shadow-lg col-span-2 relative overflow-hidden">
+               <div className="bg-gradient-to-br from-[#0B4550] to-[#08353E] rounded-[2rem] p-5 shadow-md col-span-2 relative overflow-hidden">
                  <div className="absolute top-0 right-0 p-4 opacity-10">
                    <DollarSign size={80} className="text-[#E6FF2B]" />
                  </div>
                  <div className="relative z-10 flex flex-col h-full justify-between">
                    <div className="flex justify-between items-center mb-2">
-                     <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Collected (This Month)</span>
+                     <span className="text-white/75 text-[10px] font-bold uppercase tracking-widest">Collected (This Month)</span>
                      <button 
                        onClick={(e) => {
                          e.stopPropagation();
                          handleToggleRevenueVisibility();
                        }}
-                       className="text-gray-500 hover:text-white p-1"
+                       className="text-white/60 hover:text-white p-1"
                      >
                        {isRevenueHidden ? <EyeOff size={14} /> : <Eye size={14} />}
                      </button>
@@ -5081,15 +5083,15 @@ export default function Dashboard({ session }) {
                    </h2>
                  </div>
                </div>
-               <div className="bg-[#1A1A1A] rounded-[2rem] p-5 border border-[#333] shadow-inner">
-                 <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest block mb-2">Pending</span>
-                 <span className="text-xl font-black text-white block">
+               <div className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm">
+                 <span className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest block mb-2">Pending</span>
+                 <span className="text-xl font-black text-[#0B4550] block">
                    {isRevenueHidden ? 'RM ••••' : 'RM 0'}
                  </span>
                </div>
-               <div className="bg-[#1A1A1A] rounded-[2rem] p-5 border border-[#333] shadow-inner">
-                 <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest block mb-2">Projected</span>
-                 <span className="text-xl font-black text-emerald-400 block">
+               <div className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm">
+                 <span className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest block mb-2">Projected</span>
+                 <span className="text-xl font-black text-emerald-600 block">
                    {isRevenueHidden ? 'RM ••••' : `RM ${estimatedRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
                  </span>
                </div>
@@ -5207,11 +5209,11 @@ export default function Dashboard({ session }) {
             </div>
 
             {/* MOBILE TRANSACTIONS LIST (HIGH FIDELITY) */}
-            <div className="md:hidden bg-[#141414] rounded-[2rem] p-4 border border-[#222] shadow-xl mt-6">
-              <h3 className="font-black text-white text-lg mb-4 uppercase tracking-widest pl-2">Recent Transactions</h3>
+            <div className="md:hidden bg-white rounded-[2rem] p-4 border border-gray-100 shadow-sm mt-6">
+              <h3 className="font-black text-[#0B4550] text-lg mb-4 uppercase tracking-widest pl-2">Recent Transactions</h3>
               {filteredTransactions.length === 0 ? (
-                <div className="text-center py-10 bg-[#1A1A1A] rounded-[1.5rem] border border-[#333]">
-                  <p className="text-gray-500 font-bold text-sm">No transactions found.</p>
+                <div className="text-center py-10 bg-[#F9F7F2] rounded-[1.5rem] border border-gray-100">
+                  <p className="text-[#898A8D] font-bold text-sm">No transactions found.</p>
                 </div>
               ) : (
                 <div className="space-y-6">
@@ -5219,9 +5221,9 @@ export default function Dashboard({ session }) {
                     .sort((a, b) => b.year - a.year)
                     .map((yearData) => (
                       <div key={yearData.year} className="space-y-4">
-                        <div className="flex justify-between items-center px-2">
-                          <span className="text-[#E6FF2B] font-black">{yearData.year}</span>
-                          <span className="text-gray-500 font-bold text-[10px] uppercase tracking-widest">
+                        <div className="flex justify-between items-center px-2 border-b border-gray-100 pb-2">
+                          <span className="text-[#0B4550] font-black">{yearData.year}</span>
+                          <span className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest">
                             {isRevenueHidden ? 'RM ••••' : `RM ${yearData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
                           </span>
                         </div>
@@ -5230,7 +5232,7 @@ export default function Dashboard({ session }) {
                           .sort((a, b) => b.maxTimestamp - a.maxTimestamp)
                           .map((monthData) => (
                             <div key={monthData.monthYear} className="space-y-2">
-                              <h4 className="text-gray-400 font-bold text-[10px] uppercase tracking-widest pl-2 border-l-2 border-[#E6FF2B] ml-1 mb-2">
+                              <h4 className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest pl-2 border-l-2 border-[#0B4550] ml-1 mb-2">
                                 {monthData.monthName}
                               </h4>
                               {monthData.items
@@ -5238,23 +5240,23 @@ export default function Dashboard({ session }) {
                                 .map((t) => (
                                   <div 
                                     key={t.id} 
-                                    className="bg-[#1A1A1A] border border-[#333] p-4 rounded-[1.5rem] flex items-center justify-between transition-all active:scale-[0.98]"
+                                    className="bg-[#F9F7F2] border border-gray-100 p-4 rounded-[1.5rem] flex items-center justify-between transition-all active:scale-[0.98]"
                                   >
                                     <div className="flex items-center gap-3 overflow-hidden">
-                                      <div className="w-10 h-10 rounded-full bg-[#222] text-[#E6FF2B] flex items-center justify-center shrink-0">
+                                      <div className="w-10 h-10 rounded-full bg-white text-[#0B4550] flex items-center justify-center shrink-0 border border-gray-150">
                                         <DollarSign size={16} />
                                       </div>
                                       <div className="flex flex-col min-w-0">
-                                        <span className="text-white font-bold text-sm truncate">
+                                        <span className="text-[#0B4550] font-bold text-sm truncate">
                                           {clients.find(c => c.id === t.client_name)?.name || t.client_name}
                                         </span>
-                                        <span className="text-gray-500 text-[10px] font-semibold truncate">
+                                        <span className="text-[#898A8D] text-[10px] font-semibold truncate">
                                           {t.description} • {new Date(t.created_at).toLocaleDateString('en-GB')}
                                         </span>
                                       </div>
                                     </div>
                                     <div className="text-right shrink-0 ml-3">
-                                      <span className="text-emerald-400 font-black text-sm block">
+                                      <span className="text-emerald-600 font-black text-sm block">
                                         {isRevenueHidden ? 'RM ••••' : `+RM ${Number(t.amount).toFixed(2)}`}
                                       </span>
                                     </div>
@@ -5462,18 +5464,28 @@ export default function Dashboard({ session }) {
               <>
                 {/* MOBILE CONTROLS (HIGH FIDELITY) */}
                 <div className="md:hidden flex flex-col gap-4 mb-6">
-                  <div className="flex bg-[#141414] rounded-[1.5rem] p-1.5 shadow-lg border border-[#222] overflow-x-auto no-scrollbar">
+                  <div className="flex bg-white rounded-[1.5rem] p-1.5 shadow-sm border border-gray-150 overflow-x-auto no-scrollbar">
                     {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
-                      <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#E6FF2B] text-[#0A0A0A] shadow-md' : 'text-gray-500 hover:text-white'}`}>
+                      <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}>
                         {tab}
                       </button>
                     ))}
                   </div>
                   <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input 
+                        type="text" 
+                        placeholder="Search clients..." 
+                        value={clientSearchQuery}
+                        onChange={(e) => setClientSearchQuery(e.target.value)}
+                        className="w-full bg-white border border-gray-150 text-[#0B4550] pl-10 pr-4 py-3 rounded-2xl font-bold text-xs outline-none shadow-sm"
+                      />
+                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#898A8D]" size={14} />
+                    </div>
                     <select 
                       value={sortBy} 
                       onChange={(e) => setSortBy(e.target.value)}
-                      className="flex-1 bg-[#1A1A1A] border border-[#333] text-white px-4 py-3 rounded-2xl font-bold text-xs outline-none shadow-sm cursor-pointer appearance-none"
+                      className="bg-white border border-gray-150 text-[#0B4550] px-4 py-3 rounded-2xl font-bold text-xs outline-none shadow-sm cursor-pointer appearance-none"
                     >
                       <option value="newest">Recently Added</option>
                       <option value="az">Alphabetical (A-Z)</option>
@@ -5481,7 +5493,7 @@ export default function Dashboard({ session }) {
                       <option value="expire">Earliest to Expire</option>
                       <option value="sessions">Most Sessions</option>
                     </select>
-                    <button onClick={() => setShowAddModal(true)} className="bg-[#E6FF2B] text-[#0A0A0A] w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-md shrink-0">
+                    <button onClick={() => setShowAddModal(true)} className="bg-[#0B4550] text-[#E6FF2B] w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-md shrink-0">
                       <Plus size={20} strokeWidth={3} />
                     </button>
                   </div>
@@ -5549,34 +5561,34 @@ export default function Dashboard({ session }) {
                   {/* MOBILE CLIENT CARDS */}
                   <div className="md:hidden space-y-4">
                     {sortedAndFilteredClients.map(client => (
-                      <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-[#141414] rounded-[2rem] p-5 border border-[#222] shadow-xl relative overflow-hidden group active:scale-[0.98] transition-all cursor-pointer">
+                      <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm relative overflow-hidden group active:scale-[0.98] transition-all cursor-pointer">
                         <div className="flex items-center gap-4 mb-4 relative z-10">
-                          <div className="w-14 h-14 rounded-full bg-[#1A1A1A] border border-[#333] text-[#E6FF2B] flex items-center justify-center text-xl font-black shadow-inner">
+                          <div className="w-14 h-14 rounded-full bg-[#F9F7F2] border border-gray-100 text-[#0B4550] flex items-center justify-center text-xl font-black shadow-inner">
                             {getInitials(client.name)}
                           </div>
                           <div className="flex-1 overflow-hidden">
-                            <h3 className="text-xl font-black text-white truncate">{client.name}</h3>
+                            <h3 className="text-xl font-black text-[#0B4550] truncate">{client.name}</h3>
                             <div className="flex items-center gap-2 mt-1">
-                              <span className="text-gray-500 font-bold text-[10px] uppercase tracking-widest truncate">{client.package || 'No package'}</span>
+                              <span className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest truncate">{client.package || 'No package'}</span>
                               {client.member_status === 'Trial' && (
-                                <span className="bg-[#E6FF2B]/20 text-[#E6FF2B] border border-[#E6FF2B]/30 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Trial</span>
+                                <span className="bg-[#E6FF2B]/10 text-[#0B4550] border border-[#E6FF2B]/20 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Trial</span>
                               )}
                               {client.member_status === 'Follow Up' && (
-                                <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Follow Up</span>
+                                <span className="bg-orange-50 text-orange-600 border border-orange-200 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Follow Up</span>
                               )}
                             </div>
                           </div>
                         </div>
                         <div className="grid grid-cols-2 gap-3 relative z-10">
-                          <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#333]">
-                            <span className="text-gray-500 font-bold text-[9px] uppercase tracking-widest block mb-1">Sessions Used</span>
-                            <span className="text-white font-black text-lg">
+                          <div className="bg-[#F9F7F2] rounded-2xl p-3 border border-gray-100">
+                            <span className="text-[#898A8D] font-bold text-[9px] uppercase tracking-widest block mb-1">Sessions Used</span>
+                            <span className="text-[#0B4550] font-black text-lg">
                               {client.initial_package ? `${(client.initial_package || 0) - (client.remaining_package || 0)} / ${client.initial_package}` : (client.unlimited ? 'Unlimited' : '-')}
                             </span>
                           </div>
-                          <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#333]">
-                            <span className="text-gray-500 font-bold text-[9px] uppercase tracking-widest block mb-1">Expiry Date</span>
-                            <span className={`font-black text-sm ${getLiveClientStatus(client) === 'Expired' ? 'text-red-400' : getLiveClientStatus(client) === 'Expiring Soon' ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                          <div className="bg-[#F9F7F2] rounded-2xl p-3 border border-gray-100">
+                            <span className="text-[#898A8D] font-bold text-[9px] uppercase tracking-widest block mb-1">Expiry Date</span>
+                            <span className={`font-black text-sm ${getLiveClientStatus(client) === 'Expired' ? 'text-red-600' : getLiveClientStatus(client) === 'Expiring Soon' ? 'text-amber-600' : 'text-emerald-600'}`}>
                               {client.expiry || 'No date set'}
                             </span>
                           </div>
@@ -9872,7 +9884,7 @@ export default function Dashboard({ session }) {
       {/* --- AI COPILOT FLOATING BUTTON --- */}
       <button 
         onClick={() => setShowAICopilot(true)}
-        className="fixed bottom-8 right-8 w-16 h-16 bg-[#0B4550] text-[#E6FF2B] rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-40 group border-4 border-white"
+        className="fixed bottom-36 md:bottom-8 right-8 w-16 h-16 bg-[#0B4550] text-[#E6FF2B] rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-40 group border-4 border-white"
       >
         <Sparkles size={28} className="group-hover:rotate-12 transition-transform" />
       </button>

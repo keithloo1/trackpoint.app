@@ -1110,35 +1110,35 @@ export default function ClientDashboard() {
       </aside>
 
       {/* MOBILE BOTTOM NAV */}
-      <div className={`md:hidden fixed bottom-0 left-0 right-0 bg-[#0A0A0A] border-t border-[#222] flex justify-around items-center pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] px-2 z-[50] shadow-[0_-4px_24px_rgba(0,0,0,0.4)] ${isBuilderOpen || isTrackerOpen ? 'hidden' : ''}`}>
-        <button onClick={() => setActiveNav('Home')} className={`flex flex-col items-center gap-1 ${activeNav === 'Home' ? 'text-[#E6FF2B]' : 'text-gray-500'}`}>
+      <div className={`md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 flex justify-around items-center pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] px-2 z-[50] shadow-sm ${isBuilderOpen || isTrackerOpen ? 'hidden' : ''}`}>
+        <button onClick={() => setActiveNav('Home')} className={`flex flex-col items-center gap-1 ${activeNav === 'Home' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>
           <Home size={24} />
           <span className="text-[10px] font-bold mt-1">Home</span>
         </button>
-        <button onClick={() => setActiveNav('Progress')} className={`flex flex-col items-center gap-1 ${activeNav === 'Progress' ? 'text-[#E6FF2B]' : 'text-gray-500'}`}>
+        <button onClick={() => setActiveNav('Progress')} className={`flex flex-col items-center gap-1 ${activeNav === 'Progress' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>
           <TrendingUp size={24} />
           <span className="text-[10px] font-bold mt-1">Progress</span>
         </button>
-        <button onClick={() => setActiveNav('History')} className={`flex flex-col items-center gap-1 ${activeNav === 'History' ? 'text-[#E6FF2B]' : 'text-gray-500'}`}>
+        <button onClick={() => setActiveNav('History')} className={`flex flex-col items-center gap-1 ${activeNav === 'History' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>
           <FileText size={24} />
           <span className="text-[10px] font-bold mt-1">History</span>
         </button>
-        <button onClick={openSettingsModal} className={`flex flex-col items-center gap-1 ${isSettingsOpen ? 'text-[#E6FF2B]' : 'text-gray-500'}`}>
+        <button onClick={openSettingsModal} className={`flex flex-col items-center gap-1 ${isSettingsOpen ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>
           <User size={24} />
           <span className="text-[10px] font-bold mt-1">Profile</span>
         </button>
       </div>
 
-      <main className="flex-1 h-full overflow-y-auto flex flex-col relative z-10 pb-24 md:pb-0">
+      <main className="flex-1 h-full overflow-y-auto flex flex-col relative z-10 pb-36 md:pb-0">
         
         {/* MOBILE HEADER BAR */}
         <header className="md:hidden flex flex-col gap-4 mb-6 pt-2">
-          <div className="flex items-center justify-between bg-[#141414] border border-[#222] rounded-[2rem] p-4 shadow-xl shrink-0">
+          <div className="flex items-center justify-between bg-white border border-gray-150 rounded-[2rem] p-4 shadow-sm shrink-0">
             <div className="flex items-center gap-3">
-              <img src={trainerLogo || newLogo} alt={trainerCompanyName} className="h-10 w-auto object-contain max-h-[40px] brightness-0 invert" onError={(e) => e.target.style.display = 'none'} />
-              <span className="font-black text-sm text-white tracking-widest uppercase">{trainerCompanyName}</span>
+              <img src={trainerLogo || newLogo} alt={trainerCompanyName} className="h-10 w-auto object-contain max-h-[40px]" onError={(e) => e.target.style.display = 'none'} />
+              <span className="font-black text-sm text-[#0B4550] tracking-widest uppercase">{trainerCompanyName}</span>
             </div>
-            <button onClick={openSettingsModal} className="w-10 h-10 rounded-full bg-[#222] text-[#E6FF2B] border border-[#333] flex items-center justify-center font-bold text-sm shadow-sm active:scale-95 transition-all">
+            <button onClick={openSettingsModal} className="w-10 h-10 rounded-full bg-[#F9F7F2] text-[#0B4550] border border-gray-150 flex items-center justify-center font-bold text-sm shadow-sm active:scale-95 transition-all">
               {getInitials(clientData.name)}
             </button>
           </div>
@@ -1442,30 +1442,30 @@ export default function ClientDashboard() {
           <div className="md:hidden flex flex-col gap-4 flex-1 pb-4 animate-in fade-in duration-500">
             
             {/* Mobile Remaining Sessions */}
-            <div className="bg-[#141414] border border-[#222] rounded-[2rem] p-5 shadow-lg relative overflow-hidden flex flex-col">
+            <div className="bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm relative overflow-hidden flex flex-col">
               <div className="flex justify-between items-start z-10 mb-2">
                 <div>
-                  <h3 className="font-bold text-[10px] text-gray-500 uppercase tracking-widest">Active Package</h3>
-                  <h2 className="font-black text-2xl text-white tracking-tight">{clientData.packageName}</h2>
+                  <h3 className="font-bold text-[10px] text-[#898A8D] uppercase tracking-widest">Active Package</h3>
+                  <h2 className="font-black text-2xl text-[#0B4550] tracking-tight">{clientData.packageName}</h2>
                 </div>
-                <button onClick={() => setIsTopUpOpen(true)} className="bg-[#E6FF2B] text-[#0A0A0A] px-4 py-2 rounded-xl font-black text-[10px] shadow-sm flex items-center gap-1.5 relative z-20 uppercase tracking-widest"><CreditCard size={14} /> Top Up</button>
+                <button onClick={() => setIsTopUpOpen(true)} className="bg-[#0B4550] text-[#E6FF2B] px-4 py-2 rounded-xl font-black text-[10px] shadow-sm flex items-center gap-1.5 relative z-20 uppercase tracking-widest"><CreditCard size={14} /> Top Up</button>
               </div>
               
               <div className="flex-1 flex flex-col justify-end z-10 pt-4 w-full">
                 {clientData.unlimited ? (
                   <div className="space-y-4 w-full">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#222] text-[#E6FF2B] border border-[#333] text-[10px] font-black uppercase tracking-widest">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#E6FF2B] animate-pulse"></span>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#E6FF2B]/10 text-[#0B4550] border border-[#E6FF2B]/20 text-[10px] font-black uppercase tracking-widest">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#0B4550] animate-pulse"></span>
                       Unlimited Access Plan
                     </span>
-                    <div className="grid grid-cols-2 gap-4 bg-[#222] rounded-2xl p-4 border border-[#333]">
+                    <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2] rounded-2xl p-4 border border-gray-100">
                       <div>
-                        <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Expiration Date</p>
-                        <p className="text-sm font-black text-white">{clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}</p>
+                        <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Expiration Date</p>
+                        <p className="text-sm font-black text-[#0B4550]">{clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Time Remaining</p>
-                        <p className="text-sm font-black text-white">
+                        <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Time Remaining</p>
+                        <p className="text-sm font-black text-[#0B4550]">
                           {(() => {
                             const days = calculateRemainingDays(clientData.expiry);
                             if (days === null) return 'Unlimited Days';
@@ -1481,30 +1481,30 @@ export default function ClientDashboard() {
                   <div className="space-y-4 w-full">
                     <div className="flex justify-between items-end">
                       <div>
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Remaining Sessions</p>
-                        <p className="text-3xl font-black text-[#E6FF2B]">{clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions}</p>
+                        <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Remaining Sessions</p>
+                        <p className="text-3xl font-black text-[#0B4550]">{clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Completed</p>
-                        <p className="text-xl font-black text-white">{clientData.usedSessions || 0}</p>
+                        <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Completed</p>
+                        <p className="text-xl font-black text-[#0B4550]">{clientData.usedSessions || 0}</p>
                       </div>
                     </div>
                     
-                    <div className="w-full h-2 bg-[#222] rounded-full overflow-hidden relative">
+                    <div className="w-full h-2 bg-[#F9F7F2] rounded-full overflow-hidden relative">
                       <div
-                        className={`h-full transition-all duration-700 ${(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? 'bg-rose-500' : 'bg-[#E6FF2B]'}`}
+                        className={`h-full transition-all duration-700 ${(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? 'bg-red-500' : 'bg-[#0B4550]'}`}
                         style={{ width: `${((clientData.usedSessions || 0) / ((clientData.usedSessions || 0) + (clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions || 1))) * 100}%` }}
                       ></div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4 bg-[#222] rounded-2xl p-4 border border-[#333]">
+                    <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2] rounded-2xl p-4 border border-gray-100">
                       <div>
-                        <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Package Expiration</p>
-                        <p className="text-xs font-black text-white">{clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}</p>
+                        <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Package Expiration</p>
+                        <p className="text-xs font-black text-[#0B4550]">{clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-[9px] font-bold text-gray-500 uppercase tracking-widest mb-1">Time Remaining</p>
-                        <p className="text-xs font-black text-white">
+                        <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Time Remaining</p>
+                        <p className="text-xs font-black text-[#0B4550]">
                           {(() => {
                             const days = calculateRemainingDays(clientData.expiry);
                             if (days === null) return 'No Time Limit';
@@ -1521,49 +1521,49 @@ export default function ClientDashboard() {
             </div>
 
             {/* Mobile Weight Tracker */}
-            <div className="bg-[#141414] rounded-[2rem] p-5 shadow-lg border border-[#222] flex flex-col relative" onClick={openWeightModal}>
+            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex flex-col relative" onClick={openWeightModal}>
               <div className="flex justify-between items-end mb-4">
                 <div>
-                  <h3 className="font-black text-lg text-white">Weight Tracker</h3>
-                  <p className="text-gray-500 font-bold text-[10px] uppercase tracking-widest">{weightProgress.toFixed(0)}% to Goal</p>
+                  <h3 className="font-black text-lg text-[#0B4550]">Weight Tracker</h3>
+                  <p className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest">{weightProgress.toFixed(0)}% to Goal</p>
                 </div>
                 <div className="text-right">
-                  <span className="font-black text-2xl text-[#E6FF2B] block">{clientData.currentWeight} kg</span>
-                  {clientData.startWeight > clientData.currentWeight && <span className="text-[10px] font-black text-emerald-400">-{(clientData.startWeight - clientData.currentWeight).toFixed(1)} kg so far!</span>}
+                  <span className="font-black text-2xl text-[#0B4550] block">{clientData.currentWeight} kg</span>
+                  {clientData.startWeight > clientData.currentWeight && <span className="text-[10px] font-black text-emerald-500">-{(clientData.startWeight - clientData.currentWeight).toFixed(1)} kg so far!</span>}
                 </div>
               </div>
               <div className="relative pt-2">
-                <div className="w-full h-2 bg-[#222] rounded-full overflow-hidden"><div className="h-full bg-[#E6FF2B] transition-all duration-1000" style={{ width: `${weightProgress}%` }}></div></div>
+                <div className="w-full h-2 bg-[#F9F7F2] rounded-full overflow-hidden"><div className="h-full bg-[#0B4550] transition-all duration-1000" style={{ width: `${weightProgress}%` }}></div></div>
               </div>
             </div>
 
             {/* Mobile Workout Builder */}
-            <div className="bg-[#141414] rounded-[2rem] p-5 shadow-lg border border-[#222] flex justify-between items-center relative">
+            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex justify-between items-center relative">
               <div>
-                <h3 className="font-black text-lg text-white mb-1">{generatedWorkout ? "Today's Plan" : "Workout Builder"}</h3>
-                <p className="text-gray-500 font-bold text-xs mb-3">{generatedWorkout ? "Ready to crush it?" : "Generate your session"}</p>
+                <h3 className="font-black text-lg text-[#0B4550] mb-1">{generatedWorkout ? "Today's Plan" : "Workout Builder"}</h3>
+                <p className="text-[#898A8D] font-bold text-xs mb-3">{generatedWorkout ? "Ready to crush it?" : "Generate your session"}</p>
                 <div className="flex gap-2">
-                  <button onClick={() => { if (generatedWorkout) setIsTrackerOpen(true); else { setStep(1); setIsBuilderOpen(true); } }} className="flex items-center gap-2 text-[#0A0A0A] font-black bg-[#E6FF2B] px-4 py-2.5 rounded-xl text-xs shadow-sm z-20 relative">
+                  <button onClick={() => { if (generatedWorkout) setIsTrackerOpen(true); else { setStep(1); setIsBuilderOpen(true); } }} className="flex items-center gap-2 text-[#E6FF2B] font-black bg-[#0B4550] px-4 py-2.5 rounded-full text-xs shadow-sm z-20 relative">
                     {generatedWorkout ? "Start Workout" : "Start Building"} <Plus size={14} />
                   </button>
                   {generatedWorkout && (
-                    <button onClick={() => { setGeneratedWorkout(null); setStep(1); setIsBuilderOpen(true); }} className="w-9 h-9 rounded-xl bg-[#222] flex items-center justify-center text-gray-400 hover:text-white transition-all z-20 relative">
+                    <button onClick={() => { setGeneratedWorkout(null); setStep(1); setIsBuilderOpen(true); }} className="w-9 h-9 rounded-xl bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] hover:bg-gray-100 transition-all z-20 relative">
                       <RefreshCw size={14} />
                     </button>
                   )}
                 </div>
               </div>
-              <div className="w-12 h-12 rounded-full bg-[#222] flex items-center justify-center shrink-0">
-                <Zap size={24} className={generatedWorkout ? "text-[#E6FF2B]" : "text-gray-600"} />
+              <div className="w-12 h-12 rounded-full bg-[#F9F7F2] flex items-center justify-center shrink-0">
+                <Zap size={24} className={generatedWorkout ? "text-[#0B4550]" : "text-[#898A8D]"} />
               </div>
             </div>
 
             {/* Mobile Available Classes */}
-            <div className="bg-[#141414] rounded-[2rem] p-5 shadow-lg border border-[#222] flex flex-col h-[320px]">
+            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex flex-col h-[320px]">
               <div className="flex justify-between items-center mb-4 shrink-0">
                 <div>
-                  <h3 className="font-black text-lg text-white">Available Classes</h3>
-                  <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">Quick 1-Click Booking</p>
+                  <h3 className="font-black text-lg text-[#0B4550]">Available Classes</h3>
+                  <p className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest mt-0.5">Quick 1-Click Booking</p>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto pr-1 space-y-3 no-scrollbar">
@@ -1573,7 +1573,7 @@ export default function ClientDashboard() {
                   
                   if (futureSessions.length === 0) {
                     return (
-                      <div className="flex flex-col items-center justify-center py-8 text-center text-gray-500">
+                      <div className="flex flex-col items-center justify-center py-8 text-center text-[#898A8D]">
                         <Calendar size={24} className="mb-2 opacity-50" />
                         <p className="text-xs font-bold">No classes scheduled yet.</p>
                       </div>
@@ -1583,45 +1583,45 @@ export default function ClientDashboard() {
                   return futureSessions.map(session => {
                     const isFull = session.attendees?.length >= session.capacity;
                     return (
-                      <div key={session.id} className="bg-[#222] border border-[#333] rounded-2xl p-4 flex flex-col gap-3 relative">
+                      <div key={session.id} className="bg-[#F9F7F2] border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 relative">
                         <div className="flex justify-between items-start">
                           <div>
                             <div className="flex items-center gap-2 mb-1">
-                              <span className="inline-block px-2 py-0.5 rounded text-[#0A0A0A] bg-[#E6FF2B] text-[9px] font-black uppercase tracking-wider">
+                              <span className="inline-block px-2 py-0.5 rounded text-[#0B4550] bg-[#E6FF2B] text-[9px] font-black uppercase tracking-wider">
                                 {formatDbDate(session.date)}
                               </span>
-                              <span className="text-[10px] font-bold text-gray-400">
+                              <span className="text-[10px] font-bold text-[#898A8D]">
                                 {session.time}
                               </span>
                             </div>
-                            <h4 className="text-sm font-black text-white leading-tight">{session.title}</h4>
-                            <p className="text-[10px] text-gray-500 flex items-center gap-1 font-bold mt-1">
-                              <User size={10} className="text-[#E6FF2B]" /> {session.coach || session.trainer || 'Coach'}
+                            <h4 className="text-sm font-black text-[#0B4550] leading-tight">{session.title}</h4>
+                            <p className="text-[10px] text-[#898A8D] flex items-center gap-1 font-bold mt-1">
+                              <User size={10} className="text-[#0B4550]" /> {session.coach || session.trainer || 'Coach'}
                             </p>
                           </div>
-                          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">
+                          <p className="text-[9px] font-black text-[#898A8D] uppercase tracking-widest">
                             {session.attendees?.length || 0} / {session.capacity} Slots
                           </p>
                         </div>
                         
-                        <div className="flex justify-end pt-2 border-t border-[#333]">
+                        <div className="flex justify-end pt-2 border-t border-gray-100">
                           {session.isBookedByMe ? (
                             <div className="flex items-center gap-3">
-                              <span className="text-[10px] font-black text-[#E6FF2B] bg-[#E6FF2B]/10 py-1.5 px-3 rounded-lg flex items-center gap-1 uppercase tracking-wider">
+                              <span className="text-[10px] font-black text-[#0B4550] bg-[#E6FF2B] py-1.5 px-3 rounded-lg flex items-center gap-1 uppercase tracking-wider">
                                 Booked ✓
                               </span>
-                              <button onClick={() => handleQuickCancel(session)} className="text-[10px] font-black text-rose-500 px-2 py-1.5">
+                              <button onClick={() => handleQuickCancel(session)} className="text-[10px] font-black text-red-500 px-2 py-1.5">
                                 Cancel
                               </button>
                             </div>
                           ) : isFull ? (
-                            <span className="text-[10px] font-black text-gray-500 bg-[#333] py-1.5 px-3 rounded-lg uppercase tracking-wider">
+                            <span className="text-[10px] font-black text-[#898A8D] bg-gray-150 py-1.5 px-3 rounded-lg uppercase tracking-wider">
                               Full
                             </span>
                           ) : (
                             <button
                               onClick={() => handleQuickBook(session)}
-                              className="bg-[#E6FF2B] text-[#0A0A0A] py-2 px-4 rounded-xl text-[10px] font-black w-full"
+                              className="bg-[#0B4550] text-[#E6FF2B] py-2 px-4 rounded-xl text-[10px] font-black w-full"
                             >
                               Book Spot
                             </button>
@@ -1635,36 +1635,36 @@ export default function ClientDashboard() {
             </div>
 
             {/* Mobile Booked Classes */}
-            <div className="bg-[#141414] rounded-[2rem] p-5 shadow-lg border border-[#222] flex flex-col h-[300px]">
+            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex flex-col h-[300px]">
               <div className="flex justify-between items-center mb-4 shrink-0">
                 <div>
-                  <h3 className="font-black text-lg text-white">Booked Classes</h3>
-                  <p className="text-gray-500 text-[10px] font-bold uppercase tracking-widest mt-0.5">My Schedule</p>
+                  <h3 className="font-black text-lg text-[#0B4550]">Booked Classes</h3>
+                  <p className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest mt-0.5">My Schedule</p>
                 </div>
-                <span className="bg-[#E6FF2B] text-[#0A0A0A] text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full">
+                <span className="bg-[#E6FF2B] text-[#0B4550] text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full">
                   {upcomingBookings.length}
                 </span>
               </div>
 
               {upcomingBookings.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-                  <div className="w-12 h-12 rounded-full bg-[#222] flex items-center justify-center text-gray-500 mb-3">
+                  <div className="w-12 h-12 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#898A8D] mb-3">
                     <CalendarCheck size={20} />
                   </div>
-                  <h4 className="font-black text-sm text-white mb-1">No Bookings</h4>
-                  <p className="text-gray-500 text-[10px] font-bold">Use "Available Classes" to book.</p>
+                  <h4 className="font-black text-sm text-[#0B4550] mb-1">No Bookings</h4>
+                  <p className="text-[#898A8D] text-[10px] font-bold">Use "Available Classes" to book.</p>
                 </div>
               ) : (
                 <div className="flex-1 overflow-y-auto pr-1 no-scrollbar space-y-3">
                   {upcomingBookings.map(booking => (
-                    <div key={booking.id} className="bg-[#222] border border-[#333] rounded-2xl p-3.5 flex justify-between items-center">
+                    <div key={booking.id} className="bg-[#F9F7F2] border border-gray-100 rounded-2xl p-3.5 flex justify-between items-center">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-[#1A1A1A] text-[#E6FF2B] flex items-center justify-center border border-[#333]">
+                        <div className="w-10 h-10 rounded-xl bg-white text-[#0B4550] flex items-center justify-center border border-gray-150">
                           <Calendar size={16} />
                         </div>
                         <div>
-                          <h4 className="font-black text-sm text-white mb-0.5 leading-tight">{booking.title}</h4>
-                          <p className="text-gray-400 text-[10px] font-bold flex items-center gap-1.5">
+                          <h4 className="font-black text-sm text-[#0B4550] mb-0.5 leading-tight">{booking.title}</h4>
+                          <p className="text-[#898A8D] text-[10px] font-bold flex items-center gap-1.5">
                             <Clock size={10} /> {formatDbDate(booking.date)} at {booking.time}
                           </p>
                         </div>
@@ -1675,7 +1675,7 @@ export default function ClientDashboard() {
                             handleQuickCancel(booking);
                           }
                         }}
-                        className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500/20"
+                        className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1768,20 +1768,20 @@ export default function ClientDashboard() {
 
           {/* MOBILE HISTORY VIEW */}
           <div className="md:hidden flex flex-col gap-4 flex-1 pb-4 animate-in fade-in duration-500 w-full">
-            <div className="bg-[#141414] rounded-[2rem] p-5 shadow-lg border border-[#222] h-full flex flex-col">
+            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 h-full flex flex-col">
               <div className="flex flex-col gap-4 mb-6">
                 <div>
-                  <h3 className="text-2xl font-black text-white">History & Invoices</h3>
-                  <p className="text-gray-500 font-bold text-xs mt-1">All your sessions and purchases.</p>
+                  <h3 className="text-2xl font-black text-[#0B4550]">History & Invoices</h3>
+                  <p className="text-[#898A8D] font-bold text-xs mt-1">All your sessions and purchases.</p>
                 </div>
-                <div className="bg-[#222] px-4 py-3 rounded-xl border border-[#333] flex justify-between items-center">
+                <div className="bg-[#F9F7F2] px-4 py-3 rounded-xl border border-gray-100 flex justify-between items-center">
                   <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-400"></div>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Credit</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                    <span className="text-[10px] font-black text-[#898A8D] uppercase tracking-widest">Credit</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500"></div>
-                    <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Debit</span>
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                    <span className="text-[10px] font-black text-[#898A8D] uppercase tracking-widest">Debit</span>
                   </div>
                 </div>
               </div>
@@ -1789,50 +1789,50 @@ export default function ClientDashboard() {
               <div className="flex-1 overflow-y-auto no-scrollbar space-y-3">
                 {activityHistory.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-16 h-16 bg-[#222] rounded-full flex items-center justify-center text-gray-500 mb-4"><Activity size={32} /></div>
-                    <p className="text-gray-500 font-bold text-sm">No activity recorded yet.</p>
+                    <div className="w-16 h-16 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#898A8D] mb-4"><Activity size={32} /></div>
+                    <p className="text-[#898A8D] font-bold text-sm">No activity recorded yet.</p>
                   </div>
                 ) : (
                   activityHistory.map((item) => (
-                    <div key={item.id} className="flex flex-col p-4 bg-[#222] rounded-2xl border border-[#333] gap-3 relative">
+                    <div key={item.id} className="flex flex-col p-4 bg-white rounded-2xl border border-gray-100 gap-3 relative">
                       <div className="flex items-center gap-3">
                         <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${
-                          item.type === 'purchase' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' :
-                          item.type === 'usage' ? 'bg-rose-500/10 text-rose-500 border border-rose-500/20' : 
-                          'bg-[#333] text-blue-400 border border-[#444]'
+                          item.type === 'purchase' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                          item.type === 'usage' ? 'bg-red-50 text-red-600 border border-red-100' : 
+                          'bg-blue-50 text-blue-600 border border-blue-100'
                         }`}>
                           {item.type === 'purchase' ? <CreditCard size={20} /> :
                             item.type === 'usage' ? <Zap size={20} /> : <FileText size={20} />}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="text-sm font-black text-white truncate leading-tight mb-0.5">{item.title}</p>
-                          <p className="text-[10px] font-bold text-gray-500">
+                          <p className="text-sm font-black text-[#0B4550] truncate leading-tight mb-0.5">{item.title}</p>
+                          <p className="text-[10px] font-bold text-[#898A8D]">
                             {item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                             {item.method && ` • ${item.method}`}
                           </p>
                         </div>
                       </div>
                       
-                      <div className="flex items-center justify-between border-t border-[#333] pt-3 mt-1">
+                      <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-1">
                         {item.type === 'purchase' && item.invoiceNumber ? (
                           <button 
                             onClick={() => {
                               setSelectedInvoice(item);
                               setIsInvoiceOpen(true);
                             }}
-                            className="bg-[#333] hover:bg-[#444] text-white px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1.5 uppercase tracking-wider"
+                            className="bg-[#F9F7F2] hover:bg-gray-200 text-[#0B4550] border border-gray-150 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1.5 uppercase tracking-wider"
                           >
                             <FileText size={12} /> Invoice
                           </button>
                         ) : <div></div>}
                         <div className="text-right">
                           <p className={`text-base font-black ${
-                            item.type === 'purchase' ? 'text-emerald-400' :
-                            item.type === 'usage' ? 'text-rose-500' : 'text-white'
+                            item.type === 'purchase' ? 'text-emerald-600' :
+                            item.type === 'usage' ? 'text-red-500' : 'text-[#0B4550]'
                           }`}>
                             {item.type === 'purchase' ? `RM ${Math.abs(item.amount)}` : `-${Math.abs(item.amount)}`}
                           </p>
-                          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest mt-0.5">
+                          <p className="text-[9px] font-black text-[#898A8D] uppercase tracking-widest mt-0.5">
                             {item.type === 'purchase' ? 'Paid' : 'Session'}
                           </p>
                         </div>
@@ -2054,22 +2054,22 @@ export default function ClientDashboard() {
         </div>
 
         {/* MOBILE BOOKING DRAWER */}
-        <div className={`md:hidden fixed bottom-0 left-0 right-0 z-[120] bg-[#141414] border-t border-[#222] rounded-t-[2.5rem] p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.5)] transition-transform duration-500 ease-out flex flex-col pb-[calc(1.5rem+env(safe-area-inset-bottom))] ${isBookingOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{ maxHeight: '90vh' }}>
-          <div className="w-12 h-1.5 bg-[#333] rounded-full mx-auto mb-6 shrink-0"></div>
+        <div className={`md:hidden fixed bottom-0 left-0 right-0 z-[120] bg-white border-t border-gray-150 rounded-t-[2.5rem] p-6 shadow-[0_-10px_40px_rgba(0,0,0,0.05)] transition-transform duration-500 ease-out flex flex-col pb-[calc(1.5rem+env(safe-area-inset-bottom))] ${isBookingOpen ? 'translate-y-0' : 'translate-y-full'}`} style={{ maxHeight: '90vh' }}>
+          <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 shrink-0"></div>
           <div className="flex justify-between items-center mb-6 shrink-0">
-            <h2 className="text-2xl font-black text-white">Book Session</h2>
-            <button onClick={closeBookingDrawer} className="w-8 h-8 rounded-full bg-[#222] flex items-center justify-center text-gray-400 hover:text-white transition-colors"><X size={16} /></button>
+            <h2 className="text-2xl font-black text-[#0B4550]">Book Session</h2>
+            <button onClick={closeBookingDrawer} className="w-8 h-8 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#898A8D] hover:text-[#0B4550] transition-colors"><X size={16} /></button>
           </div>
 
           {bookingStep === 'select' ? (
             <div className="flex-1 overflow-y-auto no-scrollbar flex flex-col min-h-0">
-              <div className="bg-[#222] p-5 rounded-[2rem] border border-[#333] mb-6 shrink-0">
+              <div className="bg-[#F9F7F2] p-5 rounded-[2rem] border border-gray-100 mb-6 shrink-0">
                 <div className="flex justify-between items-center mb-4">
-                  <button onClick={() => setCurrentMonth(prev => Math.max(0, prev - 1))} className="w-8 h-8 bg-[#333] rounded-full flex items-center justify-center text-white shadow-sm"><ChevronLeft size={16} /></button>
-                  <h3 className="font-black text-white text-lg">{MONTHS[currentMonth]} 2026</h3>
-                  <button onClick={() => setCurrentMonth(prev => Math.min(11, prev + 1))} className="w-8 h-8 bg-[#333] rounded-full flex items-center justify-center text-white shadow-sm"><ChevronRight size={16} /></button>
+                  <button onClick={() => setCurrentMonth(prev => Math.max(0, prev - 1))} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#0B4550] shadow-sm border border-gray-100"><ChevronLeft size={16} /></button>
+                  <h3 className="font-black text-[#0B4550] text-lg">{MONTHS[currentMonth]} 2026</h3>
+                  <button onClick={() => setCurrentMonth(prev => Math.min(11, prev + 1))} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#0B4550] shadow-sm border border-gray-100"><ChevronRight size={16} /></button>
                 </div>
-                <div className="grid grid-cols-7 text-center text-gray-500 font-bold text-[10px] uppercase tracking-widest mb-2"><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div></div>
+                <div className="grid grid-cols-7 text-center text-[#898A8D] font-bold text-[10px] uppercase tracking-widest mb-2"><div>M</div><div>T</div><div>W</div><div>T</div><div>F</div><div>S</div><div>S</div></div>
                 <div className="grid grid-cols-7 gap-y-2 text-center">
                   {[...Array(getFirstDayOffset(currentMonth))].map((_, idx) => (
                     <div key={`offset-${idx}`} className="w-10 h-10 mx-auto" />
@@ -2077,7 +2077,7 @@ export default function ClientDashboard() {
                   {[...Array(getDaysInMonth(currentMonth))].map((_, i) => {
                     const d = i + 1;
                     return (
-                      <div key={d} onClick={() => { setSelectedDate(d); setSelectedLiveSession(null); }} className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center cursor-pointer font-black text-xs transition-all ${selectedDate === d ? 'bg-[#E6FF2B] text-[#0A0A0A] shadow-md scale-110' : 'text-white hover:bg-[#333]'}`}>
+                      <div key={d} onClick={() => { setSelectedDate(d); setSelectedLiveSession(null); }} className={`w-10 h-10 mx-auto rounded-full flex items-center justify-center cursor-pointer font-black text-xs transition-all ${selectedDate === d ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md scale-110' : 'text-[#0B4550] hover:bg-gray-150'}`}>
                         {d}
                       </div>
                     )
@@ -2086,11 +2086,11 @@ export default function ClientDashboard() {
               </div>
 
               <div className="flex-1 overflow-y-auto pr-1 no-scrollbar shrink-0 min-h-[200px]">
-                <p className="text-gray-500 font-bold text-[10px] uppercase tracking-widest mb-3">Available Classes on {MONTHS[currentMonth]} {selectedDate}</p>
+                <p className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest mb-3">Available Classes on {MONTHS[currentMonth]} {selectedDate}</p>
 
                 {filteredSessionsForDate.length === 0 ? (
-                  <div className="text-center py-8 bg-[#222] rounded-2xl border border-[#333]">
-                    <p className="text-gray-500 font-bold text-xs">No sessions scheduled.</p>
+                  <div className="text-center py-8 bg-[#F9F7F2] rounded-2xl border border-gray-100">
+                    <p className="text-[#898A8D] font-bold text-xs">No sessions scheduled.</p>
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
@@ -2098,29 +2098,29 @@ export default function ClientDashboard() {
                       <div
                         key={s.id}
                         onClick={() => setSelectedLiveSession(s)}
-                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden ${selectedLiveSession?.id === s.id ? 'bg-[#222] border-[#E6FF2B]' : 'bg-[#1A1A1A] border-[#333]'}`}
+                        className={`p-4 rounded-2xl border-2 transition-all cursor-pointer relative overflow-hidden ${selectedLiveSession?.id === s.id ? 'bg-[#F9F7F2] border-[#0B4550]' : 'bg-white border-gray-150'}`}
                       >
                         <div className="flex justify-between items-start mb-2">
                           <div>
-                            <h4 className={`font-black text-sm leading-tight mb-1 text-white`}>{s.title}</h4>
-                            <p className={`text-[10px] font-bold ${selectedLiveSession?.id === s.id ? 'text-[#E6FF2B]' : 'text-gray-400'}`}>{s.time} • {s.duration}</p>
+                            <h4 className={`font-black text-sm leading-tight mb-1 text-[#0B4550]`}>{s.title}</h4>
+                            <p className={`text-[10px] font-bold ${selectedLiveSession?.id === s.id ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>{s.time} • {s.duration}</p>
                           </div>
-                          <div className={`text-right ${selectedLiveSession?.id === s.id ? 'text-gray-300' : 'text-gray-500'}`}>
+                          <div className={`text-right text-[#898A8D]`}>
                             <p className="text-[9px] font-black uppercase tracking-widest mb-1">{s.type}</p>
-                            <span className={`text-[10px] font-black px-2 py-1 rounded-md ${s.attendees?.length >= s.capacity ? 'bg-rose-500/20 text-rose-500' : (selectedLiveSession?.id === s.id ? 'bg-[#333] text-white' : 'bg-[#111] text-gray-400')}`}>
+                            <span className={`text-[10px] font-black px-2 py-1 rounded-md ${s.attendees?.length >= s.capacity ? 'bg-red-50 text-red-500' : (selectedLiveSession?.id === s.id ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-[#F9F7F2] text-[#0B4550]')}`}>
                               {s.attendees?.length || 0} / {s.capacity}
                             </span>
                           </div>
                         </div>
 
                         {/* ALWAYS SHOW WHO IS ATTENDING */}
-                        <div className="pt-2 border-t border-[#333] mt-2">
-                          <p className={`text-[9px] font-bold uppercase tracking-widest mb-1 ${selectedLiveSession?.id === s.id ? 'text-[#E6FF2B]' : 'text-gray-500'}`}>Joining Today:</p>
+                        <div className="pt-2 border-t border-gray-100 mt-2">
+                          <p className={`text-[9px] font-bold uppercase tracking-widest mb-1 text-[#898A8D]`}>Joining Today:</p>
                           <div className="flex flex-wrap gap-1.5">
                             {s.attendees && s.attendees.length > 0 ? s.attendees.map((a, i) => (
-                              <span key={i} className={`text-[10px] font-bold px-2 py-0.5 rounded text-white ${selectedLiveSession?.id === s.id ? 'bg-[#333]' : 'bg-[#222]'}`}>• {a.name.split(' ')[0]}</span>
+                              <span key={i} className={`text-[10px] font-bold px-2 py-0.5 rounded text-[#0B4550] border border-gray-100 ${selectedLiveSession?.id === s.id ? 'bg-white' : 'bg-[#F9F7F2]'}`}>• {a.name.split(' ')[0]}</span>
                             )) : (
-                              <span className={`text-[10px] font-bold ${selectedLiveSession?.id === s.id ? 'text-gray-400' : 'text-gray-600'}`}>Be the first to join!</span>
+                              <span className={`text-[10px] font-bold text-[#898A8D]`}>Be the first to join!</span>
                             )}
                           </div>
                         </div>
@@ -2130,15 +2130,15 @@ export default function ClientDashboard() {
                 )}
               </div>
 
-              <div className="mt-4 pt-4 border-t border-[#222] shrink-0">
-                <div className="bg-[#222] p-4 rounded-xl mb-3 flex justify-between items-center border border-[#333]">
-                  <span className="font-bold text-gray-400 text-[10px] uppercase tracking-widest">Package Deduction</span>
-                  <span className="font-black text-rose-500 text-xs">{clientData?.unlimited ? '0 (Unlimited)' : '-1 Session'}</span>
+              <div className="mt-4 pt-4 border-t border-gray-100 shrink-0">
+                <div className="bg-[#F9F7F2] p-4 rounded-xl mb-3 flex justify-between items-center border border-gray-100">
+                  <span className="font-bold text-[#898A8D] text-[10px] uppercase tracking-widest">Package Deduction</span>
+                  <span className="font-black text-[#0B4550] text-xs">{clientData?.unlimited ? '0 (Unlimited)' : '-1 Session'}</span>
                 </div>
                 <button
                   disabled={!selectedLiveSession || selectedLiveSession.isBookedByMe || selectedLiveSession.attendees?.length >= selectedLiveSession.capacity}
                   onClick={handleConfirmBooking}
-                  className="w-full py-4 rounded-xl font-black text-xs bg-[#E6FF2B] text-[#0A0A0A] shadow-lg disabled:opacity-50 transition-all uppercase tracking-widest"
+                  className="w-full py-4 rounded-xl font-black text-xs bg-[#0B4550] text-[#E6FF2B] shadow-lg disabled:opacity-50 transition-all uppercase tracking-widest"
                 >
                   {selectedLiveSession?.isBookedByMe ? 'Already Booked' : selectedLiveSession?.attendees?.length >= selectedLiveSession?.capacity ? 'Class Full' : 'Confirm Booking'}
                 </button>
@@ -2146,20 +2146,20 @@ export default function ClientDashboard() {
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center flex-1 animate-in zoom-in duration-500 text-center py-6">
-              <div className="w-20 h-20 bg-emerald-500/20 text-emerald-400 rounded-full flex items-center justify-center mb-5 border border-emerald-500/30"><CalendarCheck size={36} /></div>
-              <h2 className="text-2xl font-black text-white mb-2">Session Confirmed!</h2>
-              <p className="text-gray-400 font-bold text-xs mb-6">Your trainer has been notified.</p>
+              <div className="w-20 h-20 bg-emerald-50 text-emerald-600 rounded-full flex items-center justify-center mb-5 border border-emerald-200"><CalendarCheck size={36} /></div>
+              <h2 className="text-2xl font-black text-[#0B4550] mb-2">Session Confirmed!</h2>
+              <p className="text-[#898A8D] font-bold text-xs mb-6">Your trainer has been notified.</p>
 
-              <div className="bg-[#222] w-full p-5 rounded-2xl border border-[#333] mb-6">
-                <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest mb-1">Date & Time</p>
-                <h3 className="text-base font-black text-white">{MONTHS[currentMonth]} {selectedDate}, 2026</h3>
-                <h3 className="text-base font-black text-[#E6FF2B]">{selectedLiveSession?.time}</h3>
+              <div className="bg-[#F9F7F2] w-full p-5 rounded-2xl border border-gray-100 mb-6">
+                <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Date & Time</p>
+                <h3 className="text-base font-black text-[#0B4550]">{MONTHS[currentMonth]} {selectedDate}, 2026</h3>
+                <h3 className="text-base font-black text-[#0B4550]">{selectedLiveSession?.time}</h3>
               </div>
 
-              <button onClick={() => downloadICS(selectedDate, currentMonth, selectedLiveSession?.time)} className="w-full bg-[#333] hover:bg-[#444] text-white py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all mb-3">
+              <button onClick={() => downloadICS(selectedDate, currentMonth, selectedLiveSession?.time)} className="w-full bg-[#0B4550] hover:bg-[#0B4550]/90 text-[#E6FF2B] py-4 rounded-xl font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 transition-all mb-3">
                 <CalendarPlus size={16} /> Add to Calendar
               </button>
-              <button onClick={closeBookingDrawer} className="font-bold text-gray-500 hover:text-white transition-colors text-xs uppercase tracking-widest p-2">Close</button>
+              <button onClick={closeBookingDrawer} className="font-bold text-[#898A8D] hover:text-[#0B4550] transition-colors text-xs uppercase tracking-widest p-2">Close</button>
             </div>
           )}
         </div>
@@ -2207,37 +2207,37 @@ export default function ClientDashboard() {
           
           {/* MOBILE MODAL */}
           <div className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex justify-center items-end p-0">
-            <div className="bg-[#141414] border-t border-[#222] rounded-t-[2.5rem] p-6 w-full relative animate-in slide-in-from-bottom-10 duration-300 max-h-[85vh] flex flex-col pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-              <div className="w-12 h-1.5 bg-[#333] rounded-full mx-auto mb-6 shrink-0"></div>
-              <button onClick={() => setIsTopUpOpen(false)} className="absolute top-6 right-6 w-8 h-8 bg-[#222] rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors"><X size={16} /></button>
+            <div className="bg-white border-t border-gray-150 rounded-t-[2.5rem] p-6 w-full relative animate-in slide-in-from-bottom-10 duration-300 max-h-[85vh] flex flex-col pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+              <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 shrink-0"></div>
+              <button onClick={() => setIsTopUpOpen(false)} className="absolute top-6 right-6 w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#898A8D] hover:text-[#0B4550] transition-colors"><X size={16} /></button>
 
               <div className="mb-6 mt-2 shrink-0 pr-10">
-                <div className="w-12 h-12 bg-[#222] text-[#E6FF2B] rounded-2xl flex items-center justify-center mb-3 border border-[#333] shadow-md"><Package size={24} /></div>
-                <h2 className="text-2xl font-black text-white">Top Up Sessions</h2>
-                <p className="text-gray-500 font-bold text-xs mt-1">Choose a package to continue booking classes.</p>
+                <div className="w-12 h-12 bg-[#0B4550] text-[#E6FF2B] rounded-2xl flex items-center justify-center mb-3 border border-[#0B4550] shadow-md"><Package size={24} /></div>
+                <h2 className="text-2xl font-black text-[#0B4550]">Top Up Sessions</h2>
+                <p className="text-[#898A8D] font-bold text-xs mt-1">Choose a package to continue booking classes.</p>
               </div>
 
               <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 min-h-0">
                 {packagesList.map(pkg => (
-                  <div key={pkg.id} className="border border-[#333] rounded-[1.5rem] p-5 flex flex-col gap-4 bg-[#222] relative overflow-hidden">
+                  <div key={pkg.id} className="border border-gray-100 rounded-[1.5rem] p-5 flex flex-col gap-4 bg-[#F9F7F2] relative overflow-hidden">
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="inline-block px-2 py-1 rounded bg-[#111] text-[#E6FF2B] text-[9px] font-black uppercase tracking-widest mb-2 border border-[#333]">{pkg.type}</span>
-                        <h3 className="text-lg font-black text-white leading-tight">{pkg.name}</h3>
+                        <span className="inline-block px-2 py-1 rounded bg-white text-[#0B4550] text-[9px] font-black uppercase tracking-widest mb-2 border border-gray-100">{pkg.type}</span>
+                        <h3 className="text-lg font-black text-[#0B4550] leading-tight">{pkg.name}</h3>
                       </div>
                       <div className="text-right shrink-0">
-                        <span className="text-[10px] font-bold text-gray-500 mr-1">RM</span>
-                        <span className="text-2xl font-black text-[#E6FF2B]">{pkg.price}</span>
+                        <span className="text-[10px] font-bold text-[#898A8D] mr-1">RM</span>
+                        <span className="text-2xl font-black text-[#0B4550]">{pkg.price}</span>
                       </div>
                     </div>
                     
-                    <div className="flex justify-between items-center pt-3 border-t border-[#333] mt-1">
-                      <p className="text-gray-400 font-bold text-[10px] uppercase tracking-widest flex items-center gap-1.5">
+                    <div className="flex justify-between items-center pt-3 border-t border-gray-100 mt-1">
+                      <p className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest flex items-center gap-1.5">
                         <Clock size={12} /> {pkg.validity_days} days
                       </p>
                       <button
                         onClick={() => handlePurchasePackage(pkg)}
-                        className="px-5 py-2 rounded-xl font-black text-[10px] bg-[#E6FF2B] text-[#0A0A0A] uppercase tracking-widest shadow-md"
+                        className="px-5 py-2 rounded-xl font-black text-[10px] bg-[#0B4550] text-[#E6FF2B] uppercase tracking-widest shadow-md"
                       >
                         Buy Now
                       </button>
