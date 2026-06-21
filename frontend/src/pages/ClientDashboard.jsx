@@ -564,6 +564,7 @@ export default function ClientDashboard() {
 
   // Filter live sessions for the specific date selected in the modal
   const filteredSessionsForDate = liveSessions.filter(s => {
+    if (s.type === '1-on-1' || s.type === 'Blocked') return false;
     const sessionDate = parseLocalDate(s.date);
     if (!sessionDate) return false;
     return sessionDate.getDate() === selectedDate && sessionDate.getMonth() === currentMonth && sessionDate.getFullYear() === 2026;
@@ -1282,7 +1283,7 @@ export default function ClientDashboard() {
               <div className="flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-white/20 hover:scrollbar-thumb-white/40">
                 {(() => {
                   const todayStr = new Date().toISOString().split('T')[0];
-                  const futureSessions = liveSessions.filter(s => s.date >= todayStr);
+                  const futureSessions = liveSessions.filter(s => s.date >= todayStr && s.type !== '1-on-1' && s.type !== 'Blocked');
                   
                   if (futureSessions.length === 0) {
                     return (
@@ -1569,7 +1570,7 @@ export default function ClientDashboard() {
               <div className="flex-1 overflow-y-auto pr-1 space-y-3 no-scrollbar">
                 {(() => {
                   const todayStr = new Date().toISOString().split('T')[0];
-                  const futureSessions = liveSessions.filter(s => s.date >= todayStr);
+                  const futureSessions = liveSessions.filter(s => s.date >= todayStr && s.type !== '1-on-1' && s.type !== 'Blocked');
                   
                   if (futureSessions.length === 0) {
                     return (
