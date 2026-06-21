@@ -6685,18 +6685,18 @@ export default function Dashboard({ session }) {
             <div className="md:hidden flex flex-col gap-4 mb-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-black text-white">
+                  <h2 className="text-2xl font-black text-[#0B4550]">
                     {selectedScheduleDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                   </h2>
                 </div>
                 <div className="flex gap-2">
                   <button 
                     onClick={() => setSelectedScheduleDate(new Date())}
-                    className="px-3 py-1.5 bg-[#141414] text-[#E6FF2B] border border-[#222] rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                    className="px-3 py-1.5 bg-[#F9F7F2] text-[#0B4550] border border-gray-150 rounded-xl font-black text-xs uppercase tracking-widest shadow-sm active:scale-95 transition-all"
                   >
                     Today
                   </button>
-                  <button onClick={() => setShowEventModal(true)} className="bg-[#E6FF2B] text-[#0A0A0A] w-9 h-9 rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition-all">
+                  <button onClick={() => setShowEventModal(true)} className="bg-[#0B4550] text-[#E6FF2B] w-9 h-9 rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-all">
                     <Plus size={18} strokeWidth={3} />
                   </button>
                 </div>
@@ -6715,8 +6715,8 @@ export default function Dashboard({ session }) {
                       onClick={() => setSelectedScheduleDate(dayObj)}
                       className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-16 rounded-[1.25rem] transition-all border ${
                         isDayActive 
-                          ? 'bg-[#E6FF2B] border-[#E6FF2B] text-[#0A0A0A] shadow-lg scale-105' 
-                          : 'bg-[#141414] border-[#222] text-gray-500 hover:text-white'
+                          ? 'bg-[#0B4550] border-[#0B4550] text-[#E6FF2B] shadow-lg scale-105' 
+                          : 'bg-white border-gray-100 text-[#898A8D] hover:text-[#0B4550]'
                       }`}
                     >
                       <span className="text-[10px] font-black uppercase tracking-widest mb-0.5">{dayName}</span>
@@ -6824,21 +6824,21 @@ export default function Dashboard({ session }) {
                           {/* MOBILE SESSION CARD */}
                           <div className={`md:hidden flex gap-4 items-center group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-60' : ''}`}>
                             <div className="w-16 text-right shrink-0">
-                              <p className={`text-lg font-black ${isSelected ? 'text-[#E6FF2B]' : 'text-white'} ${isPast ? 'line-through opacity-50' : ''}`}>{session.time}</p>
-                              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{session.duration}</p>
+                              <p className={`text-lg font-black ${isSelected ? 'text-[#0B4550]' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-50' : ''}`}>{session.time}</p>
+                              <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">{session.duration}</p>
                             </div>
-                            <div className={`flex-1 rounded-[1.5rem] p-4 shadow-xl border transition-all relative overflow-hidden ${isSelected ? 'scale-[1.02] bg-[#1A1A1A] border-[#E6FF2B]/50 shadow-[0_0_15px_rgba(230,255,43,0.1)]' : is1on1 ? 'bg-[#0A0A0A] border-[#E6FF2B]/20' : isBlocked ? 'bg-transparent border-dashed border-[#333]' : 'bg-[#141414] border-[#222]'}`}>
+                            <div className={`flex-1 rounded-[1.5rem] p-4 shadow-sm border transition-all relative overflow-hidden ${isSelected ? 'scale-[1.02] bg-[#0B4550] border-[#0B4550] text-white shadow-md' : is1on1 ? 'bg-[#F9F7F2] border-gray-150 text-[#0B4550]' : isBlocked ? 'bg-transparent border-dashed border-gray-200' : 'bg-white border-gray-100 text-[#0B4550]'}`}>
                               <div className="flex flex-col gap-2 relative z-10">
                                 <div className="flex justify-between items-start">
-                                  <span className={`inline-block px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${is1on1 ? 'bg-[#E6FF2B] text-[#0A0A0A]' : 'bg-[#222] text-white'}`}>
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${isSelected ? 'bg-[#E6FF2B] text-[#0B4550]' : is1on1 ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-gray-100 text-[#898A8D]'}`}>
                                     {session.type}
                                   </span>
                                   {!isBlocked && (
-                                    <span className={`text-[10px] font-black uppercase tracking-widest ${is1on1 ? 'text-[#E6FF2B]' : 'text-gray-500'}`}>{session.attendees ? session.attendees.length : 0} / {session.capacity}</span>
+                                    <span className={`text-[10px] font-black uppercase tracking-widest ${isSelected ? 'text-[#E6FF2B]' : is1on1 ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>{session.attendees ? session.attendees.length : 0} / {session.capacity}</span>
                                   )}
                                 </div>
-                                <h3 className={`text-lg font-black leading-tight ${is1on1 ? 'text-white' : 'text-gray-200'} ${isPast ? 'line-through opacity-60' : ''}`}>{getSessionDisplayTitle(session)}</h3>
-                                <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${is1on1 ? 'text-gray-400' : 'text-gray-600'}`}>
+                                <h3 className={`text-lg font-black leading-tight ${isSelected ? 'text-white' : is1on1 ? 'text-[#0B4550]' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-60' : ''}`}>{getSessionDisplayTitle(session)}</h3>
+                                <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${isSelected ? 'text-white/70' : 'text-[#898A8D]'}`}>
                                   <MapPin size={12} className="shrink-0" /> 
                                   <span className="truncate">{displayLocation} {displayCoach && `• ${displayCoach}`}</span>
                                 </div>

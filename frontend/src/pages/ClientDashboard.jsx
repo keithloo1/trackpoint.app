@@ -1896,7 +1896,6 @@ export default function ClientDashboard() {
           <div className="flex justify-between items-center mb-6 sm:mb-8"><h2 className="text-3xl font-medium text-[#0B4550]">Settings</h2><button onClick={() => setIsSettingsOpen(false)} className="w-10 h-10 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-colors"><X size={20} /></button></div>
           <div className="flex gap-2 bg-[#F9F7F2] p-2 rounded-2xl mb-8">
             <button onClick={() => setSettingsTab('profile')} className={`flex-1 py-3 font-medium text-sm rounded-xl transition-all ${settingsTab === 'profile' ? 'bg-white shadow-sm text-[#0B4550]' : 'text-[#898A8D]'}`}>Profile</button>
-            <button onClick={() => setSettingsTab('billing')} className={`flex-1 py-3 font-medium text-sm rounded-xl transition-all ${settingsTab === 'billing' ? 'bg-white shadow-sm text-[#0B4550]' : 'text-[#898A8D]'}`}>Billing</button>
             <button onClick={() => setSettingsTab('alerts')} className={`flex-1 py-3 font-medium text-sm rounded-xl transition-all ${settingsTab === 'alerts' ? 'bg-white shadow-sm text-[#0B4550]' : 'text-[#898A8D]'}`}>Alerts</button>
           </div>
           <div className="flex-1 overflow-y-auto no-scrollbar pb-10">
@@ -1911,14 +1910,6 @@ export default function ClientDashboard() {
                   <div><label className="text-[#898A8D] font-medium text-xs uppercase tracking-widest mb-2 block">Email Address</label><input type="email" value={tempProfileEmail} onChange={(e) => setTempProfileEmail(e.target.value)} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl p-4 font-medium text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors" /></div>
                   <div><label className="text-[#898A8D] font-medium text-xs uppercase tracking-widest mb-2 block">Phone Number</label><input type="tel" value={tempProfilePhone} onChange={(e) => setTempProfilePhone(e.target.value)} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl p-4 font-medium text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors" /></div>
                 </div>
-              </div>
-            )}
-            {settingsTab === 'billing' && (
-              <div className="animate-in fade-in">
-                <h3 className="font-medium text-[#0B4550] text-lg mb-4">Payment Method</h3>
-                <div className="bg-gradient-to-tr from-[#0B4550] to-[#125c6a] p-6 rounded-3xl text-white shadow-xl mb-10 relative overflow-hidden"><Zap size={120} className="absolute -right-10 -bottom-10 opacity-10 text-[#E6FF2B]" /><div className="flex justify-between items-center mb-8 relative z-10"><CreditCard size={28} /><span className="font-medium tracking-widest uppercase text-xs opacity-70">Visa</span></div><div className="relative z-10"><p className="font-medium text-2xl tracking-[0.2em] mb-2">**** **** **** 4242</p><div className="flex justify-between text-sm font-medium opacity-70"><span>{clientData.name}</span><span>12/28</span></div></div></div>
-                <h3 className="font-medium text-[#0B4550] text-lg mb-4">Past Invoices</h3>
-                <div className="space-y-3">{PAST_INVOICES.map(inv => (<div key={inv.id} className="flex justify-between items-center p-4 bg-[#F9F7F2] rounded-2xl border border-gray-100 hover:border-[#0B4550] transition-colors cursor-pointer group"><div><p className="font-medium text-[#0B4550]">{inv.item}</p><p className="text-xs font-medium text-[#898A8D]">{inv.date} • {inv.id}</p></div><div className="flex items-center gap-4"><span className="font-medium text-[#0B4550]">{inv.amount}</span><div className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-[#898A8D] group-hover:text-blue-500 shadow-sm"><FileText size={14} /></div></div></div>))}</div>
               </div>
             )}
             {settingsTab === 'alerts' && (
