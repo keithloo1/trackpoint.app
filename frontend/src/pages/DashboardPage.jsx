@@ -4040,53 +4040,53 @@ export default function Dashboard({ session }) {
     const attendedCount = selectedSession.attendees ? selectedSession.attendees.length : 0;
     
     return (
-      <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-xs z-[100] flex items-end justify-center" onClick={() => setShowMobileRosterDrawer(false)}>
+      <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end justify-center" onClick={() => setShowMobileRosterDrawer(false)}>
         <div 
-          className="bg-white rounded-t-[2rem] w-full max-h-[85vh] overflow-y-auto p-5 shadow-2xl relative animate-in slide-in-from-bottom duration-300"
+          className="bg-[#141414] border-t border-[#222] rounded-t-[2.5rem] w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative animate-in slide-in-from-bottom duration-300 pb-[calc(2rem+env(safe-area-inset-bottom))]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Handle */}
-          <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-4"></div>
+          <div className="w-12 h-1.5 bg-[#333] rounded-full mx-auto mb-6"></div>
           
           {/* Header */}
-          <div className="flex justify-between items-start mb-5">
+          <div className="flex justify-between items-start mb-6">
             <div>
-              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${selectedSession.type === '1-on-1' ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
+              <span className={`text-[10px] px-2.5 py-1 rounded-full font-black uppercase tracking-wider ${selectedSession.type === '1-on-1' ? 'bg-[#E6FF2B]/20 text-[#E6FF2B]' : 'bg-teal-500/20 text-teal-400'}`}>
                 {selectedSession.type}
               </span>
-              <h2 className="text-lg font-bold text-[#0B4550] mt-1">{getSessionDisplayTitle(selectedSession)}</h2>
-              <div className="flex flex-col gap-0.5 mt-1 text-xs text-[#898A8D] font-semibold">
-                <span className="flex items-center gap-1"><Clock size={12} /> {formatDbDate(selectedSession.date)} • {selectedSession.time}</span>
-                <span className="flex items-center gap-1"><MapPin size={12} /> {selectedSession.location ? selectedSession.location.split(' | Coach: ')[0] : 'Main Floor'}</span>
+              <h2 className="text-xl font-black text-white mt-2">{getSessionDisplayTitle(selectedSession)}</h2>
+              <div className="flex flex-col gap-1 mt-1.5 text-xs text-gray-400 font-bold">
+                <span className="flex items-center gap-1.5"><Clock size={14} /> {formatDbDate(selectedSession.date)} • {selectedSession.time}</span>
+                <span className="flex items-center gap-1.5"><MapPin size={14} /> {selectedSession.location ? selectedSession.location.split(' | Coach: ')[0] : 'Main Floor'}</span>
               </div>
             </div>
             <button 
               onClick={() => setShowMobileRosterDrawer(false)}
-              className="p-2 bg-gray-100 rounded-full text-[#898A8D] hover:text-[#0B4550]"
+              className="p-2.5 bg-[#222] rounded-full text-gray-400 hover:text-white transition-colors"
             >
-              <X size={18} />
+              <X size={20} />
             </button>
           </div>
 
           {selectedSession.type !== 'Blocked' ? (
-            <div className="space-y-5">
+            <div className="space-y-6">
               {/* Tabs Header */}
-              <div className="flex border-b border-gray-100 gap-4 mb-2">
+              <div className="flex border-b border-[#333] gap-6 mb-2">
                 <button 
                   type="button"
                   onClick={() => setSessionDetailTab('roster')}
-                  className={`pb-2 text-sm font-extrabold transition-all relative ${sessionDetailTab === 'roster' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
+                  className={`pb-3 text-sm font-black transition-all relative ${sessionDetailTab === 'roster' ? 'text-white' : 'text-gray-500'}`}
                 >
                   Roster
-                  {sessionDetailTab === 'roster' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
+                  {sessionDetailTab === 'roster' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E6FF2B] rounded-full"></span>}
                 </button>
                 <button 
                   type="button"
                   onClick={() => setSessionDetailTab('workout')}
-                  className={`pb-2 text-sm font-extrabold transition-all relative ${sessionDetailTab === 'workout' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
+                  className={`pb-3 text-sm font-black transition-all relative ${sessionDetailTab === 'workout' ? 'text-white' : 'text-gray-500'}`}
                 >
                   Workout Log
-                  {sessionDetailTab === 'workout' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
+                  {sessionDetailTab === 'workout' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#E6FF2B] rounded-full"></span>}
                 </button>
               </div>
 
@@ -4099,37 +4099,37 @@ export default function Dashboard({ session }) {
                         setShowStudentDropdown(!showStudentDropdown);
                         setSearchStudentQuery('');
                       }}
-                      className="w-full bg-[#F9F7F2] border border-gray-200 rounded-xl px-4 py-3 text-xs text-[#0B4550] font-bold flex justify-between items-center outline-none"
+                      className="w-full bg-[#222] border border-[#333] rounded-2xl px-5 py-4 text-sm text-white font-bold flex justify-between items-center outline-none"
                     >
                       <span>
                         {selectedStudentIds.length === 0 
                           ? 'Book / Assign Students...' 
                           : `${selectedStudentIds.length} student(s) selected`}
                       </span>
-                      <ChevronDown size={16} className={`transition-transform duration-200 ${showStudentDropdown ? 'rotate-180' : ''}`} />
+                      <ChevronDown size={18} className={`transition-transform duration-200 text-gray-400 ${showStudentDropdown ? 'rotate-180' : ''}`} />
                     </button>
 
                     {showStudentDropdown && (
-                      <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-[110] p-3 flex flex-col max-h-56">
-                        <div className="relative mb-2 shrink-0">
+                      <div className="absolute left-0 right-0 mt-2 bg-[#1A1A1A] border border-[#333] rounded-2xl shadow-xl z-[110] p-4 flex flex-col max-h-64">
+                        <div className="relative mb-3 shrink-0">
                           <input 
                             type="text" 
                             placeholder="Search clients..." 
                             value={searchStudentQuery}
                             onChange={(e) => setSearchStudentQuery(e.target.value)}
-                            className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2 pl-8 pr-4 text-xs font-semibold text-[#0B4550] outline-none"
+                            className="w-full bg-[#222] border border-[#333] rounded-xl py-3 pl-10 pr-4 text-xs font-semibold text-white outline-none placeholder-gray-500 focus:border-[#E6FF2B]"
                           />
-                          <Search className="absolute left-2.5 top-2.5 text-gray-400" size={12} />
+                          <Search className="absolute left-3.5 top-3.5 text-gray-400" size={14} />
                         </div>
 
-                        <div className="overflow-y-auto flex-1 space-y-1 pr-1">
+                        <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
                           {(() => {
                             const filtered = clients
                               .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(searchStudentQuery.toLowerCase()))
                               .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
 
                             if (filtered.length === 0) {
-                              return <p className="text-[11px] text-gray-400 text-center py-3">No clients found.</p>;
+                              return <p className="text-xs text-gray-500 text-center py-4 font-bold">No clients found.</p>;
                             }
 
                             return filtered.map(c => {
@@ -4139,7 +4139,7 @@ export default function Dashboard({ session }) {
                               return (
                                 <label 
                                   key={c.id} 
-                                  className={`flex items-center gap-2 p-2 rounded-lg transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-[#F9F7F2]'}`}
+                                  className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-40 cursor-not-allowed bg-[#222]' : 'hover:bg-[#222]'}`}
                                 >
                                   <input 
                                     type="checkbox"
@@ -4151,18 +4151,18 @@ export default function Dashboard({ session }) {
                                         prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
                                       );
                                     }}
-                                    className="w-4 h-4 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550]"
+                                    className="w-5 h-5 text-[#E6FF2B] bg-[#222] border-[#444] rounded focus:ring-[#E6FF2B] focus:ring-offset-[#1A1A1A]"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-xs font-bold text-[#0B4550] truncate">{c.name}</p>
-                                    <p className="text-[10px] text-[#898A8D] font-medium">
+                                    <p className="text-sm font-bold text-white truncate">{c.name}</p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mt-0.5">
                                       {c.unlimited 
                                         ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}` 
                                         : `${c.remaining_package || 0} left`}
                                     </p>
                                   </div>
                                   {isAlreadyRostered && (
-                                    <span className="text-[8px] font-black text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-full uppercase tracking-wider">Booked</span>
+                                    <span className="text-[9px] font-black text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-full uppercase tracking-wider">Booked</span>
                                   )}
                                 </label>
                               );
@@ -4170,14 +4170,14 @@ export default function Dashboard({ session }) {
                           })()}
                         </div>
 
-                        <div className="border-t border-gray-100 pt-2 mt-2 flex gap-2 shrink-0">
+                        <div className="border-t border-[#333] pt-3 mt-3 flex gap-3 shrink-0">
                           <button 
                             type="button"
                             onClick={() => {
                               setSelectedStudentIds([]);
                               setShowStudentDropdown(false);
                             }}
-                            className="flex-1 py-1.5 rounded-lg text-xs font-bold text-gray-505 hover:bg-gray-50"
+                            className="flex-1 py-3 rounded-xl text-xs font-bold text-gray-400 bg-[#222]"
                           >
                             Cancel
                           </button>
@@ -4188,7 +4188,7 @@ export default function Dashboard({ session }) {
                               handleAssignMultipleClients();
                               setShowStudentDropdown(false);
                             }}
-                            className="flex-[2] py-1.5 rounded-lg text-xs font-extrabold text-[#E6FF2B] bg-[#0B4550] disabled:opacity-50"
+                            className="flex-[2] py-3 rounded-xl text-xs font-black text-[#0A0A0A] bg-[#E6FF2B] disabled:opacity-50 disabled:bg-[#333] disabled:text-gray-500"
                           >
                             Assign ({selectedStudentIds.length})
                           </button>
@@ -4199,38 +4199,38 @@ export default function Dashboard({ session }) {
 
                   {/* Roster List */}
                   <div>
-                    <h3 className="font-bold text-sm text-[#0B4550] mb-2">Roster ({attendedCount} / {selectedSession.capacity})</h3>
+                    <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider mb-3">Roster ({attendedCount} / {selectedSession.capacity})</h3>
 
                     {selectedSession.attendees.length === 0 ? (
-                      <div className="text-center py-6 bg-[#F9F7F2] rounded-xl border border-gray-100">
-                        <p className="text-xs font-medium text-[#898A8D]">No bookings yet.</p>
+                      <div className="text-center py-8 bg-[#222] rounded-2xl border border-[#333]">
+                        <p className="text-sm font-bold text-gray-500">No bookings yet.</p>
                       </div>
                     ) : (
-                      <div className="space-y-2 max-h-[30vh] overflow-y-auto pr-1">
+                      <div className="space-y-3 max-h-[35vh] overflow-y-auto pr-1 no-scrollbar">
                         {selectedSession.attendees.map((attendee) => (
-                          <div key={attendee.booking_id} className="flex items-center gap-3 p-2.5 rounded-xl bg-gray-50 border border-gray-100">
-                            <div className="w-8 h-8 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-[10px] font-medium shrink-0">
+                          <div key={attendee.booking_id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#222] border border-[#333]">
+                            <div className="w-10 h-10 rounded-full bg-[#111] text-[#E6FF2B] border border-[#333] flex items-center justify-center text-xs font-bold shrink-0">
                               {getInitials(attendee.name)}
                             </div>
                             <div className="flex-1 min-w-0">
-                              <span className="text-xs font-bold text-[#0B4550] block truncate">{attendee.name}</span>
-                              <span className={`text-[9px] font-bold uppercase tracking-widest ${attendee.status === 'Attended' ? 'text-emerald-500' : 'text-[#898A8D]'}`}>
+                              <span className="text-sm font-bold text-white block truncate">{attendee.name}</span>
+                              <span className={`text-[10px] font-black uppercase tracking-widest mt-0.5 block ${attendee.status === 'Attended' ? 'text-emerald-400' : 'text-gray-500'}`}>
                                 {attendee.status}
                               </span>
                             </div>
                             
                             <button 
                               onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} 
-                              className={`p-2 rounded-lg transition-colors ${attendee.status === 'Attended' ? 'bg-emerald-100 text-emerald-600' : 'bg-white text-gray-300 border border-gray-200'}`}
+                              className={`p-3 rounded-xl transition-all ${attendee.status === 'Attended' ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' : 'bg-[#141414] text-gray-500 border border-[#333]'}`}
                             >
-                              <CheckSquare size={16} />
+                              <CheckSquare size={18} />
                             </button>
                             
                             <button 
                               onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} 
-                              className="p-2 rounded-lg bg-white text-gray-300 hover:text-red-500 border border-gray-200"
+                              className="p-3 rounded-xl bg-[#141414] text-gray-500 hover:text-rose-400 border border-[#333] transition-all"
                             >
-                              <Trash2 size={16} />
+                              <Trash2 size={18} />
                             </button>
                           </div>
                         ))}
@@ -4245,62 +4245,62 @@ export default function Dashboard({ session }) {
                         setShowMobileRosterDrawer(false);
                         handleOpenAttendanceSummaryModal();
                       }}
-                      className="w-full py-3 rounded-xl bg-[#10B981] hover:bg-[#059669] text-white font-extrabold text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-[0.99]"
+                      className="w-full py-4 rounded-2xl bg-emerald-500 text-white font-black text-sm flex items-center justify-center gap-2 shadow-lg mt-2 active:scale-[0.98] transition-all"
                     >
-                      <CheckSquare size={14} /> Review & Confirm Attendance
+                      <CheckSquare size={18} /> Review & Confirm Attendance
                     </button>
                   )}
                 </>
               ) : (
-                <div className="flex flex-col gap-3">
-                  <h3 className="font-bold text-sm text-[#0B4550]">Class Workout Log</h3>
-                  <div className="flex flex-col gap-3 bg-[#F9F7F2] p-4 rounded-xl border border-gray-100">
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-[#898A8D] uppercase tracking-wider">Workout Title</label>
+                <div className="flex flex-col gap-4">
+                  <h3 className="font-bold text-sm text-gray-400 uppercase tracking-wider">Class Workout Log</h3>
+                  <div className="flex flex-col gap-4 bg-[#222] p-5 rounded-2xl border border-[#333]">
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Workout Title</label>
                       <input 
                         type="text" 
                         value={sessionWorkoutTitle}
                         onChange={(e) => setSessionWorkoutTitle(e.target.value)}
-                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-[#0B4550] outline-none"
+                        className="w-full bg-[#141414] border border-[#333] rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#E6FF2B]"
                         placeholder="Workout Title..."
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-[#898A8D] uppercase tracking-wider">Date</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Date</label>
                       <input 
                         type="text" 
                         value={sessionWorkoutDate}
                         onChange={(e) => setSessionWorkoutDate(e.target.value)}
-                        className="w-full bg-white border border-gray-200 rounded-lg px-3 py-2 text-xs font-bold text-[#0B4550] outline-none"
+                        className="w-full bg-[#141414] border border-[#333] rounded-xl px-4 py-3 text-xs font-bold text-white outline-none focus:border-[#E6FF2B]"
                         placeholder="Date..."
                       />
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <label className="text-[9px] font-bold text-[#898A8D] uppercase tracking-wider">Workout Notes</label>
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-[10px] font-black text-gray-500 uppercase tracking-wider">Workout Notes</label>
                       <textarea 
                         value={sessionWorkoutContent}
                         onChange={(e) => setSessionWorkoutContent(e.target.value)}
-                        className="w-full h-32 bg-white border border-gray-200 rounded-lg p-3 text-xs font-semibold text-[#0B4550] outline-none resize-none"
+                        className="w-full h-32 bg-[#141414] border border-[#333] rounded-xl p-4 text-xs font-semibold text-white outline-none resize-none focus:border-[#E6FF2B]"
                         placeholder="Workouts done today..."
                       />
                     </div>
                   </div>
 
-                  <div className="flex flex-col gap-2 mt-1">
+                  <div className="flex flex-col gap-2.5 mt-2">
                     {sessionWorkoutSyncMsg && (
-                      <span className="text-emerald-500 font-bold text-xs flex items-center gap-1">
-                        <Check size={12}/> {sessionWorkoutSyncMsg}
+                      <span className="text-emerald-400 font-bold text-xs flex items-center gap-1.5">
+                        <Check size={14}/> {sessionWorkoutSyncMsg}
                       </span>
                     )}
                     <button 
                       onClick={handleSyncSessionWorkout}
                       disabled={isSyncingSessionWorkout}
-                      className="w-full bg-[#0B4550] text-[#E6FF2B] py-3 rounded-lg font-bold text-xs hover:scale-[1.01] transition-all flex items-center justify-center gap-2 shadow-xs disabled:opacity-50"
+                      className="w-full bg-[#E6FF2B] text-[#0A0A0A] py-4 rounded-2xl font-black text-sm hover:scale-[1.01] transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
                     >
-                      {isSyncingSessionWorkout ? <RotateCw className="animate-spin" size={14}/> : <Save size={14}/>}
+                      {isSyncingSessionWorkout ? <RotateCw className="animate-spin" size={16}/> : <Save size={16}/>}
                       Sync with Attended Clients
                     </button>
-                    <p className="text-[9px] text-gray-400 font-medium text-center leading-normal">
+                    <p className="text-[10px] text-gray-500 font-bold text-center leading-normal px-4">
                       Syncs to workout logs of all check-ins ("Attended").
                     </p>
                   </div>
@@ -4308,31 +4308,31 @@ export default function Dashboard({ session }) {
               )}
 
               {/* Edit / Cancel Class */}
-              <div className="flex gap-2 border-t border-gray-100 pt-3">
+              <div className="flex gap-3 border-t border-[#333] pt-5 mt-2">
                 <button 
                   onClick={() => {
                     setShowMobileRosterDrawer(false);
                     handleOpenEditEvent();
                   }}
-                  className="flex-1 py-2.5 bg-[#F9F7F2] text-[#0B4550] font-bold rounded-xl text-[11px]"
+                  className="flex-1 py-4 bg-[#222] text-white font-black rounded-2xl text-xs flex justify-center items-center gap-2 border border-[#333]"
                 >
-                  Edit Class
+                  <Edit3 size={16}/> Edit
                 </button>
                 <button 
                   onClick={() => {
                     handleDeleteSession(selectedSession.id);
                     setShowMobileRosterDrawer(false);
                   }}
-                  className="flex-1 py-2.5 bg-rose-50 text-rose-600 font-bold rounded-xl text-[11px]"
+                  className="flex-1 py-4 bg-rose-500/10 text-rose-500 font-black rounded-2xl text-xs flex justify-center items-center gap-2 border border-rose-500/20"
                 >
-                  Cancel Class
+                  <Trash2 size={16}/> Cancel Class
                 </button>
               </div>
 
             </div>
           ) : (
-            <div className="text-center py-6 bg-[#F9F7F2] rounded-xl border border-gray-100">
-              <p className="text-xs font-medium text-[#898A8D]">Time block reserved for personal tasks.</p>
+            <div className="text-center py-10 bg-[#222] rounded-2xl border border-[#333] mt-4">
+              <p className="text-sm font-bold text-gray-500">Time block reserved for personal tasks.</p>
             </div>
           )}
 
@@ -4345,8 +4345,8 @@ export default function Dashboard({ session }) {
     <div className="flex flex-col lg:flex-row h-screen w-full bg-[#F9F7F2] font-sans text-[#0B4550] overflow-hidden">
       
       {/* SIDEBAR - Hidden when in ClassMode or on mobile */}
-      {!isMobile && activePage !== 'ClassMode' && (
-      <aside className="w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)] flex">
+      {activePage !== 'ClassMode' && (
+      <aside className="hidden md:flex w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
         <div className="flex items-center px-4 md:px-6 py-5 md:py-8">
           <button 
             onClick={() => {
@@ -4384,27 +4384,27 @@ export default function Dashboard({ session }) {
       )}
   
       {/* MOBILE BOTTOM NAVIGATION - Visible only on small screens, hidden in ClassMode */}
-      {isMobile && activePage !== 'ClassMode' && (
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 flex justify-around items-center py-3 px-2 z-[50] shadow-[0_-4px_24px_rgba(0,0,0,0.04)]">
-        <button onClick={() => setActivePage('Dashboard')} className={`flex flex-col items-center gap-1 ${activePage === 'Dashboard' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
-          <Home size={22} />
-          <span className="text-[9px] font-bold">Home</span>
+      {activePage !== 'ClassMode' && (
+      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0A0A0A] border-t border-[#222] flex justify-around items-center py-4 px-2 z-[50] pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.5)]">
+        <button onClick={() => setActivePage('Dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Dashboard' ? 'text-[#E6FF2B] scale-110' : 'text-gray-500 hover:text-gray-400'}`}>
+          <Home size={24} strokeWidth={activePage === 'Dashboard' ? 2.5 : 2} />
+          <span className="text-[10px] font-bold">Home</span>
         </button>
-        <button onClick={() => handleNavigateToPage('Clients')} className={`flex flex-col items-center gap-1 ${activePage === 'Clients' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
-          <Users size={22} />
-          <span className="text-[9px] font-bold">Clients</span>
+        <button onClick={() => handleNavigateToPage('Clients')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Clients' ? 'text-[#E6FF2B] scale-110' : 'text-gray-500 hover:text-gray-400'}`}>
+          <Users size={24} strokeWidth={activePage === 'Clients' ? 2.5 : 2} />
+          <span className="text-[10px] font-bold">Clients</span>
         </button>
-        <button onClick={() => handleNavigateToPage('Revenue')} className={`flex flex-col items-center gap-1 ${activePage === 'Revenue' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
-          <DollarSign size={22} />
-          <span className="text-[9px] font-bold">Revenue</span>
+        <button onClick={() => handleNavigateToPage('Revenue')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Revenue' ? 'text-[#E6FF2B] scale-110' : 'text-gray-500 hover:text-gray-400'}`}>
+          <DollarSign size={24} strokeWidth={activePage === 'Revenue' ? 2.5 : 2} />
+          <span className="text-[10px] font-bold">Revenue</span>
         </button>
-        <button onClick={() => setActivePage('Schedule')} className={`flex flex-col items-center gap-1 ${activePage === 'Schedule' ? 'text-[#0B4550]' : 'text-gray-400'}`}>
-          <Calendar size={22} />
-          <span className="text-[9px] font-bold">Schedule</span>
+        <button onClick={() => setActivePage('Schedule')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Schedule' ? 'text-[#E6FF2B] scale-110' : 'text-gray-500 hover:text-gray-400'}`}>
+          <Calendar size={24} strokeWidth={activePage === 'Schedule' ? 2.5 : 2} />
+          <span className="text-[10px] font-bold">Schedule</span>
         </button>
-        <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 'text-[#0B4550]' : 'text-gray-400'}`}>
-          <LayoutGrid size={22} />
-          <span className="text-[9px] font-bold">More</span>
+        <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 transition-all ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 'text-[#E6FF2B] scale-110' : 'text-gray-500 hover:text-gray-400'}`}>
+          <LayoutGrid size={24} strokeWidth={['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 2.5 : 2} />
+          <span className="text-[10px] font-bold">More</span>
         </button>
       </div>
       )}
@@ -4415,31 +4415,33 @@ export default function Dashboard({ session }) {
 
         {/* UNIVERSAL DYNAMIC HEADER - Hidden in ClassMode */}
 {activePage !== 'ClassMode' && (
-  isMobile ? (
-    <header className="flex items-center justify-between mb-6 gap-2 bg-white p-3.5 rounded-2xl shadow-xs border border-gray-150/40">
+  <>
+    {/* MOBILE HEADER */}
+    <header className="md:hidden flex items-center justify-between mb-6 gap-2 bg-[#141414] p-4 rounded-3xl shadow-xl border border-[#222]">
       <div className="flex items-center gap-3">
-        <img src={companyLogo || newLogo} alt={companyName} className="h-10 w-auto object-contain max-h-[40px]" />
+        <img src={companyLogo || newLogo} alt={companyName} className="h-10 w-auto object-contain max-h-[40px] brightness-0 invert" />
         <div>
-          <h1 className="text-sm font-extrabold text-[#0B4550]">
+          <h1 className="text-sm font-black text-white tracking-wide">
             {activePage === 'Dashboard' ? `${greeting}, ${trainerName.split(' ')[0]}` : activePage}
           </h1>
-          <p className="text-[10px] text-[#898A8D] font-bold">{todayFormattedFull}</p>
+          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{todayFormattedFull}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">
         <button 
           onClick={() => setShowAICopilot(true)}
-          className="w-9 h-9 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center relative hover:scale-105 transition-all shadow-xs border border-gray-100/50"
+          className="w-10 h-10 bg-[#222] text-[#E6FF2B] rounded-full flex items-center justify-center relative hover:scale-105 transition-all shadow-inner border border-[#333]"
         >
           <Sparkles size={18} />
         </button>
-        <div className="w-9 h-9 rounded-full bg-[#0B4550] flex items-center justify-center text-[#E6FF2B] text-xs font-bold border-2 border-white shadow-xs">
+        <div className="w-10 h-10 rounded-full bg-[#E6FF2B] flex items-center justify-center text-[#0A0A0A] text-xs font-black border-2 border-[#141414] shadow-md">
           {getInitials(trainerName)}
         </div>
       </div>
     </header>
-  ) : (
-<header className="flex flex-col lg:flex-row lg:justify-between lg:items-start mb-8 gap-4 md:gap-6">
+
+    {/* DESKTOP HEADER */}
+    <header className="hidden md:flex flex-col lg:flex-row lg:justify-between lg:items-start mb-8 gap-4 md:gap-6">
   <div className="flex-1">
     {/* DASHBOARD HEADER */}
     {activePage === 'Dashboard' && (
@@ -4569,54 +4571,86 @@ export default function Dashboard({ session }) {
 )}
         {/* VIEW: DASHBOARD OVERVIEW */}
         {activePage === 'Dashboard' && (
-          isMobile ? (
-            <div className="space-y-6 animate-in fade-in duration-300">
-              {/* Daily Quote Card */}
-              <div className="bg-white p-4 rounded-2xl border-l-4 border-[#E6FF2B] shadow-xs">
-                <p className="text-[#0B4550] text-sm italic font-medium">{quote}</p>
+          <>
+            {/* MOBILE DASHBOARD (HIGH FIDELITY) */}
+            <div className="md:hidden space-y-4 animate-in fade-in duration-300 pb-8">
+              {/* Main Balance / Revenue Card */}
+              <div 
+                onClick={() => handleNavigateToPage('Revenue')}
+                className="bg-gradient-to-br from-[#1A1A1A] to-[#0A0A0A] p-6 rounded-[2rem] border border-[#222] shadow-2xl relative overflow-hidden cursor-pointer group"
+              >
+                <div className="absolute top-0 right-0 p-4 opacity-20 group-hover:opacity-40 transition-opacity">
+                  <ArrowUpRight size={80} className="text-[#E6FF2B]" />
+                </div>
+                <div className="relative z-10 flex flex-col h-full justify-between">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-gray-400 text-xs font-bold uppercase tracking-widest">Total Revenue</span>
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleRevenueVisibility();
+                      }}
+                      className="text-gray-500 hover:text-white p-1"
+                    >
+                      {isRevenueHidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                    </button>
+                  </div>
+                  <h2 className="text-4xl font-black text-white tracking-tight mb-6">
+                    {isRevenueHidden ? 'RM ••••' : `RM ${dashboardMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                  </h2>
+                  <div className="flex items-center justify-between">
+                    <span className="text-[#E6FF2B] bg-[#E6FF2B]/10 px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-widest border border-[#E6FF2B]/20">
+                      {dashboardMetrics.revenueGrowthStr || "+12.4%"} This Month
+                    </span>
+                  </div>
+                </div>
               </div>
 
-              {/* Quick Metrics Cards */}
-              <div className="grid grid-cols-2 gap-3">
-                <div 
-                  onClick={() => handleNavigateToPage('Revenue')}
-                  className="bg-[#0B4550] p-4 rounded-2xl text-white shadow-xs flex flex-col justify-between h-24 cursor-pointer"
-                >
-                  <span className="text-white/70 text-xs font-medium">Revenue</span>
-                  <span className="text-lg font-bold truncate">
-                    {isRevenueHidden ? 'RM ••••' : `RM ${dashboardMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-                  </span>
-                </div>
+              {/* Secondary Metrics Grid */}
+              <div className="grid grid-cols-2 gap-4">
                 <div 
                   onClick={() => handleNavigateToPage('Clients', 'Active')}
-                  className="bg-white border border-gray-100 p-4 rounded-2xl shadow-xs flex flex-col justify-between h-24 cursor-pointer"
+                  className="bg-[#141414] p-5 rounded-[2rem] border border-[#222] shadow-lg flex flex-col justify-between cursor-pointer"
                 >
-                  <span className="text-[#898A8D] text-xs font-medium">Active Clients</span>
-                  <span className="text-[#0B4550] text-xl font-bold">{activeClientsCount}</span>
+                  <div className="w-8 h-8 rounded-full bg-[#222] flex items-center justify-center mb-3">
+                    <Users size={14} className="text-[#E6FF2B]" />
+                  </div>
+                  <span className="text-3xl font-black text-white mb-1">{activeClientsCount}</span>
+                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Active Clients</span>
+                </div>
+                <div 
+                  onClick={() => handleNavigateToPage('Schedule')}
+                  className="bg-[#141414] p-5 rounded-[2rem] border border-[#222] shadow-lg flex flex-col justify-between cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#222] flex items-center justify-center mb-3">
+                    <Calendar size={14} className="text-[#E6FF2B]" />
+                  </div>
+                  <span className="text-3xl font-black text-white mb-1">
+                    {sessions.filter(s => s.date === new Date().toLocaleDateString('sv-SE')).length}
+                  </span>
+                  <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest">Classes Today</span>
                 </div>
               </div>
 
-              {/* TABS TOGGLE: Classes vs History */}
-              <div className="flex bg-white rounded-xl p-1 shadow-sm border border-gray-100">
+              {/* Segmented Control for Schedule vs Logs */}
+              <div className="bg-[#141414] rounded-[1.5rem] p-1.5 flex border border-[#222]">
                 <button 
                   onClick={() => setMobileDashboardTab('schedule')}
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${mobileDashboardTab === 'schedule' ? 'bg-[#0B4550] text-[#E6FF2B]' : 'text-[#898A8D]'}`}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDashboardTab === 'schedule' ? 'bg-[#E6FF2B] text-[#0A0A0A] shadow-md' : 'text-gray-500'}`}
                 >
-                  Today's Classes
+                  Schedule
                 </button>
                 <button 
                   onClick={() => setMobileDashboardTab('history')}
-                  className={`flex-1 py-2.5 rounded-lg text-sm font-bold transition-all ${mobileDashboardTab === 'history' ? 'bg-[#0B4550] text-[#E6FF2B]' : 'text-[#898A8D]'}`}
+                  className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDashboardTab === 'history' ? 'bg-[#E6FF2B] text-[#0A0A0A] shadow-md' : 'text-gray-500'}`}
                 >
-                  Attendance Logs
+                  History
                 </button>
               </div>
 
-              {/* TAB CONTENT: Today's Classes */}
+              {/* Schedule Tab Content */}
               {mobileDashboardTab === 'schedule' && (
-                <div className="space-y-4">
-                  <h3 className="font-bold text-base text-[#0B4550]">Today's Schedule</h3>
-                  
+                <div className="space-y-3">
                   {(() => {
                     const todayStr = new Date().toLocaleDateString('sv-SE');
                     const todaySessions = sessions
@@ -4625,15 +4659,8 @@ export default function Dashboard({ session }) {
 
                     if (todaySessions.length === 0) {
                       return (
-                        <div className="text-center py-10 bg-white rounded-2xl border border-gray-100 shadow-xs">
-                          <Calendar size={40} className="mx-auto text-gray-300 mb-2" />
-                          <p className="text-[#898A8D] font-medium text-sm">No classes scheduled for today.</p>
-                          <button 
-                            onClick={() => setActivePage('Schedule')}
-                            className="mt-3 text-xs font-bold text-[#0B4550] bg-[#F9F7F2] px-4 py-2 rounded-lg border border-gray-100"
-                          >
-                            Go to Schedule
-                          </button>
+                        <div className="text-center py-12 bg-[#141414] rounded-[2rem] border border-[#222]">
+                          <p className="text-gray-500 font-bold text-sm">No classes today.</p>
                         </div>
                       );
                     }
@@ -4644,30 +4671,19 @@ export default function Dashboard({ session }) {
                       return (
                         <div 
                           key={session.id}
-                          onClick={() => {
-                            setSelectedSession(session);
-                            setShowMobileRosterDrawer(true);
-                          }}
-                          className={`bg-white border border-gray-100 rounded-2xl p-4 shadow-xs flex justify-between items-center transition-all active:scale-[0.99] cursor-pointer ${isPast ? 'opacity-75' : ''}`}
+                          onClick={() => { setSelectedSession(session); setShowMobileRosterDrawer(true); }}
+                          className={`bg-[#141414] border border-[#222] rounded-[1.5rem] p-5 flex justify-between items-center transition-all active:scale-[0.98] cursor-pointer ${isPast ? 'opacity-50' : ''}`}
                         >
-                          <div className="space-y-1">
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <span className="font-bold text-[#0B4550] text-sm">{getSessionDisplayTitle(session)}</span>
-                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${session.type === '1-on-1' ? 'bg-indigo-50 text-indigo-600' : 'bg-teal-50 text-teal-600'}`}>
-                                {session.type}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs font-semibold text-[#898A8D]">
-                              <span className="flex items-center gap-1"><Clock size={12} /> {session.time}</span>
-                              <span>•</span>
-                              <span>{session.duration}</span>
+                          <div className="space-y-2">
+                            <span className="font-black text-white text-base block">{getSessionDisplayTitle(session)}</span>
+                            <div className="flex items-center gap-3 text-xs font-bold text-gray-500 uppercase tracking-widest">
+                              <span className="flex items-center gap-1.5 text-[#E6FF2B]"><Clock size={12} /> {session.time}</span>
+                              <span>{session.type}</span>
                             </div>
                           </div>
-                          <div className="text-right shrink-0">
-                            <span className="text-xs font-extrabold text-[#0B4550] block">
-                              {attendedCount} / {session.capacity}
-                            </span>
-                            <span className="text-[9px] text-[#898A8D] font-bold block uppercase tracking-wider">Booked</span>
+                          <div className="text-right shrink-0 bg-[#1A1A1A] px-4 py-3 rounded-2xl border border-[#333]">
+                            <span className="text-lg font-black text-white block leading-none">{attendedCount}</span>
+                            <span className="text-[8px] text-gray-500 font-bold uppercase tracking-widest mt-1 block">Booked</span>
                           </div>
                         </div>
                       );
@@ -4676,16 +4692,16 @@ export default function Dashboard({ session }) {
                 </div>
               )}
 
-              {/* TAB CONTENT: Attendance Logs */}
+              {/* History Tab Content */}
               {mobileDashboardTab === 'history' && (
-                <div className="space-y-4">
-                  <h3 className="font-bold text-base text-[#0B4550]">Attendance Logs</h3>
+                <div className="bg-[#141414] rounded-[1.5rem] p-4 border border-[#222]">
                   {renderMobileAttendanceLogs()}
                 </div>
               )}
             </div>
-          ) : (
-            <div className="animate-in fade-in duration-500">
+
+            {/* DESKTOP DASHBOARD */}
+            <div className="hidden md:block animate-in fade-in duration-500">
             <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-8 gap-4">
               <div className="bg-white px-4 md:px-6 py-3 rounded-xl border-l-4 border-[#E6FF2B] shadow-sm max-w-2xl">
                 <p className="text-[#0B4550] font-medium text-lg italic">{quote}</p>
@@ -4957,8 +4973,9 @@ export default function Dashboard({ session }) {
               </div>
             </div>
           </div>
-          )
-        )}
+    </header>
+  </>
+)}
 
         {/* VIEW: REVENUE */}
         {activePage === 'Revenue' && (
@@ -4987,19 +5004,19 @@ export default function Dashboard({ session }) {
             {/* NEW: Backlog Button */}
             <button 
               onClick={() => setShowBacklogModal(true)}
-              className="bg-[#0B4550] text-white px-4 md:px-6 py-3 rounded-full font-medium hover:bg-opacity-90 transition-all flex items-center gap-2 shadow-sm"
+              className="bg-[#0A0A0A] md:bg-[#0B4550] text-[#E6FF2B] md:text-white px-4 md:px-6 py-3 rounded-[1.5rem] md:rounded-full font-bold md:font-medium hover:bg-opacity-90 transition-all flex items-center gap-2 shadow-lg md:shadow-sm border border-[#222] md:border-none w-full md:w-auto justify-center md:justify-start"
             >
               <Plus size={20} />
               Add Historical Data
             </button>
 
             {/* Your existing tabs */}
-            <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100">
+            <div className="flex bg-[#141414] md:bg-white rounded-[1.5rem] md:rounded-full p-1.5 shadow-lg md:shadow-sm border border-[#222] md:border-gray-100 w-full md:w-auto overflow-x-auto no-scrollbar">
               {['Day', 'Week', 'Month', 'Year', 'All Time'].map((tab) => (
                 <button 
                   key={tab} 
                   onClick={() => setActiveRevenuePeriod(tab)} 
-                  className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all ${activeRevenuePeriod === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                  className={`flex-1 min-w-[60px] md:flex-none px-4 md:px-6 py-2 rounded-xl md:rounded-full text-[10px] md:text-lg font-black md:font-medium uppercase tracking-widest md:normal-case md:tracking-normal transition-all ${activeRevenuePeriod === tab ? 'bg-[#E6FF2B] md:bg-[#898A8D] text-[#0A0A0A] md:text-white shadow-md md:shadow-none' : 'text-gray-500 md:text-[#898A8D] hover:text-white md:hover:text-[#0B4550]'}`}
                 >
                   {tab}
                 </button>
@@ -5007,7 +5024,8 @@ export default function Dashboard({ session }) {
             </div>
           </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+            {/* DESKTOP REVENUE STATS */}
+            <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
                <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden">
                  <div className="flex justify-between items-center mb-2">
                    <h3 className="text-white/80 font-medium text-lg">Total Collected (This Month)</h3>
@@ -5039,8 +5057,46 @@ export default function Dashboard({ session }) {
                  </h2>
                </div>
             </div>
+            
+            {/* MOBILE REVENUE STATS */}
+            <div className="md:hidden grid grid-cols-2 gap-4 mb-6">
+               <div className="bg-[#141414] rounded-[2rem] p-5 border border-[#222] shadow-lg col-span-2 relative overflow-hidden">
+                 <div className="absolute top-0 right-0 p-4 opacity-10">
+                   <DollarSign size={80} className="text-[#E6FF2B]" />
+                 </div>
+                 <div className="relative z-10 flex flex-col h-full justify-between">
+                   <div className="flex justify-between items-center mb-2">
+                     <span className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Collected (This Month)</span>
+                     <button 
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         handleToggleRevenueVisibility();
+                       }}
+                       className="text-gray-500 hover:text-white p-1"
+                     >
+                       {isRevenueHidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                     </button>
+                   </div>
+                   <h2 className="text-4xl font-black text-white tracking-tight">
+                     {isRevenueHidden ? 'RM ••••' : `RM ${totalCollectedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                   </h2>
+                 </div>
+               </div>
+               <div className="bg-[#1A1A1A] rounded-[2rem] p-5 border border-[#333] shadow-inner">
+                 <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest block mb-2">Pending</span>
+                 <span className="text-xl font-black text-white block">
+                   {isRevenueHidden ? 'RM ••••' : 'RM 0'}
+                 </span>
+               </div>
+               <div className="bg-[#1A1A1A] rounded-[2rem] p-5 border border-[#333] shadow-inner">
+                 <span className="text-gray-500 text-[10px] font-bold uppercase tracking-widest block mb-2">Projected</span>
+                 <span className="text-xl font-black text-emerald-400 block">
+                   {isRevenueHidden ? 'RM ••••' : `RM ${estimatedRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                 </span>
+               </div>
+            </div>
 
-            <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
+            <div className="hidden md:block bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
               <h3 className="font-medium text-2xl text-[#0B4550] mb-6 border-b-2 border-gray-100 pb-4">Recent Transactions</h3>
               {filteredTransactions.length === 0 ? (
                 <div className="text-center py-6 md:py-10 text-[#898A8D] font-medium">No transactions found for this period.</div>
@@ -5147,6 +5203,68 @@ export default function Dashboard({ session }) {
                         </div>
                       </div>
                     ))}
+                </div>
+              )}
+            </div>
+
+            {/* MOBILE TRANSACTIONS LIST (HIGH FIDELITY) */}
+            <div className="md:hidden bg-[#141414] rounded-[2rem] p-4 border border-[#222] shadow-xl mt-6">
+              <h3 className="font-black text-white text-lg mb-4 uppercase tracking-widest pl-2">Recent Transactions</h3>
+              {filteredTransactions.length === 0 ? (
+                <div className="text-center py-10 bg-[#1A1A1A] rounded-[1.5rem] border border-[#333]">
+                  <p className="text-gray-500 font-bold text-sm">No transactions found.</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {Object.values(groupedTransactions)
+                    .sort((a, b) => b.year - a.year)
+                    .map((yearData) => (
+                      <div key={yearData.year} className="space-y-4">
+                        <div className="flex justify-between items-center px-2">
+                          <span className="text-[#E6FF2B] font-black">{yearData.year}</span>
+                          <span className="text-gray-500 font-bold text-[10px] uppercase tracking-widest">
+                            {isRevenueHidden ? 'RM ••••' : `RM ${yearData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                          </span>
+                        </div>
+                        
+                        {Object.values(yearData.months)
+                          .sort((a, b) => b.maxTimestamp - a.maxTimestamp)
+                          .map((monthData) => (
+                            <div key={monthData.monthYear} className="space-y-2">
+                              <h4 className="text-gray-400 font-bold text-[10px] uppercase tracking-widest pl-2 border-l-2 border-[#E6FF2B] ml-1 mb-2">
+                                {monthData.monthName}
+                              </h4>
+                              {monthData.items
+                                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                                .map((t) => (
+                                  <div 
+                                    key={t.id} 
+                                    className="bg-[#1A1A1A] border border-[#333] p-4 rounded-[1.5rem] flex items-center justify-between transition-all active:scale-[0.98]"
+                                  >
+                                    <div className="flex items-center gap-3 overflow-hidden">
+                                      <div className="w-10 h-10 rounded-full bg-[#222] text-[#E6FF2B] flex items-center justify-center shrink-0">
+                                        <DollarSign size={16} />
+                                      </div>
+                                      <div className="flex flex-col min-w-0">
+                                        <span className="text-white font-bold text-sm truncate">
+                                          {clients.find(c => c.id === t.client_name)?.name || t.client_name}
+                                        </span>
+                                        <span className="text-gray-500 text-[10px] font-semibold truncate">
+                                          {t.description} • {new Date(t.created_at).toLocaleDateString('en-GB')}
+                                        </span>
+                                      </div>
+                                    </div>
+                                    <div className="text-right shrink-0 ml-3">
+                                      <span className="text-emerald-400 font-black text-sm block">
+                                        {isRevenueHidden ? 'RM ••••' : `+RM ${Number(t.amount).toFixed(2)}`}
+                                      </span>
+                                    </div>
+                                  </div>
+                                ))}
+                            </div>
+                        ))}
+                      </div>
+                  ))}
                 </div>
               )}
             </div>
@@ -5343,7 +5461,35 @@ export default function Dashboard({ session }) {
             <div className="animate-in fade-in duration-500">
             {!selectedClient && (
               <>
-                <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
+                {/* MOBILE CONTROLS (HIGH FIDELITY) */}
+                <div className="md:hidden flex flex-col gap-4 mb-6">
+                  <div className="flex bg-[#141414] rounded-[1.5rem] p-1.5 shadow-lg border border-[#222] overflow-x-auto no-scrollbar">
+                    {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
+                      <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#E6FF2B] text-[#0A0A0A] shadow-md' : 'text-gray-500 hover:text-white'}`}>
+                        {tab}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2">
+                    <select 
+                      value={sortBy} 
+                      onChange={(e) => setSortBy(e.target.value)}
+                      className="flex-1 bg-[#1A1A1A] border border-[#333] text-white px-4 py-3 rounded-2xl font-bold text-xs outline-none shadow-sm cursor-pointer appearance-none"
+                    >
+                      <option value="newest">Recently Added</option>
+                      <option value="az">Alphabetical (A-Z)</option>
+                      <option value="za">Alphabetical (Z-A)</option>
+                      <option value="expire">Earliest to Expire</option>
+                      <option value="sessions">Most Sessions</option>
+                    </select>
+                    <button onClick={() => setShowAddModal(true)} className="bg-[#E6FF2B] text-[#0A0A0A] w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-md shrink-0">
+                      <Plus size={20} strokeWidth={3} />
+                    </button>
+                  </div>
+                </div>
+
+                {/* DESKTOP CONTROLS */}
+                <div className="hidden md:flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
                   <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 shrink-0 overflow-x-auto no-scrollbar max-w-full">
                     {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
                       <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
@@ -5399,7 +5545,50 @@ export default function Dashboard({ session }) {
                       {isArchiveMode ? "You haven't archived any clients yet." : <><button onClick={() => setShowAddModal(true)} className="text-[#0B4550] hover:underline font-medium">Click here</button> to start building your roster.</>}
                     </p>
                   </div>
-                ) : viewMode === 'list' ? (
+                ) : (
+                  <>
+                  {/* MOBILE CLIENT CARDS */}
+                  <div className="md:hidden space-y-4">
+                    {sortedAndFilteredClients.map(client => (
+                      <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-[#141414] rounded-[2rem] p-5 border border-[#222] shadow-xl relative overflow-hidden group active:scale-[0.98] transition-all cursor-pointer">
+                        <div className="flex items-center gap-4 mb-4 relative z-10">
+                          <div className="w-14 h-14 rounded-full bg-[#1A1A1A] border border-[#333] text-[#E6FF2B] flex items-center justify-center text-xl font-black shadow-inner">
+                            {getInitials(client.name)}
+                          </div>
+                          <div className="flex-1 overflow-hidden">
+                            <h3 className="text-xl font-black text-white truncate">{client.name}</h3>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-gray-500 font-bold text-[10px] uppercase tracking-widest truncate">{client.package || 'No package'}</span>
+                              {client.member_status === 'Trial' && (
+                                <span className="bg-[#E6FF2B]/20 text-[#E6FF2B] border border-[#E6FF2B]/30 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Trial</span>
+                              )}
+                              {client.member_status === 'Follow Up' && (
+                                <span className="bg-orange-500/20 text-orange-400 border border-orange-500/30 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Follow Up</span>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3 relative z-10">
+                          <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#333]">
+                            <span className="text-gray-500 font-bold text-[9px] uppercase tracking-widest block mb-1">Sessions Used</span>
+                            <span className="text-white font-black text-lg">
+                              {client.initial_package ? `${(client.initial_package || 0) - (client.remaining_package || 0)} / ${client.initial_package}` : (client.unlimited ? 'Unlimited' : '-')}
+                            </span>
+                          </div>
+                          <div className="bg-[#1A1A1A] rounded-2xl p-3 border border-[#333]">
+                            <span className="text-gray-500 font-bold text-[9px] uppercase tracking-widest block mb-1">Expiry Date</span>
+                            <span className={`font-black text-sm ${getLiveClientStatus(client) === 'Expired' ? 'text-red-400' : getLiveClientStatus(client) === 'Expiring Soon' ? 'text-yellow-400' : 'text-emerald-400'}`}>
+                              {client.expiry || 'No date set'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* DESKTOP CLIENTS (LIST / GRID) */}
+                  <div className="hidden md:block">
+                  {viewMode === 'list' ? (
                   <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 overflow-hidden">
                     <table className="w-full text-left border-collapse">
                       <thead>
@@ -5516,6 +5705,10 @@ export default function Dashboard({ session }) {
                       </div>
                     ))}
                   </div>
+                  </div>
+                )}
+                  </div>
+                  </>
                 )}
               </>
             )}
@@ -6478,7 +6671,54 @@ export default function Dashboard({ session }) {
         {/* VIEW: SCHEDULE (NOW LIVE!) */}
         {activePage === 'Schedule' && (
            <div className="animate-in fade-in duration-500 flex flex-col h-full">
-            <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8 bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
+            {/* MOBILE SCHEDULE CONTROLS */}
+            <div className="md:hidden flex flex-col gap-4 mb-6">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-2xl font-black text-white">
+                    {selectedScheduleDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </h2>
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={() => setSelectedScheduleDate(new Date())}
+                    className="px-3 py-1.5 bg-[#141414] text-[#E6FF2B] border border-[#222] rounded-xl font-black text-xs uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                  >
+                    Today
+                  </button>
+                  <button onClick={() => setShowEventModal(true)} className="bg-[#E6FF2B] text-[#0A0A0A] w-9 h-9 rounded-xl flex items-center justify-center shadow-lg active:scale-95 transition-all">
+                    <Plus size={18} strokeWidth={3} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Horizontal Date Scroller */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-2">
+                {getWeekDays(selectedScheduleDate).map((dayObj) => {
+                  const isDayActive = selectedScheduleDate.toDateString() === dayObj.toDateString();
+                  const dayNum = dayObj.getDate();
+                  const dayName = dayObj.toLocaleDateString('en-US', { weekday: 'short' });
+                  
+                  return (
+                    <button 
+                      key={dayObj.toISOString()} 
+                      onClick={() => setSelectedScheduleDate(dayObj)}
+                      className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-16 rounded-[1.25rem] transition-all border ${
+                        isDayActive 
+                          ? 'bg-[#E6FF2B] border-[#E6FF2B] text-[#0A0A0A] shadow-lg scale-105' 
+                          : 'bg-[#141414] border-[#222] text-gray-500 hover:text-white'
+                      }`}
+                    >
+                      <span className="text-[10px] font-black uppercase tracking-widest mb-0.5">{dayName}</span>
+                      <span className="text-lg font-black leading-none">{dayNum}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* DESKTOP SCHEDULE CONTROLS */}
+            <div className="hidden md:flex flex-row justify-between items-center mb-8 bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center gap-4 md:gap-6 px-4">
                 <ChevronLeft 
                   size={28} 
@@ -6569,35 +6809,65 @@ export default function Dashboard({ session }) {
                       const displayCoach = locationParts[1] || '';
 
                       return (
-                        <div key={session.id} onClick={() => { setSelectedSession(session); if (isMobile) setShowMobileRosterDrawer(true); }} className={`flex gap-3 sm:gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-70 hover:opacity-100' : ''}`}>
-                          <div className="w-20 sm:w-24 text-right shrink-0">
-                            <p className={`text-base sm:text-xl font-medium ${isSelected ? 'text-[#0B4550]' : 'text-[#898A8D]'} ${isPast ? 'line-through opacity-60' : ''}`}>{session.time}</p>
-                            <p className="text-xs sm:text-sm font-medium text-[#898A8D]">{session.duration}</p>
-                          </div>
-                          <div className={`flex-1 rounded-3xl p-3.5 sm:p-5 md:p-6 shadow-sm border transition-all ${isSelected ? 'scale-[1.02] shadow-md' : ''} ${is1on1 ? 'bg-[#0B4550] border-[#0B4550] text-white' : isBlocked ? 'bg-transparent border-dashed border-2 border-gray-300' : 'bg-white border-gray-100 hover:border-[#E6FF2B]'}`}>
-                            <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0">
-                              <div>
-                                <span className={`inline-block px-3 py-1 rounded-lg text-xs font-medium mb-2 ${is1on1 ? 'bg-[#E6FF2B] text-[#0B4550]' : 'bg-gray-100 text-[#898A8D]'}`}>
-                                  {session.type}
-                                </span>
-                                <h3 className={`text-base sm:text-xl md:text-2xl font-medium mb-1 ${is1on1 ? 'text-white' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-60' : ''}`}>{getSessionDisplayTitle(session)}</h3>
-                                <div className={`flex items-start sm:items-center gap-1.5 sm:gap-2 text-xs sm:text-base md:text-lg font-medium ${is1on1 ? 'text-white/70' : 'text-[#898A8D]'}`}>
-                                  <MapPin size={14} className="sm:w-[18px] sm:h-[18px] shrink-0 mt-0.5 sm:mt-0" /> 
-                                  <span className="break-words">{displayLocation} {displayCoach && `• Coach: ${displayCoach}`} • {formatDbDate(session.date)}</span>
+                        <div key={session.id} onClick={() => { setSelectedSession(session); if (isMobile) setShowMobileRosterDrawer(true); }}>
+                          
+                          {/* MOBILE SESSION CARD */}
+                          <div className={`md:hidden flex gap-4 items-center group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-60' : ''}`}>
+                            <div className="w-16 text-right shrink-0">
+                              <p className={`text-lg font-black ${isSelected ? 'text-[#E6FF2B]' : 'text-white'} ${isPast ? 'line-through opacity-50' : ''}`}>{session.time}</p>
+                              <p className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{session.duration}</p>
+                            </div>
+                            <div className={`flex-1 rounded-[1.5rem] p-4 shadow-xl border transition-all relative overflow-hidden ${isSelected ? 'scale-[1.02] bg-[#1A1A1A] border-[#E6FF2B]/50 shadow-[0_0_15px_rgba(230,255,43,0.1)]' : is1on1 ? 'bg-[#0A0A0A] border-[#E6FF2B]/20' : isBlocked ? 'bg-transparent border-dashed border-[#333]' : 'bg-[#141414] border-[#222]'}`}>
+                              <div className="flex flex-col gap-2 relative z-10">
+                                <div className="flex justify-between items-start">
+                                  <span className={`inline-block px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-widest ${is1on1 ? 'bg-[#E6FF2B] text-[#0A0A0A]' : 'bg-[#222] text-white'}`}>
+                                    {session.type}
+                                  </span>
+                                  {!isBlocked && (
+                                    <span className={`text-[10px] font-black uppercase tracking-widest ${is1on1 ? 'text-[#E6FF2B]' : 'text-gray-500'}`}>{session.attendees ? session.attendees.length : 0} / {session.capacity}</span>
+                                  )}
+                                </div>
+                                <h3 className={`text-lg font-black leading-tight ${is1on1 ? 'text-white' : 'text-gray-200'} ${isPast ? 'line-through opacity-60' : ''}`}>{getSessionDisplayTitle(session)}</h3>
+                                <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${is1on1 ? 'text-gray-400' : 'text-gray-600'}`}>
+                                  <MapPin size={12} className="shrink-0" /> 
+                                  <span className="truncate">{displayLocation} {displayCoach && `• ${displayCoach}`}</span>
                                 </div>
                               </div>
-                              {!isBlocked && (
-                                <div className="flex flex-row md:flex-col items-center md:items-end justify-between w-full md:w-auto border-t md:border-t-0 border-gray-100/10 md:border-none pt-2.5 md:pt-0 mt-2.5 md:mt-0">
-                                  <div className="flex -space-x-3 mb-0 md:mb-2">
-                                    <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium border-2 ${is1on1 ? 'bg-white text-[#0B4550] border-[#0B4550]' : 'bg-[#F9F7F2] text-[#0B4550] border-white'}`}>
-                                      ?
-                                    </div>
-                                  </div>
-                                  <span className={`text-xs sm:text-sm font-medium ${is1on1 ? 'text-[#E6FF2B]' : 'text-[#898A8D]'}`}>{session.attendees ? session.attendees.length : 0} / {session.capacity} Booked</span>
-                                </div>
-                              )}
                             </div>
                           </div>
+
+                          {/* DESKTOP SESSION CARD */}
+                          <div className={`hidden md:flex gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-70 hover:opacity-100' : ''}`}>
+                            <div className="w-24 text-right shrink-0">
+                              <p className={`text-xl font-medium ${isSelected ? 'text-[#0B4550]' : 'text-[#898A8D]'} ${isPast ? 'line-through opacity-60' : ''}`}>{session.time}</p>
+                              <p className="text-sm font-medium text-[#898A8D]">{session.duration}</p>
+                            </div>
+                            <div className={`flex-1 rounded-3xl p-6 shadow-sm border transition-all ${isSelected ? 'scale-[1.02] shadow-md' : ''} ${is1on1 ? 'bg-[#0B4550] border-[#0B4550] text-white' : isBlocked ? 'bg-transparent border-dashed border-2 border-gray-300' : 'bg-white border-gray-100 hover:border-[#E6FF2B]'}`}>
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <span className={`inline-block px-3 py-1 rounded-lg text-xs font-medium mb-2 ${is1on1 ? 'bg-[#E6FF2B] text-[#0B4550]' : 'bg-gray-100 text-[#898A8D]'}`}>
+                                    {session.type}
+                                  </span>
+                                  <h3 className={`text-2xl font-medium mb-1 ${is1on1 ? 'text-white' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-60' : ''}`}>{getSessionDisplayTitle(session)}</h3>
+                                  <div className={`flex items-center gap-2 text-lg font-medium ${is1on1 ? 'text-white/70' : 'text-[#898A8D]'}`}>
+                                    <MapPin size={18} className="shrink-0" /> 
+                                    <span className="break-words">{displayLocation} {displayCoach && `• Coach: ${displayCoach}`} • {formatDbDate(session.date)}</span>
+                                  </div>
+                                </div>
+                                {!isBlocked && (
+                                  <div className="flex flex-col items-end justify-between">
+                                    <div className="flex -space-x-3 mb-2">
+                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium border-2 ${is1on1 ? 'bg-white text-[#0B4550] border-[#0B4550]' : 'bg-[#F9F7F2] text-[#0B4550] border-white'}`}>
+                                        ?
+                                      </div>
+                                    </div>
+                                    <span className={`text-sm font-medium ${is1on1 ? 'text-[#E6FF2B]' : 'text-[#898A8D]'}`}>{session.attendees ? session.attendees.length : 0} / {session.capacity} Booked</span>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
                         </div>
                       );
                     });
