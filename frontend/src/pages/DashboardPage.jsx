@@ -4567,7 +4567,7 @@ export default function Dashboard({ session }) {
     </div>
   </div>
 </header>
-  )
+  </>
 )}
         {/* VIEW: DASHBOARD OVERVIEW */}
         {activePage === 'Dashboard' && (
@@ -4973,7 +4973,6 @@ export default function Dashboard({ session }) {
               </div>
             </div>
           </div>
-    </header>
   </>
 )}
 
@@ -5705,13 +5704,12 @@ export default function Dashboard({ session }) {
                       </div>
                     ))}
                   </div>
-                  </div>
                 )}
-                  </div>
-                  </>
-                )}
-              </>
-            )}
+              </div>
+            </>
+          )}
+        </>
+      )}
 
             {selectedClient && (
               <div className="animate-in slide-in-from-right-8 duration-300">
