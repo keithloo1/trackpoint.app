@@ -24,6 +24,18 @@ const EQUIPMENT_OPTIONS = ["Bodyweight", "Dumbbell", "Barbell", "Kettlebell", "B
 const MUSCLE_OPTIONS = ["Chest", "Back", "Shoulders", "Arms", "Legs", "Core"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
+const EQUIPMENT_IMAGES = {
+  "Bodyweight": "https://images.unsplash.com/photo-1571019613454-1cb2f99b2d8b?w=400&auto=format&fit=crop&q=80",
+  "Dumbbell": "https://images.unsplash.com/photo-1638536532686-d610adfc8e5c?w=400&auto=format&fit=crop&q=80",
+  "Barbell": "https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=400&auto=format&fit=crop&q=80",
+  "Kettlebell": "https://images.unsplash.com/photo-1583454110551-21f2fa2afe61?w=400&auto=format&fit=crop&q=80",
+  "Band": "https://images.unsplash.com/photo-1598289431512-b97b0917affc?w=400&auto=format&fit=crop&q=80",
+  "Plate": "https://images.unsplash.com/photo-1541534741688-6078c6bfb5c5?w=400&auto=format&fit=crop&q=80",
+  "Pull-up bar": "https://images.unsplash.com/photo-1598971639058-fab3c3109a00?w=400&auto=format&fit=crop&q=80",
+  "Bench": "https://images.unsplash.com/photo-1574680096145-d05b474e2155?w=400&auto=format&fit=crop&q=80"
+};
+
+
 const STORE_PACKAGES = [
   { id: 1, name: "Starter", sessions: 5, price: 400, popular: false },
   { id: 2, name: "Committed", sessions: 10, price: 750, popular: true },
@@ -288,6 +300,13 @@ export default function ClientDashboard() {
   const [workoutGoal, setWorkoutGoal] = useState('Hypertrophy');
   const [customPrompt, setCustomPrompt] = useState('');
   const [generatedWorkout, setGeneratedWorkout] = useState(null);
+  const [workoutDuration, setWorkoutDuration] = useState(45);
+  const [workoutStyle, setWorkoutStyle] = useState('Standard');
+  const [injuries, setInjuries] = useState([]);
+  const [excludeExercises, setExcludeExercises] = useState('');
+  const [includeWarmup, setIncludeWarmup] = useState(false);
+  const [includeCooldown, setIncludeCooldown] = useState(false);
+  const [bodyView, setBodyView] = useState('front');
 
   const [workoutTime, setWorkoutTime] = useState(0);
   const [restTime, setRestTime] = useState(0);
@@ -953,6 +972,7 @@ export default function ClientDashboard() {
     alert(`Workout Saved! Total time: ${formatTime(workoutTime)}`);
     setClientData(prev => ({ ...prev, prs: parsedPRs }));
     setIsTrackerOpen(false); setGeneratedWorkout(null); setStep(1); setSelectedMuscles([]); setWorkoutTime(0); setRestTime(0);
+    setWorkoutDuration(45); setWorkoutStyle('Standard'); setInjuries([]); setExcludeExercises(''); setIncludeWarmup(false); setIncludeCooldown(false); setBodyView('front');
   };
 
   const closeBookingDrawer = () => { setIsBookingOpen(false); setTimeout(() => { setBookingStep('select'); setSelectedLiveSession(null); }, 300); };
@@ -963,6 +983,17 @@ export default function ClientDashboard() {
   const toggleSelection = (item, list, setList) => { if (list.includes(item)) setList(list.filter(i => i !== item)); else setList([...list, item]); };
   const generateWorkout = async () => {
     setIsGenerating(true);
+    const enrichedPrompt = `
+[STRICT PARAMETERS]
+Workout Duration: ${workoutDuration} minutes
+Style: ${workoutStyle === 'Circuits' ? 'Circuits & Supersets (minimal rest between exercises)' : 'Standard Sets (structured rest)'}
+Include Warmup: ${includeWarmup ? 'Yes' : 'No'}
+Include Cooldown: ${includeCooldown ? 'Yes' : 'No'}
+Joint Care (AVOID putting heavy strain on these areas): ${injuries.length > 0 ? injuries.join(', ') : 'None'}
+Exclude these exercises: ${excludeExercises || 'None'}
+Client Special Requests: ${customPrompt || 'None'}
+    `.trim();
+
     try {
       // 🤖 Call the AI Brain with customized user selections
       const { data, error } = await supabase.functions.invoke('generate-workout', {
@@ -972,18 +1003,28 @@ export default function ClientDashboard() {
           clientName: clientData.name,
           difficulty: difficulty,
           goal: workoutGoal,
-          customPrompt: customPrompt
+          customPrompt: enrichedPrompt
         }
       });
 
       if (error) throw error;
       setGeneratedWorkout(data.workout);
-      setStep(3);
+      setStep(4);
     } catch (err) {
       console.error("AI Generation Failed, using local engine:", err);
       // Robust Fallback: Deeply tailored rule-based generation
       let newWorkout = [];
       
+      // 1. Warm-up
+      if (includeWarmup) {
+        newWorkout.push({
+          muscle: "Warm-up",
+          name: "Dynamic Warm-up (Arm Circles, Leg Swings, Cat-Cow)",
+          sets: [{ targetReps: "5 Mins", completed: false, weight: '' }],
+          restDuration: 0
+        });
+      }
+
       let setsCount = 3;
       if (difficulty === 'Beginner') setsCount = 2;
       else if (difficulty === 'Advanced') setsCount = 4;
@@ -997,18 +1038,44 @@ export default function ClientDashboard() {
         targetRepsStr = "15";
         baseRest = 30;
       }
+      if (workoutStyle === 'Circuits') {
+        baseRest = 15;
+      }
+
+      // 2. Adjust target count based on duration
+      let targetExerciseCount = 5;
+      if (workoutDuration === 30) targetExerciseCount = 3;
+      else if (workoutDuration === 60) targetExerciseCount = 7;
+      else if (workoutDuration === 90) targetExerciseCount = 10;
+
+      let exercisesPerMuscle = Math.max(1, Math.floor(targetExerciseCount / (selectedMuscles.length || 1)));
+
+      const injuryExclusions = {
+        "Lower Back": ["Barbell Bent-Over Row", "Pendlay Row", "Barbell Back Squat"],
+        "Knees": ["Jump Squats", "Walking Lunges", "Dumbbell Lunges"],
+        "Shoulders": ["Overhead Press (OHP)", "Push Press", "Dumbbell Overhead Press", "Pike Push-ups", "Pull-ups"],
+        "Wrists": ["Push-ups", "Wide Push-ups", "Diamond Push-ups", "Plank"]
+      };
+
+      let excludedForInjuries = [];
+      injuries.forEach(injury => {
+        if (injuryExclusions[injury]) {
+          excludedForInjuries.push(...injuryExclusions[injury]);
+        }
+      });
+      const manualExcludes = excludeExercises.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
 
       selectedMuscles.forEach(muscle => {
         let possibleExercises = [];
         selectedEquip.forEach(eq => { if (EXERCISE_DB[muscle] && EXERCISE_DB[muscle][eq]) possibleExercises.push(...EXERCISE_DB[muscle][eq]); });
         if (possibleExercises.length === 0) possibleExercises.push(...(EXERCISE_DB[muscle]["Bodyweight"] || []));
         
-        let exercisesPerMuscle = 2;
-        if (selectedMuscles.length === 1) {
-          exercisesPerMuscle = difficulty === 'Beginner' ? 3 : difficulty === 'Advanced' ? 5 : 4;
-        } else {
-          exercisesPerMuscle = difficulty === 'Beginner' ? 1 : difficulty === 'Advanced' ? 3 : 2;
-        }
+        // Filter out by joint protections and manual exclusions
+        possibleExercises = possibleExercises.filter(ex => {
+          const isExcludedByInjury = excludedForInjuries.includes(ex);
+          const isExcludedManually = manualExcludes.some(m => ex.toLowerCase().includes(m));
+          return !isExcludedByInjury && !isExcludedManually;
+        });
 
         const shuffled = [...new Set(possibleExercises)].sort(() => 0.5 - Math.random()).slice(0, exercisesPerMuscle);
         shuffled.forEach(ex => { 
@@ -1022,6 +1089,16 @@ export default function ClientDashboard() {
         });
       });
 
+      // 3. Cool-down
+      if (includeCooldown) {
+        newWorkout.push({
+          muscle: "Cool-down",
+          name: "Full-Body Static Stretching (Hamstrings, Chest, Hip Flexors)",
+          sets: [{ targetReps: "5 Mins", completed: false, weight: '' }],
+          restDuration: 0
+        });
+      }
+
       if (newWorkout.length === 0) {
         newWorkout.push({ 
           muscle: "Core", 
@@ -1032,16 +1109,39 @@ export default function ClientDashboard() {
       }
       
       setGeneratedWorkout(newWorkout); 
-      setStep(3);
+      setStep(4);
     } finally {
       setIsGenerating(false);
     }
   };
+
   const shuffleExercise = (index) => {
     const targetMuscle = generatedWorkout[index].muscle;
     let possible = [];
     selectedEquip.forEach(eq => { if (EXERCISE_DB[targetMuscle] && EXERCISE_DB[targetMuscle][eq]) possible.push(...EXERCISE_DB[targetMuscle][eq]); });
     if (possible.length === 0) possible.push(...(EXERCISE_DB[targetMuscle]["Bodyweight"] || []));
+    
+    // Filter out by joint protections and manual exclusions
+    const injuryExclusions = {
+      "Lower Back": ["Barbell Bent-Over Row", "Pendlay Row", "Barbell Back Squat"],
+      "Knees": ["Jump Squats", "Walking Lunges", "Dumbbell Lunges"],
+      "Shoulders": ["Overhead Press (OHP)", "Push Press", "Dumbbell Overhead Press", "Pike Push-ups", "Pull-ups"],
+      "Wrists": ["Push-ups", "Wide Push-ups", "Diamond Push-ups", "Plank"]
+    };
+    let excludedForInjuries = [];
+    injuries.forEach(injury => {
+      if (injuryExclusions[injury]) {
+        excludedForInjuries.push(...injuryExclusions[injury]);
+      }
+    });
+    const manualExcludes = excludeExercises.split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
+
+    possible = possible.filter(ex => {
+      const isExcludedByInjury = excludedForInjuries.includes(ex);
+      const isExcludedManually = manualExcludes.some(m => ex.toLowerCase().includes(m));
+      return !isExcludedByInjury && !isExcludedManually;
+    });
+
     const newEx = possible[Math.floor(Math.random() * possible.length)] || "Plank";
 
     let setsCount = 3;
@@ -1070,6 +1170,11 @@ export default function ClientDashboard() {
       sets, 
       restDuration: baseRest 
     };
+    setGeneratedWorkout(updated);
+  };
+
+  const removeExercise = (index) => {
+    const updated = generatedWorkout.filter((_, i) => i !== index);
     setGeneratedWorkout(updated);
   };
   const toggleSetComplete = (exIndex, setIndex) => {
@@ -2245,82 +2350,627 @@ export default function ClientDashboard() {
         {/* WORKOUT BUILDER MODAL */}
         {isBuilderOpen && (
           <div className="fixed inset-0 bg-[#F9F7F2] z-[100] flex flex-col animate-in zoom-in duration-300">
-            <div className="bg-white px-10 py-6 border-b border-gray-100 flex items-center justify-between shadow-sm shrink-0"><div className="flex items-center gap-16 mx-auto w-full max-w-4xl"><StepIndicator num={1} label="Equipment" active={step >= 1} current={step === 1} /><div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-[#0B4550]' : 'bg-gray-100'}`}></div><StepIndicator num={2} label="Muscles" active={step >= 2} current={step === 2} /><div className={`flex-1 h-1 rounded-full ${step >= 3 ? 'bg-[#0B4550]' : 'bg-gray-100'}`}></div><StepIndicator num={3} label="Exercises" active={step === 3} current={step === 3} /></div><button onClick={() => { setIsBuilderOpen(false); setStep(1); }} className="absolute right-8 top-8 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-[#898A8D] hover:bg-red-50 hover:text-red-500 transition-colors"><X size={20} /></button></div>
+            <div className="bg-white px-10 py-6 border-b border-gray-100 flex items-center justify-between shadow-sm shrink-0">
+              <div className="flex items-center gap-6 md:gap-16 mx-auto w-full max-w-4xl">
+                <StepIndicator num={1} label="Equipment" active={step >= 1} current={step === 1} />
+                <div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-[#0B4550]' : 'bg-gray-100'}`}></div>
+                
+                <StepIndicator num={2} label="Muscles" active={step >= 2} current={step === 2} />
+                <div className={`flex-1 h-1 rounded-full ${step >= 3 ? 'bg-[#0B4550]' : 'bg-gray-100'}`}></div>
+                
+                <StepIndicator num={3} label="Preferences" active={step >= 3} current={step === 3} />
+                <div className={`flex-1 h-1 rounded-full ${step >= 4 ? 'bg-[#0B4550]' : 'bg-gray-100'}`}></div>
+                
+                <StepIndicator num={4} label="Exercises" active={step === 4} current={step === 4} />
+              </div>
+              <button onClick={() => { setIsBuilderOpen(false); setStep(1); }} className="absolute right-8 top-8 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-[#898A8D] hover:bg-red-50 hover:text-red-500 transition-colors">
+                <X size={20} />
+              </button>
+            </div>
+            
             <div className="flex-1 overflow-y-auto p-8 flex justify-center">
               <div className="max-w-4xl w-full">
-                {step === 1 && (<div className="animate-in slide-in-from-right-4"><div className="text-center mb-6 sm:mb-10"><h2 className="text-3xl sm:text-4xl font-medium text-[#0B4550] mb-2">Select Equipment</h2><p className="text-base sm:text-lg text-[#898A8D] font-medium">What are we working with?</p></div><div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">{EQUIPMENT_OPTIONS.map(eq => (<div key={eq} onClick={() => toggleSelection(eq, selectedEquip, setSelectedEquip)} className={`bg-white p-4 sm:p-6 rounded-[1.5rem] sm:rounded-[2rem] border-4 cursor-pointer transition-all flex flex-col items-center justify-center gap-2 sm:gap-3 ${selectedEquip.includes(eq) ? 'border-[#0B4550] shadow-lg' : 'border-transparent shadow-sm'}`}><Dumbbell size={32} className={`sm:w-12 sm:h-12 ${selectedEquip.includes(eq) ? 'text-[#0B4550]' : 'text-gray-300'}`} /><span className={`font-bold text-xs sm:text-sm tracking-wide ${selectedEquip.includes(eq) ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>{eq}</span></div>))}</div></div>)}
+                
+                {/* STEP 1: SELECT EQUIPMENT */}
+                {step === 1 && (
+                  <div className="animate-in slide-in-from-right-4">
+                    <div className="text-center mb-6 sm:mb-10">
+                      <h2 className="text-3xl sm:text-4xl font-medium text-[#0B4550] mb-2">Select Equipment</h2>
+                      <p className="text-base sm:text-lg text-[#898A8D] font-medium">What are we working with today?</p>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+                      {EQUIPMENT_OPTIONS.map(eq => {
+                        const isSelected = selectedEquip.includes(eq);
+                        return (
+                          <div 
+                            key={eq} 
+                            onClick={() => toggleSelection(eq, selectedEquip, setSelectedEquip)} 
+                            className={`group relative bg-white rounded-[1.5rem] overflow-hidden border-4 cursor-pointer transition-all hover:scale-[1.02] flex flex-col h-36 ${isSelected ? 'border-[#0B4550] shadow-md scale-[1.03]' : 'border-transparent shadow-sm'}`}
+                          >
+                            <img src={EQUIPMENT_IMAGES[eq]} alt={eq} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                            <div className={`absolute inset-0 bg-gradient-to-t from-black/85 via-black/35 to-transparent transition-opacity ${isSelected ? 'opacity-90' : 'opacity-70 group-hover:opacity-60'}`} />
+                            {isSelected && (
+                              <div className="absolute top-3 right-3 bg-[#E6FF2B] text-[#0B4550] p-1 rounded-full shadow-md animate-in zoom-in">
+                                <CheckCircle2 size={16} className="stroke-[3px]" />
+                              </div>
+                            )}
+                            <div className="absolute bottom-3 left-4 right-4">
+                              <span className="font-extrabold text-sm sm:text-base tracking-wide text-white drop-shadow-sm">{eq}</span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+                
+                {/* STEP 2: TARGET MUSCLE SELECTION */}
                 {step === 2 && (
                   <div className="animate-in slide-in-from-right-4">
-                    <div className="text-center mb-10">
-                      <h2 className="text-4xl font-medium text-[#0B4550] mb-2">Customize AI Session</h2>
-                      <p className="text-lg text-[#898A8D] font-medium">Select target muscles and style your routine.</p>
+                    <div className="text-center mb-6">
+                      <h2 className="text-3xl sm:text-4xl font-medium text-[#0B4550] mb-2">Target Muscles</h2>
+                      <p className="text-base sm:text-lg text-[#898A8D] font-medium">Select the muscle groups you want to target.</p>
                     </div>
                     
-                    <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-                      {/* Left Column: Target Muscles selection */}
-                      <div className="lg:col-span-7 space-y-4">
-                        <h3 className="text-lg font-bold text-[#0B4550] uppercase tracking-wider mb-2">Target Muscles</h3>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-                          {MUSCLE_OPTIONS.map(m => (
-                            <div key={m} onClick={() => toggleSelection(m, selectedMuscles, setSelectedMuscles)} className={`bg-white p-6 rounded-[2rem] border-4 cursor-pointer transition-all flex flex-col items-center gap-3 ${selectedMuscles.includes(m) ? 'border-[#0B4550] bg-[#0B4550] text-white shadow-xl scale-105' : 'border-transparent text-[#0B4550] shadow-sm hover:border-gray-200'}`}>
-                              <Target size={36} className={selectedMuscles.includes(m) ? 'text-[#E6FF2B]' : 'text-gray-400'} />
-                              <span className="font-bold text-sm tracking-wide">{m}</span>
+                    <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center mt-4">
+                      {/* Left: SVG Body Map */}
+                      <div className="md:col-span-5 flex flex-col justify-center">
+                        <div className="flex bg-[#F9F7F2] p-1 rounded-xl border border-gray-200/80 w-fit mx-auto mb-4">
+                          <button 
+                            type="button"
+                            onClick={() => setBodyView('front')} 
+                            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${bodyView === 'front' ? 'bg-[#0B4550] text-[#E6FF2B] shadow-sm' : 'text-[#898A8D]'}`}
+                          >
+                            Front View
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setBodyView('back')} 
+                            className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${bodyView === 'back' ? 'bg-[#0B4550] text-[#E6FF2B] shadow-sm' : 'text-[#898A8D]'}`}
+                          >
+                            Back View
+                          </button>
+                        </div>
+                        
+                        {/* 3D Flip Container */}
+                        <div className="w-full max-w-[240px] h-[340px] mx-auto relative" style={{ perspective: '1000px' }}>
+                          <div className="w-full h-full relative transition-transform duration-700" style={{ transformStyle: 'preserve-3d', transform: bodyView === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
+                            
+                            {/* Front Side */}
+                            <div className="absolute inset-0 w-full h-full bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col items-center justify-center" style={{ backfaceVisibility: 'hidden' }}>
+                              <svg viewBox="0 0 200 380" className="w-full h-full max-h-[320px] text-[#0B4550]">
+                                <defs>
+                                  <linearGradient id="activeMuscleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor="#FF6B6B" />
+                                    <stop offset="100%" stopColor="#FF5252" />
+                                  </linearGradient>
+                                  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="3" result="blur" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                  </filter>
+                                </defs>
+                                <path d="M 100,20 C 120,20 120,50 100,50 C 80,50 80,20 100,20 Z M 100,50 L 100,60 M 80,60 L 120,60 L 140,90 L 150,150 L 138,150 L 130,105 L 120,160 L 122,250 L 114,350 L 108,350 L 105,250 L 100,200 L 95,250 L 92,350 L 86,350 L 78,250 L 80,160 L 70,105 L 62,150 L 50,150 L 60,90 Z" fill="none" stroke="#E5E7EB" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                <ellipse cx="100" cy="35" rx="14" ry="18" className="fill-[#F9F7F2] stroke-gray-300 stroke-[1.5]" />
+                                
+                                {/* Chest */}
+                                <path 
+                                  d="M 100,70 L 78,73 C 76,90 82,105 100,105 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Chest') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Chest') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Chest') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Chest') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Chest', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 100,70 L 122,73 C 124,90 118,105 100,105 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Chest') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Chest') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Chest') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Chest') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Chest', selectedMuscles, setSelectedMuscles)}
+                                />
+
+                                {/* Shoulders */}
+                                <path 
+                                  d="M 78,65 C 67,67 62,80 66,92 C 70,88 74,80 78,74 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Shoulders') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Shoulders') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Shoulders') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Shoulders') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Shoulders', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 122,65 C 133,67 138,80 134,92 C 130,88 126,80 122,74 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Shoulders') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Shoulders') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Shoulders') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Shoulders') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Shoulders', selectedMuscles, setSelectedMuscles)}
+                                />
+
+                                {/* Core (Abs) */}
+                                <path 
+                                  d="M 84,107 L 116,107 L 112,160 L 88,160 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Core') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Core') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Core') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Core') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Core', selectedMuscles, setSelectedMuscles)}
+                                />
+
+                                {/* Arms */}
+                                <path 
+                                  d="M 66,92 C 60,105 58,118 64,124 L 72,104 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Arms') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Arms') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Arms') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 64,124 L 54,155 C 57,162 61,162 66,155 L 72,126 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Arms') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Arms') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Arms') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 134,92 C 140,105 142,118 136,124 L 128,104 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Arms') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Arms') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Arms') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 136,124 L 146,155 C 143,162 139,162 134,155 L 128,126 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Arms') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Arms') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Arms') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
+                                />
+
+                                {/* Legs */}
+                                <path 
+                                  d="M 86,165 C 72,200 78,250 86,255 C 92,255 96,220 98,165 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Legs') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Legs') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Legs') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 86,258 C 76,285 82,335 88,340 C 90,340 92,300 92,258 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Legs') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Legs') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Legs') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 114,165 C 128,200 122,250 114,255 C 108,255 104,220 102,165 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Legs') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Legs') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Legs') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 114,258 C 124,285 118,335 112,340 C 110,340 108,300 108,258 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Legs') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Legs') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Legs') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
+                                />
+                              </svg>
                             </div>
-                          ))}
+                            
+                            {/* Back Side */}
+                            <div className="absolute inset-0 w-full h-full bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col items-center justify-center" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
+                              <svg viewBox="0 0 200 380" className="w-full h-full max-h-[320px] text-[#0B4550]">
+                                <defs>
+                                  <linearGradient id="activeMuscleGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                                    <stop offset="0%" stopColor="#FF6B6B" />
+                                    <stop offset="100%" stopColor="#FF5252" />
+                                  </linearGradient>
+                                  <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="3" result="blur" />
+                                    <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                                  </filter>
+                                </defs>
+                                <path d="M 100,20 C 120,20 120,50 100,50 C 80,50 80,20 100,20 Z M 100,50 L 100,60 M 80,60 L 120,60 L 140,90 L 150,150 L 138,150 L 130,105 L 120,160 L 122,250 L 114,350 L 108,350 L 105,250 L 100,200 L 95,250 L 92,350 L 86,350 L 78,250 L 80,160 L 70,105 L 62,150 L 50,150 L 60,90 Z" fill="none" stroke="#E5E7EB" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+                                <ellipse cx="100" cy="35" rx="14" ry="18" className="fill-[#F9F7F2] stroke-gray-300 stroke-[1.5]" />
+
+                                {/* Shoulders */}
+                                <path 
+                                  d="M 78,65 C 67,67 62,80 66,92 C 70,88 74,80 78,74 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Shoulders') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Shoulders') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Shoulders') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Shoulders') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Shoulders', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 122,65 C 133,67 138,80 134,92 C 130,88 126,80 122,74 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Shoulders') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Shoulders') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Shoulders') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Shoulders') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Shoulders', selectedMuscles, setSelectedMuscles)}
+                                />
+
+                                {/* Back */}
+                                <path 
+                                  d="M 100,58 L 82,70 L 100,85 L 118,70 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Back') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Back') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Back') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Back') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Back', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 100,85 L 80,94 C 76,120 84,135 100,135 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Back') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Back') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Back') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Back') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Back', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 100,85 L 120,94 C 124,120 116,135 100,135 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Back') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Back') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Back') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Back') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Back', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 86,135 L 114,135 L 110,165 L 90,165 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Back') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Back') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Back') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Back') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Back', selectedMuscles, setSelectedMuscles)}
+                                />
+
+                                {/* Arms */}
+                                <path 
+                                  d="M 66,92 C 60,105 58,118 64,124 L 72,104 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Arms') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Arms') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Arms') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 64,124 L 54,155 C 57,162 61,162 66,155 L 72,126 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Arms') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Arms') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Arms') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 134,92 C 140,105 142,118 136,124 L 128,104 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Arms') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Arms') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Arms') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 136,124 L 146,155 C 143,162 139,162 134,155 L 128,126 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Arms') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Arms') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Arms') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
+                                />
+
+                                {/* Legs */}
+                                <path 
+                                  d="M 88,166 L 112,166 C 120,185 110,205 100,205 C 90,205 80,185 88,166 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Legs') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Legs') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Legs') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 86,206 C 72,225 76,250 86,255 C 92,255 96,230 96,206 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Legs') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Legs') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Legs') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 86,258 C 76,285 82,335 88,340 C 90,340 92,300 92,258 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Legs') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Legs') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Legs') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 114,206 C 128,225 124,250 114,255 C 108,255 104,230 104,206 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Legs') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Legs') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Legs') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
+                                />
+                                <path 
+                                  d="M 114,258 C 124,285 118,335 112,340 C 110,340 108,300 108,258 Z" 
+                                  className="transition-all duration-300 cursor-pointer hover:opacity-85"
+                                  style={{
+                                    fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
+                                    stroke: selectedMuscles.includes('Legs') ? '#FF5252' : '#D1D5DB',
+                                    strokeWidth: selectedMuscles.includes('Legs') ? '2' : '1',
+                                    filter: selectedMuscles.includes('Legs') ? 'url(#glow)' : 'none'
+                                  }}
+                                  onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
+                                />
+                              </svg>
+                            </div>
+                            
+                          </div>
                         </div>
                       </div>
                       
-                      {/* Right Column: Customizer Dashboard card */}
-                      <div className="lg:col-span-5 bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-md space-y-6 flex flex-col justify-between">
-                        {/* Difficulty Toggle */}
-                        <div>
-                          <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2.5 block">Fitness Level</label>
-                          <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100/50">
-                            {['Beginner', 'Intermediate', 'Advanced'].map(level => (
-                              <button 
-                                type="button"
-                                key={level} 
-                                onClick={() => setDifficulty(level)}
-                                className={`flex-1 py-2 text-xs font-extrabold rounded-xl transition-all ${difficulty === level ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                      {/* Right: Selection List */}
+                      <div className="md:col-span-7 space-y-4">
+                        <h3 className="text-lg font-bold text-[#0B4550] uppercase tracking-wider mb-2">Target Muscles</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+                          {MUSCLE_OPTIONS.map(m => {
+                            const isSelected = selectedMuscles.includes(m);
+                            return (
+                              <div 
+                                key={m} 
+                                onClick={() => toggleSelection(m, selectedMuscles, setSelectedMuscles)} 
+                                className={`p-5 rounded-[2rem] border-4 cursor-pointer transition-all flex flex-col items-center gap-3 hover:scale-[1.02] ${isSelected ? 'border-[#0B4550] bg-[#0B4550] text-white shadow-md' : 'bg-white border-transparent text-[#0B4550] shadow-sm hover:border-gray-200'}`}
                               >
-                                {level}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Workout Goal Toggle */}
-                        <div>
-                          <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2.5 block">Training Goal</label>
-                          <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100/50">
-                            {['Strength', 'Hypertrophy', 'Endurance'].map(goal => (
-                              <button 
-                                type="button"
-                                key={goal} 
-                                onClick={() => setWorkoutGoal(goal)}
-                                className={`flex-1 py-2 text-xs font-extrabold rounded-xl transition-all ${workoutGoal === goal ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
-                              >
-                                {goal}
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Custom prompt/special instructions */}
-                        <div>
-                          <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2.5 block">Special Requests (AI)</label>
-                          <textarea
-                            value={customPrompt}
-                            onChange={(e) => setCustomPrompt(e.target.value)}
-                            placeholder="e.g., Lower back friendly, high intensity cardio, include pushups..."
-                            className="w-full bg-[#F9F7F2] border border-gray-100/50 rounded-2xl p-4 text-xs font-bold text-[#0B4550] placeholder-gray-400 outline-none focus:border-[#0B4550] focus:bg-white transition-all resize-none h-24 shadow-inner"
-                          />
+                                <Target size={30} className={isSelected ? 'text-[#E6FF2B]' : 'text-gray-400'} />
+                                <span className="font-extrabold text-sm tracking-wide">{m}</span>
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
                     </div>
                   </div>
                 )}
-                {step === 3 && generatedWorkout && (
+                
+                {/* STEP 3: AI ROUTINE PREFERENCES */}
+                {step === 3 && (
+                  <div className="animate-in slide-in-from-right-4">
+                    <div className="text-center mb-6 sm:mb-10">
+                      <h2 className="text-3xl sm:text-4xl font-medium text-[#0B4550] mb-2">AI Routine Customizer</h2>
+                      <p className="text-base sm:text-lg text-[#898A8D] font-medium">Fine-tune your training program parameters.</p>
+                    </div>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
+                      {/* Fitness Experience */}
+                      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-3">
+                        <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Fitness Experience</label>
+                        <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100">
+                          {['Beginner', 'Intermediate', 'Advanced'].map(level => (
+                            <button 
+                              type="button"
+                              key={level} 
+                              onClick={() => setDifficulty(level)}
+                              className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all ${difficulty === level ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                            >
+                              {level}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Fitness Goal */}
+                      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-3">
+                        <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Fitness Goal</label>
+                        <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100">
+                          {['Strength', 'Hypertrophy', 'Endurance'].map(goalOption => (
+                            <button 
+                              type="button"
+                              key={goalOption} 
+                              onClick={() => setWorkoutGoal(goalOption)}
+                              className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all ${workoutGoal === goalOption ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                            >
+                              {goalOption}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Workout Style */}
+                      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-3">
+                        <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Workout Style</label>
+                        <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100">
+                          {['Standard', 'Circuits'].map(style => (
+                            <button 
+                              type="button"
+                              key={style} 
+                              onClick={() => setWorkoutStyle(style)}
+                              className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all ${workoutStyle === style ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                            >
+                              {style === 'Standard' ? 'Standard Sets' : 'Circuits & Supersets'}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Workout Duration */}
+                      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-3">
+                        <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Workout Duration</label>
+                        <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100">
+                          {[30, 45, 60, 90].map(mins => (
+                            <button 
+                              type="button"
+                              key={mins} 
+                              onClick={() => setWorkoutDuration(mins)}
+                              className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all ${workoutDuration === mins ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                            >
+                              {mins} min
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Warm-Up / Cool-Down Toggles */}
+                      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-4 col-span-1 md:col-span-2">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-extrabold text-sm text-[#0B4550]">Include Warm-Up Routine</p>
+                            <p className="text-xs font-bold text-[#898A8D]">Add a 5-minute dynamic warm-up to prep joints</p>
+                          </div>
+                          <Toggle active={includeWarmup} onClick={() => setIncludeWarmup(!includeWarmup)} />
+                        </div>
+                        <div className="border-t border-gray-100 pt-4 flex items-center justify-between">
+                          <div>
+                            <p className="font-extrabold text-sm text-[#0B4550]">Include Cool-Down Routine</p>
+                            <p className="text-xs font-bold text-[#898A8D]">Add a 5-minute full-body static stretching session</p>
+                          </div>
+                          <Toggle active={includeCooldown} onClick={() => setIncludeCooldown(!includeCooldown)} />
+                        </div>
+                      </div>
+
+                      {/* Joint Care / Injuries */}
+                      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-3 col-span-1 md:col-span-2">
+                        <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Joint Care & Focus (Protect from strain)</label>
+                        <div className="flex flex-wrap gap-2">
+                          {['Lower Back', 'Knees', 'Shoulders', 'Wrists'].map(joint => {
+                            const active = injuries.includes(joint);
+                            return (
+                              <button
+                                type="button"
+                                key={joint}
+                                onClick={() => {
+                                  if (active) setInjuries(injuries.filter(j => j !== joint));
+                                  else setInjuries([...injuries, joint]);
+                                }}
+                                className={`px-4 py-2 text-xs font-bold rounded-xl border transition-all ${active ? 'bg-red-500 border-red-500 text-white shadow-sm' : 'bg-[#F9F7F2] border-gray-200 text-[#898A8D]'}`}
+                              >
+                                Protect {joint}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Exclude Exercises */}
+                      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-3 col-span-1 md:col-span-2">
+                        <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Exclude Specific Exercises (Optional)</label>
+                        <input 
+                          type="text" 
+                          value={excludeExercises} 
+                          onChange={(e) => setExcludeExercises(e.target.value)}
+                          placeholder="e.g. Burpees, squats, pull-ups"
+                          className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl p-4 text-xs font-bold text-[#0B4550] outline-none focus:border-[#0B4550] focus:bg-white transition-colors"
+                        />
+                      </div>
+
+                      {/* Custom Prompt / Special Requests */}
+                      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-3 col-span-1 md:col-span-2">
+                        <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Special AI Prompts or Requests</label>
+                        <textarea
+                          value={customPrompt}
+                          onChange={(e) => setCustomPrompt(e.target.value)}
+                          placeholder="e.g. Add some core work at the end, extra high intensity, focus on mobility..."
+                          className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl p-4 text-xs font-bold text-[#0B4550] outline-none focus:border-[#0B4550] focus:bg-white transition-colors resize-none h-24"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
+                {/* STEP 4: EXERCISES REVIEW */}
+                {step === 4 && generatedWorkout && (
                   <div className="animate-in slide-in-from-right-4">
                     <div className="text-center mb-8">
                       <h2 className="text-4xl font-medium text-[#0B4550] mb-2">Workout Ready</h2>
@@ -2333,7 +2983,7 @@ export default function ClientDashboard() {
                         <Clock size={22} className="text-[#0B4550] mb-2 opacity-80" />
                         <span className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">Est. Duration</span>
                         <span className="text-lg font-black text-[#0B4550] mt-1">
-                          {generatedWorkout.length * (generatedWorkout[0]?.sets?.length || 3) * 2 + Math.floor((generatedWorkout.length * (generatedWorkout[0]?.sets?.length || 3) * (generatedWorkout[0]?.restDuration || 60)) / 60)} mins
+                          {workoutDuration} mins
                         </span>
                       </div>
                       <div className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-center items-center text-center">
@@ -2357,16 +3007,22 @@ export default function ClientDashboard() {
                       <div className="divide-y divide-gray-100">
                         {generatedWorkout.map((ex, i) => (
                           <div key={i} className="p-6 flex items-center gap-6 hover:bg-gray-50 transition-colors">
-                            <div className="w-14 h-14 bg-[#F9F7F2] rounded-2xl flex items-center justify-center font-medium text-[#0B4550] text-xl shrink-0">{ex.muscle.charAt(0)}</div>
+                            <div className="w-14 h-14 bg-[#F9F7F2] rounded-2xl flex items-center justify-center font-medium text-[#0B4550] text-xl shrink-0">
+                              {ex.muscle === "Warm-up" || ex.muscle === "Cool-down" ? <Activity size={24} /> : ex.muscle.charAt(0)}
+                            </div>
                             <div className="flex-1">
                               <h4 className="text-xl font-medium text-[#0B4550]">{ex.name}</h4>
                               <p className="text-sm font-medium text-[#898A8D] uppercase tracking-widest mt-1">
-                                {ex.muscle} • {ex.sets?.length || 3} Sets • {ex.restDuration || 60}s Rest
+                                {ex.muscle} • {ex.sets?.length || 3} Sets {ex.restDuration > 0 ? `• ${ex.restDuration}s Rest` : ''}
                               </p>
                             </div>
                             <div className="flex items-center gap-3">
-                              <button onClick={() => shuffleExercise(i)} className="flex items-center gap-2 px-5 py-2.5 border-2 border-blue-100 text-blue-600 rounded-xl font-medium hover:bg-blue-50 transition-colors text-sm"><RefreshCw size={16} /> Swap</button>
-                              <button onClick={() => removeExercise(i)} className="p-3 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-colors"><Trash2 size={24} /></button>
+                              {ex.muscle !== "Warm-up" && ex.muscle !== "Cool-down" && (
+                                <>
+                                  <button onClick={() => shuffleExercise(i)} className="flex items-center gap-2 px-5 py-2.5 border-2 border-blue-100 text-blue-600 rounded-xl font-medium hover:bg-blue-50 transition-colors text-sm"><RefreshCw size={16} /> Swap</button>
+                                  <button onClick={() => removeExercise(i)} className="p-3 text-red-400 hover:bg-red-50 hover:text-red-600 rounded-xl transition-colors"><Trash2 size={24} /></button>
+                                </>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -2377,8 +3033,10 @@ export default function ClientDashboard() {
                     </div>
                   </div>
                 )}
+                
               </div>
             </div>
+            
             <div className="bg-white p-6 pb-8 sm:pb-6 border-t border-gray-100 flex justify-center shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
               <div className="max-w-4xl w-full flex justify-between items-center">
                 <button onClick={() => step > 1 ? setStep(step - 1) : setIsBuilderOpen(false)} className="px-8 font-medium text-[#898A8D] flex items-center gap-2 hover:text-[#0B4550] transition-colors">
@@ -2386,7 +3044,15 @@ export default function ClientDashboard() {
                 </button>
                 <button 
                   disabled={isGenerating || (step === 1 ? selectedEquip.length === 0 : step === 2 ? selectedMuscles.length === 0 : false)} 
-                  onClick={() => { if (step === 2) generateWorkout(); else if (step === 3) setIsBuilderOpen(false); else setStep(step + 1); }} 
+                  onClick={() => { 
+                    if (step === 3) {
+                      generateWorkout(); 
+                    } else if (step === 4) {
+                      setIsBuilderOpen(false); 
+                    } else {
+                      setStep(step + 1); 
+                    }
+                  }} 
                   className="bg-[#E6FF2B] text-[#0B4550] px-16 py-4 rounded-full font-medium text-lg shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-3"
                 >
                   {isGenerating ? (
@@ -2395,7 +3061,7 @@ export default function ClientDashboard() {
                       Generating...
                     </>
                   ) : (
-                    step === 3 ? 'Save to Dashboard' : 'Continue'
+                    step === 3 ? 'Generate Workout' : step === 4 ? 'Save to Dashboard' : 'Continue'
                   )}
                 </button>
               </div>
