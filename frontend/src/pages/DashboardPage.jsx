@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { supabase } from '../supabaseClient'; 
-import { 
+import { supabase } from '../supabaseClient';
+import {
   Home, Users, Calendar, CalendarSearch, BarChart2, Package,
   Settings, LogOut, Search, Bell,
   ChevronLeft, ChevronRight, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, RotateCw,
@@ -69,16 +69,16 @@ const getDailyQuote = () => {
 
 const getExpiryText = (client) => {
   if (!client.expiry) return 'No expiry date';
-  
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const expiryDate = new Date(client.expiry);
   expiryDate.setHours(0, 0, 0, 0);
-  
+
   const diffTime = expiryDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   if (diffDays < 0) {
     const absDays = Math.abs(diffDays);
     return `Expired ${absDays} day${absDays > 1 ? 's' : ''} ago`;
@@ -101,7 +101,7 @@ const getWeekDays = (date) => {
   const day = current.getDay();
   const diff = current.getDate() - day + (day === 0 ? -6 : 1);
   const monday = new Date(current.getFullYear(), current.getMonth(), diff);
-  
+
   const days = [];
   for (let i = 0; i < 7; i++) {
     const next = new Date(monday);
@@ -115,10 +115,10 @@ const getCalendarDays = (date) => {
   const year = date.getFullYear();
   const month = date.getMonth();
   const firstDay = new Date(year, month, 1);
-  let startDay = firstDay.getDay(); 
+  let startDay = firstDay.getDay();
   startDay = startDay === 0 ? 6 : startDay - 1;
   const totalDays = new Date(year, month + 1, 0).getDate();
-  
+
   const days = [];
   for (let i = 0; i < startDay; i++) {
     days.push({ isPlaceholder: true, day: '' });
@@ -130,14 +130,14 @@ const getCalendarDays = (date) => {
 };
 
 const parseNotesAndMetadata = (rawNotes) => {
-  if (!rawNotes) return { 
-    notes: '', 
+  if (!rawNotes) return {
+    notes: '',
     trialMeta: { checklist: [false, false, false, false], status: 'Pending' },
     sessionNotes: {},
     address: '',
     workoutLogs: []
   };
-  
+
   let notes = '';
   let trialMeta = { checklist: [false, false, false, false], status: 'Pending' };
   let sessionNotes = {};
@@ -233,16 +233,16 @@ const serializeNotesAndMetadata = (notes, trialMeta, sessionNotes = {}, address 
 const getLiveClientStatus = (client) => {
   if (client.status === 'Archived') return 'Archived';
   if (!client.expiry) return 'Active';
-  
+
   const today = new Date();
   today.setHours(0, 0, 0, 0);
-  
+
   const expiryDate = new Date(client.expiry);
   expiryDate.setHours(0, 0, 0, 0);
-  
+
   const diffTime = expiryDate.getTime() - today.getTime();
   const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-  
+
   if (diffDays < 0) return 'Expired';
   if (diffDays <= 10) return 'Expiring Soon';
   return 'Active';
@@ -252,39 +252,39 @@ const parseTimeToMinutes = (timeString) => {
   if (!timeString) return 0;
   const match = timeString.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
   if (!match) return 0;
-  
+
   let hours = parseInt(match[1], 10);
   const minutes = parseInt(match[2], 10);
   const ampm = match[3].toUpperCase();
-  
+
   if (ampm === 'PM' && hours !== 12) {
     hours += 12;
   } else if (ampm === 'AM' && hours === 12) {
     hours = 0;
   }
-  
+
   return hours * 60 + minutes;
 };
 
 const isSessionPast = (session) => {
   if (!session?.date || !session?.time) return false;
-  
+
   const match = session.time.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
   if (!match) return false;
-  
+
   let hours = parseInt(match[1], 10);
   const minutes = parseInt(match[2], 10);
   const ampm = match[3].toUpperCase();
-  
+
   if (ampm === 'PM' && hours !== 12) {
     hours += 12;
   } else if (ampm === 'AM' && hours === 12) {
     hours = 0;
   }
-  
+
   const [year, month, day] = session.date.split('-').map(num => parseInt(num, 10));
   const sessionDateObj = new Date(year, month - 1, day, hours, minutes, 0, 0);
-  
+
   return sessionDateObj < new Date();
 };
 
@@ -293,7 +293,7 @@ const getSessionDisplayTitle = (s) => {
   const type = (s.type || '').toLowerCase();
   const title = (s.title || '').toLowerCase();
   const is1on1 = type === '1-on-1' || title.includes('1-on-1') || title.includes('1 on 1') || title.includes('personal training') || title.includes('pt session');
-  
+
   if (is1on1 && s.attendees && s.attendees.length > 0) {
     return s.attendees.map(a => a.name).join(', ');
   }
@@ -339,7 +339,7 @@ export default function Dashboard({ session }) {
         setIsRevenueUnlocked(true);
         setShowSecurityPinModal(false);
         setSecurityPinInput('');
-        
+
         if (pendingPageAction === 'Revenue' || pendingPageAction === 'Analytics' || pendingPageAction === 'Clients') {
           setActivePage(pendingPageAction);
           if (pendingTabAction) {
@@ -461,12 +461,12 @@ export default function Dashboard({ session }) {
   const [undoTargetBookingId, setUndoTargetBookingId] = useState(null);
   const [showUndoPinModal, setShowUndoPinModal] = useState(false);
   const [classSearchQuery, setClassSearchQuery] = useState('');
-  
+
   // --- ATTENDANCE SUMMARY MODAL STATES ---
   const [showAttendanceSummaryModal, setShowAttendanceSummaryModal] = useState(false);
   const [attendanceSummaryList, setAttendanceSummaryList] = useState([]);
   const [isSavingAttendanceSummary, setIsSavingAttendanceSummary] = useState(false);
-  
+
   // --- AI COPILOT STATES ---
   const [showAICopilot, setShowAICopilot] = useState(false);
   const [aiChatHistory, setAiChatHistory] = useState([
@@ -490,26 +490,26 @@ export default function Dashboard({ session }) {
   };
 
   const handlePackageSelection = (e) => {
-  const selectedName = e.target.value;
-  
-  if (selectedName === "Custom") {
-    setIsCustomPackage(true);
-    setBacklogSelectedPrice(""); // Clear price for manual entry
-  } else {
-    setIsCustomPackage(false);
-    // Find the package in your 'packages' list to get its price
-    const pkg = packages.find(p => p.name === selectedName);
-    if (pkg) {
-      setBacklogSelectedPrice(pkg.price);
+    const selectedName = e.target.value;
+
+    if (selectedName === "Custom") {
+      setIsCustomPackage(true);
+      setBacklogSelectedPrice(""); // Clear price for manual entry
+    } else {
+      setIsCustomPackage(false);
+      // Find the package in your 'packages' list to get its price
+      const pkg = packages.find(p => p.name === selectedName);
+      if (pkg) {
+        setBacklogSelectedPrice(pkg.price);
+      }
     }
-  }
-};
+  };
 
   const handleSavePackage = async () => {
     try {
       // Grab the logged-in trainer's ID
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       let error;
       if (editingPackage) {
         // Update existing package
@@ -527,7 +527,7 @@ export default function Dashboard({ session }) {
       const { data } = await supabase.from('packages').select('*').order('price', { ascending: true });
       if (data) setPackagesList(data);
       setIsPackageModalOpen(false);
-      
+
     } catch (err) {
       alert("Error saving package: " + err.message);
     }
@@ -546,7 +546,7 @@ export default function Dashboard({ session }) {
   };
   const [activeTab, setActiveTab] = useState('Month');
   const [activeRevenuePeriod, setActiveRevenuePeriod] = useState('Year');
-  
+
   // --- REAL DATA STATES ---
   const [clients, setClients] = useState([]);
   const [isLoadingClients, setIsLoadingClients] = useState(true);
@@ -566,9 +566,17 @@ export default function Dashboard({ session }) {
 
   const mapClientWithAddress = (c) => {
     const parsed = parseNotesAndMetadata(c.notes);
+    const hasUnlimitedKeyword = c.package && (
+      c.package.toLowerCase().includes('unlimited') ||
+      c.package.toLowerCase().includes('membership') ||
+      c.package.toLowerCase().includes('monthly') ||
+      c.package.toLowerCase().includes('time-based') ||
+      c.package.toLowerCase().includes('pass')
+    );
     return {
       ...c,
-      address: parsed.address || ''
+      address: parsed.address || '',
+      unlimited: !!c.unlimited || !!hasUnlimitedKeyword
     };
   };
 
@@ -589,12 +597,12 @@ export default function Dashboard({ session }) {
           user = localSession?.user;
         }
         if (!user) return;
-        
+
         const { data, error } = await supabase.from('transactions')
           .select('*')
           .eq('trainer_id', user.id)
           .order('created_at', { ascending: false });
-          
+
         if (error) throw error;
         if (data) setTransactions(data);
       } catch (error) {
@@ -612,7 +620,7 @@ export default function Dashboard({ session }) {
         { event: 'INSERT', schema: 'public', table: 'transactions' },
         (payload) => {
           console.log("💸 CHA-CHING! Live payment received:", payload.new);
-          
+
           // Instantly add the new receipt to the top of the list!
           setTransactions((currentTransactions) => [payload.new, ...currentTransactions]);
         }
@@ -663,7 +671,7 @@ export default function Dashboard({ session }) {
       const date = new Date(item.timestamp);
       const year = date.getFullYear();
       const monthName = date.toLocaleDateString('en-GB', { month: 'long' });
-      
+
       if (!years[year]) {
         years[year] = {
           year: year,
@@ -672,7 +680,7 @@ export default function Dashboard({ session }) {
           months: {}
         };
       }
-      
+
       if (!years[year].months[monthName]) {
         years[year].months[monthName] = {
           monthName: monthName,
@@ -683,9 +691,9 @@ export default function Dashboard({ session }) {
           maxTimestamp: item.timestamp
         };
       }
-      
+
       years[year].months[monthName].items.push(item);
-      
+
       if (item.type === 'purchase' && Number(item.amount) > 0) {
         const amt = Number(item.amount);
         years[year].months[monthName].totalEarned += amt;
@@ -707,7 +715,7 @@ export default function Dashboard({ session }) {
       [month]: !isMonthExpanded(month)
     }));
   };
-  
+
   // Modals for Renewal & Manual Entry
   const [showRenewModal, setShowRenewModal] = useState(false);
   const [renewForm, setRenewForm] = useState({ packageId: '', renewalDate: new Date().toISOString().split('T')[0], expiryDate: '', amount: 0, sessions: 0 });
@@ -722,14 +730,14 @@ export default function Dashboard({ session }) {
   const [trialMeta, setTrialMeta] = useState({ checklist: [false, false, false, false], status: 'Pending' });
   const [isSavingNotes, setIsSavingNotes] = useState(false);
   const [notesSavedMsg, setNotesSavedMsg] = useState(false);
-  
+
   // State for client profile tabs & workout logs
   const [clientDetailTab, setClientDetailTab] = useState('notes');
   const [workoutLogs, setWorkoutLogs] = useState([]);
   const [activeWorkoutLogId, setActiveWorkoutLogId] = useState(null);
   const [isSavingWorkoutLogs, setIsSavingWorkoutLogs] = useState(false);
   const [workoutLogsSavedMsg, setWorkoutLogsSavedMsg] = useState(false);
-  
+
   // State for Schedule (NOW LIVE!)
   const [sessions, setSessions] = useState([]);
   const [selectedSession, setSelectedSession] = useState(null);
@@ -747,23 +755,23 @@ export default function Dashboard({ session }) {
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return { clients: [], sessions: [] };
     const q = searchQuery.toLowerCase();
-    
-    const matchedClients = clients.filter(c => 
+
+    const matchedClients = clients.filter(c =>
       c.status !== 'Archived' && (
         (c.name || '').toLowerCase().includes(q) ||
         (c.email || '').toLowerCase().includes(q) ||
         (c.phone || '').toLowerCase().includes(q)
       )
     ).slice(0, 5);
-    
-    const matchedSessions = sessions.filter(s => 
+
+    const matchedSessions = sessions.filter(s =>
       s.type !== 'Blocked' && (
         (s.title || '').toLowerCase().includes(q) ||
         (s.location || '').toLowerCase().includes(q) ||
         (s.date || '').toLowerCase().includes(q)
       )
     ).slice(0, 5);
-    
+
     return {
       clients: matchedClients,
       sessions: matchedSessions
@@ -798,8 +806,8 @@ export default function Dashboard({ session }) {
   const [isInvoiceModalOpen, setIsInvoiceModalOpen] = useState(false);
   const [newClientData, setNewClientData] = useState({
     name: '', email: '', phone: '', dob: '', address: '',
-    package: '', expiry_date: '', unlimited: false, 
-    client_type: 'Group', member_status: 'Member', 
+    package: '', expiry_date: '', unlimited: false,
+    client_type: 'Group', member_status: 'Member',
     initial_package: '', remaining_package: '', date_paid: ''
   });
 
@@ -843,7 +851,7 @@ export default function Dashboard({ session }) {
 
   const greeting = getGreeting();
   const quote = getDailyQuote();
-  
+
   const todayFormattedFull = new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
   const todayMonthDay = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
@@ -968,10 +976,10 @@ export default function Dashboard({ session }) {
     if (!timeStr) return defaultParts;
     const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
     if (match) {
-      return { 
-        hour: match[1].padStart(2, '0'), 
-        minute: match[2], 
-        ampm: match[3].toUpperCase() 
+      return {
+        hour: match[1].padStart(2, '0'),
+        minute: match[2],
+        ampm: match[3].toUpperCase()
       };
     }
     const parts = timeStr.split(':');
@@ -1043,8 +1051,8 @@ export default function Dashboard({ session }) {
 
     const activeClientsCount = clients.filter(c => c.member_status === 'Member').length;
     const totalClientsCount = clients.length;
-    const retentionRate = totalClientsCount > 0 
-      ? ((activeClientsCount / totalClientsCount) * 100).toFixed(1) 
+    const retentionRate = totalClientsCount > 0
+      ? ((activeClientsCount / totalClientsCount) * 100).toFixed(1)
       : "100.0";
 
     let totalBooked = 0;
@@ -1055,8 +1063,8 @@ export default function Dashboard({ session }) {
         totalAttended += s.attendees.filter(a => a.status === 'Attended').length;
       }
     });
-    const attendanceRate = totalBooked > 0 
-      ? Math.round((totalAttended / totalBooked) * 100) 
+    const attendanceRate = totalBooked > 0
+      ? Math.round((totalAttended / totalBooked) * 100)
       : 85;
 
     const packageCounts = {};
@@ -1197,8 +1205,8 @@ export default function Dashboard({ session }) {
     });
     let path = `M ${coords[0].x} ${coords[0].y}`;
     for (let i = 1; i < coords.length; i++) {
-      const cpX1 = coords[i-1].x + 45;
-      const cpY1 = coords[i-1].y;
+      const cpX1 = coords[i - 1].x + 45;
+      const cpY1 = coords[i - 1].y;
       const cpX2 = coords[i].x - 45;
       const cpY2 = coords[i].y;
       path += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${coords[i].x} ${coords[i].y}`;
@@ -1217,8 +1225,8 @@ export default function Dashboard({ session }) {
     });
     let path = `M ${coords[0].x} ${coords[0].y}`;
     for (let i = 1; i < coords.length; i++) {
-      const cpX1 = coords[i-1].x + 45;
-      const cpY1 = coords[i-1].y;
+      const cpX1 = coords[i - 1].x + 45;
+      const cpY1 = coords[i - 1].y;
       const cpX2 = coords[i].x - 45;
       const cpY2 = coords[i].y;
       path += ` C ${cpX1} ${cpY1}, ${cpX2} ${cpY2}, ${coords[i].x} ${coords[i].y}`;
@@ -1229,10 +1237,10 @@ export default function Dashboard({ session }) {
   const dashboardMetrics = useMemo(() => {
     const today = new Date();
     const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-    
+
     // Filter transactions to only those with non-zero financial amount
     let filtered = transactions.filter(t => Number(t.amount) !== 0);
-    
+
     if (activeTab === 'Day') {
       filtered = filtered.filter(t => new Date(t.created_at) >= startOfDay);
     } else if (activeTab === 'Week') {
@@ -1247,10 +1255,10 @@ export default function Dashboard({ session }) {
     } else if (activeTab === 'Year') {
       filtered = filtered.filter(t => new Date(t.created_at).getFullYear() === today.getFullYear());
     }
-    
+
     const totalRevenue = filtered.reduce((sum, t) => sum + Number(t.amount), 0);
     const totalCount = filtered.length;
-    
+
     return { totalRevenue, totalCount };
   }, [transactions, activeTab]);
 
@@ -1282,7 +1290,7 @@ export default function Dashboard({ session }) {
       const date = new Date(t.created_at);
       const year = date.getFullYear();
       const monthName = date.toLocaleDateString('en-US', { month: 'long' });
-      
+
       if (!years[year]) {
         years[year] = {
           year: year,
@@ -1290,7 +1298,7 @@ export default function Dashboard({ session }) {
           months: {}
         };
       }
-      
+
       if (!years[year].months[monthName]) {
         years[year].months[monthName] = {
           monthName: monthName,
@@ -1300,7 +1308,7 @@ export default function Dashboard({ session }) {
           maxTimestamp: date.getTime()
         };
       }
-      
+
       years[year].months[monthName].items.push(t);
       const amt = Number(t.amount);
       years[year].months[monthName].totalEarned += amt;
@@ -1434,7 +1442,7 @@ export default function Dashboard({ session }) {
       if (data) setPackages(data);
       if (error) console.error("Error fetching packages:", error);
     };
-    
+
     fetchPackages();
   }, []);
 
@@ -1460,6 +1468,7 @@ export default function Dashboard({ session }) {
         expiry: selectedClient.expiry || '',
         initial_package: selectedClient.initial_package || 0,
         remaining_package: selectedClient.remaining_package || 0,
+        unlimited: selectedClient.unlimited || false,
         dob: selectedClient.dob || '',
         date_paid: selectedClient.date_paid || '',
         address: selectedClient.address || ''
@@ -1473,7 +1482,7 @@ export default function Dashboard({ session }) {
     if (selectedSession) {
       setSessionDetailTab('roster');
       setSessionWorkoutTitle(selectedSession.title || 'Workout Log');
-      
+
       // Format date from YYYY-MM-DD to DD/MM/YYYY
       let displayDate = '';
       if (selectedSession.date) {
@@ -1500,7 +1509,7 @@ export default function Dashboard({ session }) {
       .select('*')
       .or(`client_name.eq."${client.id}",client_name.eq."${client.name}"`)
       .order('created_at', { ascending: false });
-    
+
     // Fetch Bookings (Attended)
     const { data: bookData } = await supabase.from('bookings')
       .select(`
@@ -1520,13 +1529,13 @@ export default function Dashboard({ session }) {
     const history = [
       ...(transData || []).map(t => {
         const type = t.amount > 0 ? 'purchase' : (
-          t.description?.toLowerCase().includes('adjustment') || 
-          t.description?.toLowerCase().includes('check-in') || 
+          t.description?.toLowerCase().includes('adjustment') ||
+          t.description?.toLowerCase().includes('check-in') ||
           t.description?.toLowerCase().includes('usage') ||
           t.description?.toLowerCase().includes('session') ||
           t.description?.toLowerCase().includes('class')
         ) ? 'usage' : 'note';
-        
+
         const match = t.description?.match(/(\d+)\s*Session/i);
         const sessionCount = match ? parseInt(match[1]) : 1;
 
@@ -1639,7 +1648,7 @@ export default function Dashboard({ session }) {
       try {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) return;
-        
+
         const defaultSettings = {
           coaches: ["Coach Keith", "Coach John", "Coach Sarah"],
           locations: ["Main Ring", "Studio A", "Gym Floor"],
@@ -1664,7 +1673,7 @@ export default function Dashboard({ session }) {
           used_sessions: 0,
           unlimited: true
         }]).select('*');
-        
+
         if (data && data[0]) {
           setSettingsClientId(data[0].id);
         }
@@ -1868,14 +1877,14 @@ export default function Dashboard({ session }) {
         });
       }
       setShowEventModal(false);
-      setNewEventData({ 
-        title: '', 
-        date: '', 
-        time: '09:00 AM', 
-        duration: '60 min', 
-        type: 'Group Class', 
-        location: 'Main Floor', 
-        capacity: 10, 
+      setNewEventData({
+        title: '',
+        date: '',
+        time: '09:00 AM',
+        duration: '60 min',
+        type: 'Group Class',
+        location: 'Main Floor',
+        capacity: 10,
         coach: '',
         recurrence: 'none',
         recurrenceCount: 4,
@@ -2048,11 +2057,11 @@ export default function Dashboard({ session }) {
         bank_account_number: settingsForm.bank_account_number,
         updated_at: new Date()
       };
-      
+
       const { error } = await supabase.from('profiles')
         .update(updatedFields)
         .eq('id', user.id);
-        
+
       if (error) throw error;
 
       // Sync the schedule settings to Supabase
@@ -2064,7 +2073,7 @@ export default function Dashboard({ session }) {
           .eq('id', settingsClientId);
         if (settingsErr) console.error("Error updating system settings client:", settingsErr);
       }
-      
+
       setTrainerName(settingsForm.full_name);
       setCompanyName(settingsForm.company_name);
       setCompanyLogo(settingsForm.company_logo);
@@ -2072,7 +2081,7 @@ export default function Dashboard({ session }) {
         id: user.id,
         ...updatedFields
       });
-      
+
       setSettingsMessage("Profile updated successfully!");
       setTimeout(() => setSettingsMessage(null), 3000);
     } catch (error) {
@@ -2087,30 +2096,30 @@ export default function Dashboard({ session }) {
     setIsAddingClient(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       const clientAddress = newClientData.address || '';
       const notesWithAddress = serializeNotesAndMetadata('', { checklist: [false, false, false, false], status: 'Pending' }, {}, clientAddress);
 
       const { error } = await supabase
         .from('clients')
         .insert([{
-            trainer_id: user.id,
-            name: newClientData.name,
-            email: newClientData.email,
-            phone: newClientData.phone,
-            dob: newClientData.dob || null,
-            notes: notesWithAddress,
-            package: newClientData.package,
-            expiry: newClientData.expiry_date || null,
-            unlimited: newClientData.unlimited,
-            client_type: newClientData.client_type,
-            member_status: newClientData.member_status,
-            initial_package: parseInt(newClientData.initial_package) || 0,
-            remaining_package: parseInt(newClientData.remaining_package) || 0,
-            date_paid: newClientData.date_paid || null,
-            total_sessions: parseInt(newClientData.initial_package) || 0,
-            used_sessions: (parseInt(newClientData.initial_package) || 0) - (parseInt(newClientData.remaining_package) || 0),
-            status: 'Active'
+          trainer_id: user.id,
+          name: newClientData.name,
+          email: newClientData.email,
+          phone: newClientData.phone,
+          dob: newClientData.dob || null,
+          notes: notesWithAddress,
+          package: newClientData.package,
+          expiry: newClientData.expiry_date || null,
+          unlimited: newClientData.unlimited,
+          client_type: newClientData.client_type,
+          member_status: newClientData.member_status,
+          initial_package: parseInt(newClientData.initial_package) || 0,
+          remaining_package: parseInt(newClientData.remaining_package) || 0,
+          date_paid: newClientData.date_paid || null,
+          total_sessions: parseInt(newClientData.initial_package) || 0,
+          used_sessions: (parseInt(newClientData.initial_package) || 0) - (parseInt(newClientData.remaining_package) || 0),
+          status: 'Active'
         }]);
 
       if (error) throw error;
@@ -2129,11 +2138,11 @@ export default function Dashboard({ session }) {
       const newStatus = currentStatus === 'Archived' ? 'Active' : 'Archived';
       const { error } = await supabase.from('clients').update({ status: newStatus }).eq('id', id);
       if (error) throw error;
-      
+
       if (selectedClient && selectedClient.id === id) {
         setSelectedClient({ ...selectedClient, status: newStatus });
         if (newStatus === 'Archived' && !isArchiveMode) {
-            setSelectedClient(null); // Close the card if we archived it and we aren't in archive mode
+          setSelectedClient(null); // Close the card if we archived it and we aren't in archive mode
         }
       }
       fetchClients();
@@ -2147,7 +2156,7 @@ export default function Dashboard({ session }) {
     try {
       const { error } = await supabase.from('clients').delete().eq('id', id);
       if (error) throw error;
-      
+
       if (selectedClient && selectedClient.id === id) {
         setSelectedClient(null);
       }
@@ -2210,13 +2219,13 @@ export default function Dashboard({ session }) {
           }
 
           const { error } = await supabase.from('clients').insert(clientsToInsert);
-          
+
           if (error) throw error;
-          
+
           alert(`Successfully imported ${clientsToInsert.length} clients!`);
           setShowAddModal(false);
           fetchClients();
-          
+
         } catch (error) {
           console.error("Error importing clients:", error);
           alert("Error importing clients: " + error.message);
@@ -2331,7 +2340,7 @@ export default function Dashboard({ session }) {
     try {
       // 1. Get the current logged-in trainer's ID directly from Supabase
       const { data: { user: authUser } } = await supabase.auth.getUser();
-      
+
       if (!authUser) throw new Error("No logged in user found");
 
       const { error } = await supabase
@@ -2346,7 +2355,7 @@ export default function Dashboard({ session }) {
         }]);
 
       if (error) throw error;
-      
+
       setShowBacklogModal(false);
       alert("Historical data synced!");
     } catch (err) {
@@ -2361,15 +2370,15 @@ export default function Dashboard({ session }) {
 
   const handleUpdateTodo = async (id) => {
     if (!editValue.trim()) return setEditingTodoId(null);
-  
+
     try {
       const { error } = await supabase
         .from('todos')
         .update({ task: editValue })
         .eq('id', id);
-  
+
       if (error) throw error;
-  
+
       // Update local state so it changes instantly on screen
       setTodos(todos.map(t => t.id === id ? { ...t, task: editValue } : t));
       setEditingTodoId(null);
@@ -2377,7 +2386,7 @@ export default function Dashboard({ session }) {
       console.error("Error updating todo:", error.message);
     }
   };
-  
+
   const deleteTodo = async (id) => {
     setTodos(todos.filter(t => t.id !== id));
     await supabase.from('todos').delete().eq('id', id);
@@ -2409,7 +2418,7 @@ export default function Dashboard({ session }) {
       date: dayStr,
       content: ''
     };
-    
+
     const updated = [newLog, ...workoutLogs];
     setWorkoutLogs(updated);
     setActiveWorkoutLogId(newLog.id);
@@ -2438,10 +2447,10 @@ export default function Dashboard({ session }) {
     setIsSavingWorkoutLogs(true);
     const parsed = parseNotesAndMetadata(selectedClient.notes);
     const notesToSave = serializeNotesAndMetadata(
-      clientNotes, 
-      parsed.trialMeta, 
-      parsed.sessionNotes, 
-      parsed.address, 
+      clientNotes,
+      parsed.trialMeta,
+      parsed.sessionNotes,
+      parsed.address,
       workoutLogs
     );
 
@@ -2527,7 +2536,7 @@ export default function Dashboard({ session }) {
         if (error) throw error;
 
         // Update local component state
-        setClients(prevClients => 
+        setClients(prevClients =>
           prevClients.map(c => c.id === client.id ? { ...c, notes: notesToSave } : c)
         );
 
@@ -2557,16 +2566,16 @@ export default function Dashboard({ session }) {
     setTrialMeta(newMeta);
     const parsed = parseNotesAndMetadata(selectedClient.notes);
     const notesToSave = serializeNotesAndMetadata(clientNotes, newMeta, parsed.sessionNotes, parsed.address, parsed.workoutLogs);
-    
+
     const updatedClient = { ...selectedClient, notes: notesToSave };
     setSelectedClient(updatedClient);
     setClients(clients.map(c => c.id === selectedClient.id ? updatedClient : c));
-    
+
     const { error } = await supabase
       .from('clients')
       .update({ notes: notesToSave })
       .eq('id', selectedClient.id);
-      
+
     if (error) {
       console.error("Error saving trial metadata: ", error.message);
     }
@@ -2575,21 +2584,21 @@ export default function Dashboard({ session }) {
   const handleConvertToMember = async (client) => {
     const confirmConvert = window.confirm(`Are you sure you want to convert ${client.name} to a Full Member?`);
     if (!confirmConvert) return;
-    
+
     try {
       const { error } = await supabase
         .from('clients')
         .update({ member_status: 'Member' })
         .eq('id', client.id);
-        
+
       if (error) throw error;
-      
+
       const updatedClient = { ...client, member_status: 'Member' };
       setSelectedClient(updatedClient);
       setClients(clients.map(c => c.id === client.id ? updatedClient : c));
-      
+
       alert(`🎉 ${client.name} is now a Full Member! Let's set up their package.`);
-      
+
       const defaultPkg = packagesList[0];
       setRenewForm({
         packageId: defaultPkg?.id || '',
@@ -2607,19 +2616,19 @@ export default function Dashboard({ session }) {
   const handleToggleFollowUp = async (client) => {
     const isCurrentlyFollowUp = client.member_status === 'Follow Up';
     const nextStatus = isCurrentlyFollowUp ? 'Member' : 'Follow Up';
-    
+
     try {
       const { error } = await supabase
         .from('clients')
         .update({ member_status: nextStatus })
         .eq('id', client.id);
-        
+
       if (error) throw error;
-      
+
       const updatedClient = { ...client, member_status: nextStatus };
       setSelectedClient(updatedClient);
       setClients(clients.map(c => c.id === client.id ? updatedClient : c));
-      
+
       alert(isCurrentlyFollowUp ? `Removed ${client.name} from Follow Up.` : `Moved ${client.name} to Follow Up!`);
     } catch (err) {
       alert("Error moving client to Follow Up: " + err.message);
@@ -2640,7 +2649,7 @@ export default function Dashboard({ session }) {
     const { data: sessionsData } = await supabase.from('sessions').select('*').eq('trainer_id', trainerId).order('date', { ascending: true }).order('time', { ascending: true });
     // Fetch Bookings joined with Client Names
     const { data: bookingsData } = await supabase.from('bookings').select('*, clients(name)');
-    
+
     if (sessionsData) {
       const formattedSessions = sessionsData.map(session => {
         const sessionBookings = (bookingsData || []).filter(b => b.session_id === session.id);
@@ -2655,7 +2664,7 @@ export default function Dashboard({ session }) {
         };
       });
       setSessions(formattedSessions);
-      
+
       if (selectedSession) {
         const updated = formattedSessions.find(s => s.id === selectedSession.id);
         if (updated) {
@@ -2674,15 +2683,15 @@ export default function Dashboard({ session }) {
     const newRemaining = Math.max(0, selectedClient.remaining_package + amount);
     // If deducting, increase used sessions
     const newUsed = amount < 0 ? selectedClient.used_sessions + Math.abs(amount) : selectedClient.used_sessions;
-    
+
     // Optimistic Update
     const updatedClient = { ...selectedClient, remaining_package: newRemaining, used_sessions: newUsed };
     setSelectedClient(updatedClient);
     setClients(clients.map(c => c.id === selectedClient.id ? updatedClient : c));
-    
+
     // DB Update
     await supabase.from('clients').update({ remaining_package: newRemaining, used_sessions: newUsed }).eq('id', selectedClient.id);
-    
+
     // Log Activity in Ledger
     const { data: { user } } = await supabase.auth.getUser();
     await supabase.from('transactions').insert([{
@@ -2719,7 +2728,7 @@ export default function Dashboard({ session }) {
 
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       const renDate = new Date(renewForm.renewalDate);
       // If expiry date is manually set, use it. Otherwise calculate.
       let expDateStr = renewForm.expiryDate;
@@ -2750,12 +2759,12 @@ export default function Dashboard({ session }) {
         status: 'Active',
         date_paid: renDate.toISOString().split('T')[0]
       }).eq('id', selectedClient.id);
-      
+
       if (clientError) throw clientError;
 
       alert("Package renewed!");
       setShowRenewModal(false);
-      
+
       // Update local state
       const updatedClient = { ...selectedClient, package: selectedPkg.name, remaining_package: newRemaining, initial_package: newInitial, expiry: expDateStr, status: 'Active' };
       setSelectedClient(updatedClient);
@@ -2768,11 +2777,11 @@ export default function Dashboard({ session }) {
 
   const handleDeleteHistoryEntry = async (item) => {
     if (!window.confirm("Delete this entry from history? This will NOT revert session counts automatically.")) return;
-    
+
     try {
       const { error } = await supabase.from(item.dbTable).delete().eq('id', item.id);
       if (error) throw error;
-      
+
       setClientHistory(prev => prev.filter(h => h.id !== item.id));
     } catch (err) {
       alert("Error deleting entry: " + err.message);
@@ -2781,9 +2790,9 @@ export default function Dashboard({ session }) {
 
   const handleEditHistoryEntry = (item) => {
     if (item.dbTable !== 'transactions') return alert("This entry is linked to a scheduled class and cannot be edited from here. Please manage it via the Schedule tab.");
-    
+
     const cleanTitle = item.title.startsWith('Note: ') ? item.title.substring(6) : item.title;
-    
+
     setEditingLedgerItem(item);
     setLedgerForm({
       type: item.type,
@@ -2805,11 +2814,11 @@ export default function Dashboard({ session }) {
       if (editingLedgerItem) {
         // UPDATE Existing
         const updateData = {
-          description: ledgerForm.type === 'note' 
+          description: ledgerForm.type === 'note'
             ? (ledgerForm.title.startsWith('Note: ') ? ledgerForm.title : `Note: ${ledgerForm.title}`)
-            : (ledgerForm.type === 'usage' 
-               ? (ledgerForm.title || `Manual Adjustment: ${ledgerForm.amount} Sessions`)
-               : ledgerForm.title),
+            : (ledgerForm.type === 'usage'
+              ? (ledgerForm.title || `Manual Adjustment: ${ledgerForm.amount} Sessions`)
+              : ledgerForm.title),
           amount: ledgerForm.type === 'purchase' ? ledgerForm.price : 0,
           created_at: renDate.toISOString()
         };
@@ -2834,7 +2843,7 @@ export default function Dashboard({ session }) {
           // 2. Update Client balance
           const newRemaining = (selectedClient.remaining_package || 0) + parseInt(ledgerForm.amount);
           const newInitial = (selectedClient.initial_package || 0) + parseInt(ledgerForm.amount);
-          
+
           await supabase.from('clients').update({
             remaining_package: newRemaining,
             initial_package: newInitial,
@@ -2854,10 +2863,10 @@ export default function Dashboard({ session }) {
             created_at: renDate.toISOString()
           }]);
           if (error) throw error;
-          
+
           const newRemaining = Math.max(0, (selectedClient.remaining_package || 0) - parseInt(ledgerForm.amount));
           await supabase.from('clients').update({ remaining_package: newRemaining }).eq('id', selectedClient.id);
-          
+
           const updatedClient = { ...selectedClient, remaining_package: newRemaining };
           setSelectedClient(updatedClient);
           setClients(clients.map(c => c.id === selectedClient.id ? updatedClient : c));
@@ -2873,7 +2882,7 @@ export default function Dashboard({ session }) {
           if (error) throw error;
         }
       }
-      
+
       setShowLedgerModal(false);
       setEditingLedgerItem(null);
       setLedgerForm({ type: 'usage', title: '', amount: 0, date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), note: '', packageId: '', price: 0 });
@@ -2886,13 +2895,13 @@ export default function Dashboard({ session }) {
   const handleBulkLedgerEntry = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       const transactionsToInsert = [];
       let sessionsToAdjust = 0;
 
       for (const entry of bulkEntries) {
         if (!entry.title && entry.type !== 'purchase') continue;
-        
+
         const renDate = new Date(`${entry.date}T${entry.time || '12:00'}`);
         let finalTitle = entry.title;
         let amount = 0;
@@ -2946,8 +2955,8 @@ export default function Dashboard({ session }) {
   const handleUpdateClient = async () => {
     try {
       // Detect if sessions were manually changed to log it
-      const sessionsChanged = editClientForm.initial_package !== selectedClient.initial_package || 
-                               editClientForm.remaining_package !== selectedClient.remaining_package;
+      const sessionsChanged = editClientForm.initial_package !== selectedClient.initial_package ||
+        editClientForm.remaining_package !== selectedClient.remaining_package;
 
       const sanitizedForm = { ...editClientForm };
       if (sanitizedForm.dob === '') sanitizedForm.dob = null;
@@ -2964,7 +2973,7 @@ export default function Dashboard({ session }) {
 
       const { error } = await supabase.from('clients').update(sanitizedForm).eq('id', selectedClient.id);
       if (error) throw error;
-      
+
       if (sessionsChanged) {
         const { data: { user } } = await supabase.auth.getUser();
         await supabase.from('transactions').insert([{
@@ -3005,14 +3014,14 @@ export default function Dashboard({ session }) {
     try {
       // 1. Delete associated bookings
       await supabase.from('bookings').delete().eq('session_id', id);
-      
+
       // 2. Delete the session
       const { error } = await supabase.from('sessions').delete().eq('id', id);
       if (error) throw error;
-      
+
       // Direct Google Calendar Live Sync delete (NEW!)
       syncToGoogleCalendar('DELETE', { id: id });
-      
+
       // 3. Update UI states
       setSessions(curr => curr.filter(s => s.id !== id));
       setSelectedSession(null);
@@ -3024,7 +3033,7 @@ export default function Dashboard({ session }) {
 
   const toggleAttendance = async (bookingId, currentStatus) => {
     const newStatus = currentStatus === 'Attended' ? 'Booked' : 'Attended';
-    
+
     // Optimistic Update
     const updatedSessions = sessions.map(s => {
       if (s.id === selectedSession.id) {
@@ -3041,7 +3050,7 @@ export default function Dashboard({ session }) {
 
   const handleAssignClient = async (clientId) => {
     if (!selectedSession) return;
-    
+
     const alreadyBooked = selectedSession.attendees.some(a => a.client_id === clientId);
     if (alreadyBooked) {
       alert("This client is already booked in this session!");
@@ -3067,16 +3076,16 @@ export default function Dashboard({ session }) {
         const creditCost = getClassCreditCost(selectedSession.title);
         const newRemaining = Math.max(0, (client.remaining_package || 0) - creditCost);
         const newUsed = (client.used_sessions || 0) + creditCost;
-        
+
         const { error: clientErr } = await supabase.from('clients')
           .update({ remaining_package: newRemaining, used_sessions: newUsed })
           .eq('id', clientId);
-          
+
         if (clientErr) console.error("Error updating client sessions remaining:", clientErr);
-        
+
         updatedClient.remaining_package = newRemaining;
         updatedClient.used_sessions = newUsed;
-        
+
         setClients(prev => prev.map(c => c.id === clientId ? updatedClient : c));
       }
 
@@ -3098,7 +3107,7 @@ export default function Dashboard({ session }) {
 
       setSessions(updatedSessions);
       setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
-      
+
       // Update Google Calendar so the event title shows the newly assigned client
       syncToGoogleCalendar('UPDATE', {
         ...selectedSession,
@@ -3236,7 +3245,7 @@ export default function Dashboard({ session }) {
 
         setSessions(updatedSessions);
         setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
-        
+
         // Update Google Calendar so the event title shows the newly assigned client(s)
         syncToGoogleCalendar('UPDATE', {
           ...selectedSession,
@@ -3275,10 +3284,10 @@ export default function Dashboard({ session }) {
       // 1. Update the booking in Supabase
       const { error: bookingErr } = await supabase
         .from('bookings')
-        .update({ 
-          session_id: targetSession.id, 
-          session_date: targetSession.date, 
-          time_slot: targetSession.time 
+        .update({
+          session_id: targetSession.id,
+          session_date: targetSession.date,
+          time_slot: targetSession.time
         })
         .eq('id', movingAttendee.booking_id);
 
@@ -3393,7 +3402,7 @@ export default function Dashboard({ session }) {
       const updatedClient = { ...selectedClient, notes: notesToSave };
       setSelectedClient(updatedClient);
       setClients(clients.map(c => c.id === selectedClient.id ? updatedClient : c));
-      
+
       setShowSessionNoteModal(false);
       setEditingSessionNoteBookingId(null);
       alert("Session note saved successfully!");
@@ -3403,8 +3412,8 @@ export default function Dashboard({ session }) {
       setIsSavingSessionNote(false);
     }
   };
-    
-    // Optimistic Update
+
+  // Optimistic Update
   // Helper to format dates coming from the database
   const formatDbDate = (dateStr) => {
     if (!dateStr) return '';
@@ -3418,7 +3427,7 @@ export default function Dashboard({ session }) {
   const today = new Date();
   const currentMonth = today.getMonth();
   const currentYear = today.getFullYear();
-  
+
   const totalCollectedThisMonth = transactions
     .filter(t => {
       const d = new Date(t.created_at);
@@ -3426,7 +3435,7 @@ export default function Dashboard({ session }) {
     })
     .reduce((sum, t) => sum + Number(t.amount), 0);
 
-    // --- DYNAMIC REVENUE CHART MATH ---
+  // --- DYNAMIC REVENUE CHART MATH ---
   const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const chartData = monthNames.map((name, index) => ({
     label: name,
@@ -3438,7 +3447,7 @@ export default function Dashboard({ session }) {
   // Drop transactions into buckets
   transactions.forEach(t => {
     // We use a more robust date parser here
-    const date = new Date(t.created_at.replace(' ', 'T')); 
+    const date = new Date(t.created_at.replace(' ', 'T'));
     const tMonth = date.getMonth();
     const tYear = date.getFullYear();
 
@@ -3451,17 +3460,17 @@ export default function Dashboard({ session }) {
   const maxChartAmount = maxAmountFound > 0 ? maxAmountFound : 1000;
 
   // DEBUG: Right-click dashboard -> Inspect -> Console to see this:
-  console.log("Chart calculation check:", { 
-    totalTransactions: transactions.length, 
-    maxAmountFound, 
-    aprilAmount: chartData[3].amount 
+  console.log("Chart calculation check:", {
+    totalTransactions: transactions.length,
+    maxAmountFound,
+    aprilAmount: chartData[3].amount
   });
 
   // Quick fallback for Projected Renewals
   const activeClientsCount = clients?.length || 0;
   const lowestPackagePrice = packagesList?.length > 0 ? packagesList[0].price : 0;
   const estimatedRevenue = activeClientsCount * lowestPackagePrice;
-  
+
   // 1. Live Birthdays (Clients born in the current month)
   const liveBirthdays = clients.filter(c => {
     if (!c.dob) return false;
@@ -3485,13 +3494,13 @@ export default function Dashboard({ session }) {
     const queryToUse = clientSearchQuery || searchQuery;
     if (queryToUse) {
       const q = queryToUse.toLowerCase();
-      const matchesSearch = 
-        (c.name || '').toLowerCase().includes(q) || 
+      const matchesSearch =
+        (c.name || '').toLowerCase().includes(q) ||
         (c.email || '').toLowerCase().includes(q) ||
         (c.phone || '').toLowerCase().includes(q);
       if (!matchesSearch) return false;
     }
-    
+
     if (activeTab === 'Trial Clients') {
       return c.member_status === 'Trial';
     }
@@ -3503,7 +3512,7 @@ export default function Dashboard({ session }) {
     if (activeTab !== 'All Clients' && !searchQuery && !clientSearchQuery && (c.member_status === 'Trial' || c.member_status === 'Follow Up')) {
       return false;
     }
-    
+
     if (activeTab === 'All Clients' || searchQuery || clientSearchQuery) return true;
     const liveStatus = getLiveClientStatus(c);
     return liveStatus === activeTab;
@@ -3536,7 +3545,7 @@ export default function Dashboard({ session }) {
   // --- ATTENDANCE SUMMARY MODAL HANDLERS ---
   const handleOpenAttendanceSummaryModal = () => {
     if (!selectedSession) return;
-    
+
     const summaryList = (selectedSession.attendees || []).map(attendee => {
       const client = clients.find(c => c.id === attendee.client_id);
       return {
@@ -3550,7 +3559,7 @@ export default function Dashboard({ session }) {
         unlimited: client?.unlimited || false
       };
     });
-    
+
     setAttendanceSummaryList(summaryList);
     setShowAttendanceSummaryModal(true);
   };
@@ -3559,17 +3568,17 @@ export default function Dashboard({ session }) {
     setIsSavingAttendanceSummary(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      
+
       // Perform batch updates
       for (const item of attendanceSummaryList) {
         // Update booking status
         await supabase.from('bookings').update({ status: item.status }).eq('id', item.booking_id);
-        
+
         // Find existing client to check if remaining credits changed
         const existingClient = clients.find(c => c.id === item.client_id);
         if (existingClient) {
           const creditsChanged = existingClient.remaining_package !== item.remaining_package || existingClient.expiry !== item.expiry;
-          
+
           await supabase.from('clients').update({
             remaining_package: item.remaining_package,
             expiry: item.expiry || null
@@ -3608,10 +3617,10 @@ export default function Dashboard({ session }) {
           }
         }
       }
-      
+
       // Sync local state
       await fetchClients();
-      
+
       // Update selectedSession's attendees inside the session state
       const updatedAttendees = selectedSession.attendees.map(a => {
         const match = attendanceSummaryList.find(item => item.booking_id === a.booking_id);
@@ -3626,7 +3635,7 @@ export default function Dashboard({ session }) {
       });
       setSessions(updatedSessions);
       setSelectedSession({ ...selectedSession, attendees: updatedAttendees });
-      
+
       // Update Google Calendar with latest attendee status details
       syncToGoogleCalendar('UPDATE', {
         ...selectedSession,
@@ -3648,15 +3657,15 @@ export default function Dashboard({ session }) {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       const client = selectedClassClient;
-      
+
       let descriptionStr = `Class Mode Check-in`;
       let bookingId = null;
       let cost = 1;
-      
+
       if (selectedClassSession) {
         descriptionStr = `Class Mode Check-in for ${selectedClassSession.title}`;
         cost = getClassCreditCost(selectedClassSession.title);
-        
+
         // Create the booking record
         const { data: bookingData, error: bookingErr } = await supabase
           .from('bookings')
@@ -3667,11 +3676,11 @@ export default function Dashboard({ session }) {
           }])
           .select('*')
           .single();
-          
+
         if (bookingErr) throw bookingErr;
         bookingId = bookingData?.id;
       }
-      
+
       const { data: transData, error: transError } = await supabase.from('transactions').insert([{
         trainer_id: user?.id,
         client_name: client.id,
@@ -3680,25 +3689,25 @@ export default function Dashboard({ session }) {
         is_backlog: false,
         created_at: new Date().toISOString()
       }]).select('*').single();
-      
+
       if (transError) throw transError;
-      
+
       let newRemaining = client.remaining_package;
       if (!client.unlimited) {
-         newRemaining = Math.max(0, (client.remaining_package || 0) - cost);
-         await supabase.from('clients').update({ remaining_package: newRemaining }).eq('id', client.id);
+        newRemaining = Math.max(0, (client.remaining_package || 0) - cost);
+        await supabase.from('clients').update({ remaining_package: newRemaining }).eq('id', client.id);
       }
-      
+
       setUndoTargetTransactionId(transData?.id);
       setUndoTargetBookingId(bookingId);
       setUndoTargetClient({ ...client, remaining_package: newRemaining });
-      
+
       const updatedClient = { ...client, remaining_package: newRemaining };
       setClients(clients.map(c => c.id === client.id ? updatedClient : c));
-      
+
       // Sync local session data to update rosters instantly in dashboard
       await fetchSessions();
-      
+
       setShowCheckInModal(false);
       setShowSuccessModal(true);
     } catch (err) {
@@ -3715,11 +3724,11 @@ export default function Dashboard({ session }) {
       if (undoTargetTransactionId) {
         await supabase.from('transactions').delete().eq('id', undoTargetTransactionId);
       }
-      
+
       if (undoTargetBookingId) {
         await supabase.from('bookings').delete().eq('id', undoTargetBookingId);
       }
-      
+
       if (undoTargetClient && !undoTargetClient.unlimited) {
         // Retrieve cost of the class that was undoed
         let cost = 1;
@@ -3731,9 +3740,9 @@ export default function Dashboard({ session }) {
         const updatedClient = { ...undoTargetClient, remaining_package: revertedRemaining };
         setClients(clients.map(c => c.id === undoTargetClient.id ? updatedClient : c));
       }
-      
+
       await fetchSessions();
-      
+
       setShowUndoPinModal(false);
       setShowSuccessModal(false);
       setPinInput('');
@@ -3749,12 +3758,12 @@ export default function Dashboard({ session }) {
   const handleSendMessage = async (customPrompt = null) => {
     const promptToSend = customPrompt || aiMessage;
     if (!promptToSend.trim()) return;
-    
+
     const userMsg = { role: 'user', content: promptToSend };
     setAiChatHistory(prev => [...prev, userMsg]);
     if (!customPrompt) setAiMessage('');
     setIsAiLoading(true);
-    
+
     try {
       // Prepare context for the AI
       const context = {
@@ -3772,7 +3781,7 @@ export default function Dashboard({ session }) {
 
       // Call Supabase Edge Function
       const { data, error } = await supabase.functions.invoke('ai-copilot', {
-        body: { 
+        body: {
           message: promptToSend,
           context: context,
           history: aiChatHistory.slice(-5) // Send last 5 messages for history context
@@ -3780,7 +3789,7 @@ export default function Dashboard({ session }) {
       });
 
       if (error) throw error;
-      
+
       setAiChatHistory(prev => [...prev, { role: 'assistant', content: data.reply }]);
       setIsAiLoading(false);
     } catch (err) {
@@ -3795,20 +3804,20 @@ export default function Dashboard({ session }) {
           const totalEarnings = transactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
           const bankTransfer = transactions.filter(t => t.payment_method === 'bank_transfer' || (t.method && t.method.toLowerCase().includes('transfer')));
           const bankTransferTotal = bankTransfer.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-          
+
           const cash = transactions.filter(t => t.payment_method === 'cash' || (t.method && t.method.toLowerCase().includes('cash')));
           const cashTotal = cash.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
-          
+
           const otherTotal = totalEarnings - bankTransferTotal - cashTotal;
-          
+
           reply = `💵 **Financial Performance Report**\n\n` +
-                  `* **Total Revenue**: **RM ${totalEarnings.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}**\n` +
-                  `* **Total Transactions**: ${transactions.length} payments recorded\n\n` +
-                  `💳 **Payment Channel Breakdown:**\n` +
-                  `* **Bank Transfer**: RM ${bankTransferTotal.toLocaleString()} (${bankTransfer.length} transactions)\n` +
-                  `* **Cash Payments**: RM ${cashTotal.toLocaleString()} (${cash.length} transactions)\n` +
-                  `* **Card/Other Channels**: RM ${otherTotal.toLocaleString()} (${transactions.length - bankTransfer.length - cash.length} transactions)\n\n` +
-                  `📊 **Business Health Metric**: Average invoice value is **RM ${(transactions.length ? (totalEarnings / transactions.length) : 0).toFixed(2)}** per package purchase.`;
+            `* **Total Revenue**: **RM ${totalEarnings.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}**\n` +
+            `* **Total Transactions**: ${transactions.length} payments recorded\n\n` +
+            `💳 **Payment Channel Breakdown:**\n` +
+            `* **Bank Transfer**: RM ${bankTransferTotal.toLocaleString()} (${bankTransfer.length} transactions)\n` +
+            `* **Cash Payments**: RM ${cashTotal.toLocaleString()} (${cash.length} transactions)\n` +
+            `* **Card/Other Channels**: RM ${otherTotal.toLocaleString()} (${transactions.length - bankTransfer.length - cash.length} transactions)\n\n` +
+            `📊 **Business Health Metric**: Average invoice value is **RM ${(transactions.length ? (totalEarnings / transactions.length) : 0).toFixed(2)}** per package purchase.`;
         }
         // 2. LOW REMAINING SESSIONS
         else if (msg.includes('low') || msg.includes('remaining') || msg.includes('expiring soon') || msg.includes('renew') || msg.includes('limit')) {
@@ -3821,11 +3830,11 @@ export default function Dashboard({ session }) {
             reply = `✅ **Roster Check**: Excellent news! All your active clients currently have more than 3 sessions remaining on their packages. No urgent renewals needed!`;
           } else {
             reply = `⚠️ **Alert: Clients Nearing Package Expiration**\n\n` +
-                    `The following ${lowSessions.length} client(s) have 3 or fewer sessions left and require proactive outreach for package renewals:\n\n` +
-                    lowSessions.map(c => {
-                      const rem = c.remaining_package !== undefined ? c.remaining_package : c.remainingSessions;
-                      return `* 👤 **${c.name}**: **${rem} sessions left** (Expiry: ${c.expiry ? new Date(c.expiry).toLocaleDateString() : 'No Limit'}) • Status: _${getLiveClientStatus(c)}_`;
-                    }).join('\n');
+              `The following ${lowSessions.length} client(s) have 3 or fewer sessions left and require proactive outreach for package renewals:\n\n` +
+              lowSessions.map(c => {
+                const rem = c.remaining_package !== undefined ? c.remaining_package : c.remainingSessions;
+                return `* 👤 **${c.name}**: **${rem} sessions left** (Expiry: ${c.expiry ? new Date(c.expiry).toLocaleDateString() : 'No Limit'}) • Status: _${getLiveClientStatus(c)}_`;
+              }).join('\n');
           }
         }
         // 3. CLIENT ROSTER STATS
@@ -3835,11 +3844,11 @@ export default function Dashboard({ session }) {
           const inactiveCount = clients.filter(c => getLiveClientStatus(c) === 'Inactive').length;
 
           reply = `👥 **Interactive Client Roster Analytics**\n\n` +
-                  `* **Total Registered**: **${clients.length} clients**\n` +
-                  `* **Active Trainees**: **${activeCount} active** (currently booking and training)\n` +
-                  `* **Expiring Soon**: **${expiringCount} client(s)** (requiring renewal follow-ups)\n` +
-                  `* **Inactive/Completed**: **${inactiveCount} client(s)**\n\n` +
-                  `🎯 **Trainer Focus**: Roster utilization is at **${(clients.length ? ((activeCount / clients.length) * 100) : 0).toFixed(0)}%** active status. Your premium target is 80%+ active capacity.`;
+            `* **Total Registered**: **${clients.length} clients**\n` +
+            `* **Active Trainees**: **${activeCount} active** (currently booking and training)\n` +
+            `* **Expiring Soon**: **${expiringCount} client(s)** (requiring renewal follow-ups)\n` +
+            `* **Inactive/Completed**: **${inactiveCount} client(s)**\n\n` +
+            `🎯 **Trainer Focus**: Roster utilization is at **${(clients.length ? ((activeCount / clients.length) * 100) : 0).toFixed(0)}%** active status. Your premium target is 80%+ active capacity.`;
         }
         // 4. GROWTH INSIGHTS
         else if (msg.includes('insight') || msg.includes('growth') || msg.includes('advice') || msg.includes('recommend') || msg.includes('strategy')) {
@@ -3848,35 +3857,35 @@ export default function Dashboard({ session }) {
             const rem = c.remaining_package !== undefined ? c.remaining_package : c.remainingSessions;
             return rem !== undefined && rem <= 3;
           });
-          
+
           reply = `💡 **TrackPoint AI Business Growth Insights**\n\n` +
-                  `Based on the analysis of your **${clients.length} clients** and financial transaction ledger, here are your personalized growth opportunities:\n\n` +
-                  `1. 📞 **Proactive Renewal Campaigns**: You have **${lowSessions.length} clients** with low sessions left. Send them a direct message with their custom portal renewal link to prevent training drop-off.\n` +
-                  `2. 📈 **Leverage Payment Trends**: Transfer is your most popular payment channel. Highlight "Instant Bank Transfer" as the preferred payment method on checkout invoices to reduce payment friction.\n` +
-                  `3. 👥 **Increase Roster Density**: Your active roster capacity is **${activeCount} clients**. Consider launching a 3-session referral bundle to current active trainees to organically fill open slots.`;
+            `Based on the analysis of your **${clients.length} clients** and financial transaction ledger, here are your personalized growth opportunities:\n\n` +
+            `1. 📞 **Proactive Renewal Campaigns**: You have **${lowSessions.length} clients** with low sessions left. Send them a direct message with their custom portal renewal link to prevent training drop-off.\n` +
+            `2. 📈 **Leverage Payment Trends**: Transfer is your most popular payment channel. Highlight "Instant Bank Transfer" as the preferred payment method on checkout invoices to reduce payment friction.\n` +
+            `3. 👥 **Increase Roster Density**: Your active roster capacity is **${activeCount} clients**. Consider launching a 3-session referral bundle to current active trainees to organically fill open slots.`;
         }
         // 5. CLIENT INDIVIDUAL SEARCH
         else {
           // Look for any client name mentioned in the message
           const matchedClient = clients.find(c => msg.includes(c.name.toLowerCase()) || c.name.toLowerCase().split(' ').some(part => part.length > 2 && msg.includes(part)));
-          
+
           if (matchedClient) {
             const rem = matchedClient.remaining_package !== undefined ? matchedClient.remaining_package : matchedClient.remainingSessions;
             reply = `👤 **AI Client Profile Lookup: ${matchedClient.name}**\n\n` +
-                    `* **Current Status**: **${getLiveClientStatus(matchedClient)}**\n` +
-                    `* **Remaining Sessions**: **${rem || 0} sessions**\n` +
-                    `* **Package Name**: ${matchedClient.packageName || 'Standard Package'}\n` +
-                    `* **Package Expiry**: ${matchedClient.expiry ? new Date(matchedClient.expiry).toLocaleDateString() : 'No Limit'}\n` +
-                    `* **Trainer Notes**: ${matchedClient.notes || '_No special notes logged._'}\n\n` +
-                    `💬 _Tip: Use the "Book Session" command on your sidebar to schedule their next routine training._`;
+              `* **Current Status**: **${getLiveClientStatus(matchedClient)}**\n` +
+              `* **Remaining Sessions**: **${rem || 0} sessions**\n` +
+              `* **Package Name**: ${matchedClient.packageName || 'Standard Package'}\n` +
+              `* **Package Expiry**: ${matchedClient.expiry ? new Date(matchedClient.expiry).toLocaleDateString() : 'No Limit'}\n` +
+              `* **Trainer Notes**: ${matchedClient.notes || '_No special notes logged._'}\n\n` +
+              `💬 _Tip: Use the "Book Session" command on your sidebar to schedule their next routine training._`;
           } else {
             // General Fallback
             reply = `👋 **Hi! I'm your TrackPoint AI Assistant.**\n\n` +
-                    `I'm currently running in high-performance local analysis mode! I can crunch numbers, summarize client profiles, and check your roster in real-time. Try asking me one of these:\n\n` +
-                    `* _"How much revenue have I made?"_\n` +
-                    `* _"Who has low remaining sessions?"_\n` +
-                    `* _"Give me growth insights for my business"_\n` +
-                    `* _"Show client profile for Joe"_`;
+              `I'm currently running in high-performance local analysis mode! I can crunch numbers, summarize client profiles, and check your roster in real-time. Try asking me one of these:\n\n` +
+              `* _"How much revenue have I made?"_\n` +
+              `* _"Who has low remaining sessions?"_\n` +
+              `* _"Give me growth insights for my business"_\n` +
+              `* _"Show client profile for Joe"_`;
           }
         }
 
@@ -3957,7 +3966,7 @@ export default function Dashboard({ session }) {
                   return (
                     <div key={monthYearKey} className="space-y-2">
                       {/* Month Trigger */}
-                      <div 
+                      <div
                         onClick={() => {
                           setExpandedMonths(prev => ({ ...prev, [monthYearKey]: !expanded }));
                         }}
@@ -3982,7 +3991,7 @@ export default function Dashboard({ session }) {
                               return (
                                 <div key={dateKey} className="border border-gray-100 rounded-xl overflow-hidden bg-white shadow-xs">
                                   {/* Date Trigger */}
-                                  <div 
+                                  <div
                                     onClick={() => {
                                       setExpandedDates(prev => ({ ...prev, [dateKey]: !dateExpanded }));
                                     }}
@@ -4040,16 +4049,16 @@ export default function Dashboard({ session }) {
   const renderMobileRosterDrawer = () => {
     if (!selectedSession) return null;
     const attendedCount = selectedSession.attendees ? selectedSession.attendees.length : 0;
-    
+
     return (
       <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-end justify-center" onClick={() => setShowMobileRosterDrawer(false)}>
-        <div 
+        <div
           className="bg-white border-t border-gray-150 rounded-t-[2.5rem] w-full max-h-[90vh] overflow-y-auto p-6 shadow-2xl relative animate-in slide-in-from-bottom duration-300 pb-[calc(2rem+env(safe-area-inset-bottom))]"
           onClick={(e) => e.stopPropagation()}
         >
           {/* Handle */}
           <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6"></div>
-          
+
           {/* Header */}
           <div className="flex justify-between items-start mb-6">
             <div>
@@ -4062,7 +4071,7 @@ export default function Dashboard({ session }) {
                 <span className="flex items-center gap-1.5"><MapPin size={14} /> {selectedSession.location ? selectedSession.location.split(' | Coach: ')[0] : 'Main Floor'}</span>
               </div>
             </div>
-            <button 
+            <button
               onClick={() => setShowMobileRosterDrawer(false)}
               className="p-2.5 bg-[#F9F7F2] rounded-full text-[#898A8D] hover:text-[#0B4550] transition-colors"
             >
@@ -4074,7 +4083,7 @@ export default function Dashboard({ session }) {
             <div className="space-y-6">
               {/* Tabs Header */}
               <div className="flex border-b border-gray-100 gap-6 mb-2">
-                <button 
+                <button
                   type="button"
                   onClick={() => setSessionDetailTab('roster')}
                   className={`pb-3 text-sm font-black transition-all relative ${sessionDetailTab === 'roster' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
@@ -4082,7 +4091,7 @@ export default function Dashboard({ session }) {
                   Roster
                   {sessionDetailTab === 'roster' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
                 </button>
-                <button 
+                <button
                   type="button"
                   onClick={() => setSessionDetailTab('workout')}
                   className={`pb-3 text-sm font-black transition-all relative ${sessionDetailTab === 'workout' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
@@ -4096,7 +4105,7 @@ export default function Dashboard({ session }) {
                 <>
                   {/* Assign Student Dropdown */}
                   <div className="relative">
-                    <button 
+                    <button
                       onClick={() => {
                         setShowStudentDropdown(!showStudentDropdown);
                         setSearchStudentQuery('');
@@ -4104,8 +4113,8 @@ export default function Dashboard({ session }) {
                       className="w-full bg-[#F9F7F2] border border-gray-150 rounded-2xl px-5 py-4 text-sm text-[#0B4550] font-bold flex justify-between items-center outline-none"
                     >
                       <span>
-                        {selectedStudentIds.length === 0 
-                          ? 'Book / Assign Students...' 
+                        {selectedStudentIds.length === 0
+                          ? 'Book / Assign Students...'
                           : `${selectedStudentIds.length} student(s) selected`}
                       </span>
                       <ChevronDown size={18} className={`transition-transform duration-200 text-[#0B4550] ${showStudentDropdown ? 'rotate-180' : ''}`} />
@@ -4114,14 +4123,23 @@ export default function Dashboard({ session }) {
                     {showStudentDropdown && (
                       <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-[110] p-4 flex flex-col max-h-64">
                         <div className="relative mb-3 shrink-0">
-                          <input 
-                            type="text" 
-                            placeholder="Search clients..." 
+                          <input
+                            type="text"
+                            placeholder="Search clients..."
                             value={searchStudentQuery}
                             onChange={(e) => setSearchStudentQuery(e.target.value)}
-                            className="w-full bg-[#F9F7F2] border border-gray-150 rounded-xl py-3 pl-10 pr-4 text-xs font-semibold text-[#0B4550] outline-none placeholder-gray-400 focus:border-[#0B4550]"
+                            className="w-full bg-[#F9F7F2] border border-gray-150 rounded-xl py-3 pl-10 pr-8 text-xs font-semibold text-[#0B4550] outline-none placeholder-gray-400 focus:border-[#0B4550]"
                           />
                           <Search className="absolute left-3.5 top-3.5 text-[#898A8D]" size={14} />
+                          {searchStudentQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setSearchStudentQuery('')}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-[#898A8D] hover:text-[#0B4550] transition-colors"
+                            >
+                              <X size={14} />
+                            </button>
+                          )}
                         </div>
 
                         <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
@@ -4139,17 +4157,17 @@ export default function Dashboard({ session }) {
                               const isAlreadyRostered = selectedSession.attendees?.some(a => a.client_id === c.id);
 
                               return (
-                                <label 
-                                  key={c.id} 
+                                <label
+                                  key={c.id}
                                   className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-40 cursor-not-allowed bg-[#F9F7F2]' : 'hover:bg-[#F9F7F2]'}`}
                                 >
-                                  <input 
+                                  <input
                                     type="checkbox"
                                     disabled={isAlreadyRostered}
                                     checked={isAlreadyRostered || isSelected}
                                     onChange={() => {
                                       if (isAlreadyRostered) return;
-                                      setSelectedStudentIds(prev => 
+                                      setSelectedStudentIds(prev =>
                                         prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
                                       );
                                     }}
@@ -4158,8 +4176,8 @@ export default function Dashboard({ session }) {
                                   <div className="flex-1 min-w-0">
                                     <p className="text-sm font-bold text-[#0B4550] truncate">{c.name}</p>
                                     <p className="text-[10px] text-[#898A8D] font-bold uppercase tracking-wider mt-0.5">
-                                      {c.unlimited 
-                                        ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}` 
+                                      {c.unlimited
+                                        ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}`
                                         : `${c.remaining_package || 0} left`}
                                     </p>
                                   </div>
@@ -4173,7 +4191,7 @@ export default function Dashboard({ session }) {
                         </div>
 
                         <div className="border-t border-gray-100 pt-3 mt-3 flex gap-3 shrink-0">
-                          <button 
+                          <button
                             type="button"
                             onClick={() => {
                               setSelectedStudentIds([]);
@@ -4183,7 +4201,7 @@ export default function Dashboard({ session }) {
                           >
                             Cancel
                           </button>
-                          <button 
+                          <button
                             type="button"
                             disabled={selectedStudentIds.length === 0}
                             onClick={() => {
@@ -4220,16 +4238,16 @@ export default function Dashboard({ session }) {
                                 {attendee.status}
                               </span>
                             </div>
-                            
-                            <button 
-                              onClick={() => toggleAttendance(attendee.booking_id, attendee.status)} 
+
+                            <button
+                              onClick={() => toggleAttendance(attendee.booking_id, attendee.status)}
                               className={`p-3 rounded-xl transition-all ${attendee.status === 'Attended' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-white text-[#898A8D] border border-gray-150'}`}
                             >
                               <CheckSquare size={18} />
                             </button>
-                            
-                            <button 
-                              onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)} 
+
+                            <button
+                              onClick={() => handleRemoveStudent(attendee.booking_id, attendee.client_id)}
                               className="p-3 rounded-xl bg-white text-[#898A8D] hover:text-red-500 border border-gray-150 transition-all"
                             >
                               <Trash2 size={18} />
@@ -4242,7 +4260,7 @@ export default function Dashboard({ session }) {
 
                   {/* Review & Confirm Attendance */}
                   {selectedSession.attendees.length > 0 && (
-                    <button 
+                    <button
                       onClick={() => {
                         setShowMobileRosterDrawer(false);
                         handleOpenAttendanceSummaryModal();
@@ -4259,8 +4277,8 @@ export default function Dashboard({ session }) {
                   <div className="flex flex-col gap-4 bg-[#F9F7F2] p-5 rounded-2xl border border-gray-100">
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Workout Title</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={sessionWorkoutTitle}
                         onChange={(e) => setSessionWorkoutTitle(e.target.value)}
                         className="w-full bg-white border border-gray-150 rounded-xl px-4 py-3 text-xs font-bold text-[#0B4550] outline-none focus:border-[#0B4550]"
@@ -4269,8 +4287,8 @@ export default function Dashboard({ session }) {
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Date</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         value={sessionWorkoutDate}
                         onChange={(e) => setSessionWorkoutDate(e.target.value)}
                         className="w-full bg-white border border-gray-150 rounded-xl px-4 py-3 text-xs font-bold text-[#0B4550] outline-none focus:border-[#0B4550]"
@@ -4279,7 +4297,7 @@ export default function Dashboard({ session }) {
                     </div>
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Workout Notes</label>
-                      <textarea 
+                      <textarea
                         value={sessionWorkoutContent}
                         onChange={(e) => setSessionWorkoutContent(e.target.value)}
                         className="w-full h-32 bg-white border border-gray-150 rounded-xl p-4 text-xs font-semibold text-[#0B4550] outline-none resize-none focus:border-[#0B4550]"
@@ -4291,15 +4309,15 @@ export default function Dashboard({ session }) {
                   <div className="flex flex-col gap-2.5 mt-2">
                     {sessionWorkoutSyncMsg && (
                       <span className="text-emerald-600 font-bold text-xs flex items-center gap-1.5">
-                        <Check size={14}/> {sessionWorkoutSyncMsg}
+                        <Check size={14} /> {sessionWorkoutSyncMsg}
                       </span>
                     )}
-                    <button 
+                    <button
                       onClick={handleSyncSessionWorkout}
                       disabled={isSyncingSessionWorkout}
                       className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-black text-sm hover:scale-[1.01] transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
                     >
-                      {isSyncingSessionWorkout ? <RotateCw className="animate-spin" size={16}/> : <Save size={16}/>}
+                      {isSyncingSessionWorkout ? <RotateCw className="animate-spin" size={16} /> : <Save size={16} />}
                       Sync with Attended Clients
                     </button>
                     <p className="text-[10px] text-[#898A8D] font-bold text-center leading-normal px-4">
@@ -4311,23 +4329,23 @@ export default function Dashboard({ session }) {
 
               {/* Edit / Cancel Class */}
               <div className="flex gap-3 border-t border-gray-100 pt-5 mt-2">
-                <button 
+                <button
                   onClick={() => {
                     setShowMobileRosterDrawer(false);
                     handleOpenEditEvent();
                   }}
                   className="flex-1 py-4 bg-[#F9F7F2] text-[#0B4550] font-black rounded-2xl text-xs flex justify-center items-center gap-2 border border-gray-150"
                 >
-                  <Edit3 size={16}/> Edit
+                  <Edit3 size={16} /> Edit
                 </button>
-                <button 
+                <button
                   onClick={() => {
                     handleDeleteSession(selectedSession.id);
                     setShowMobileRosterDrawer(false);
                   }}
                   className="flex-1 py-4 bg-red-50 text-red-500 font-black rounded-2xl text-xs flex justify-center items-center gap-2 border border-red-100"
                 >
-                  <Trash2 size={16}/> Cancel Class
+                  <Trash2 size={16} /> Cancel Class
                 </button>
               </div>
 
@@ -4345,239 +4363,248 @@ export default function Dashboard({ session }) {
 
   return (
     <div className="flex flex-col lg:flex-row h-screen w-full bg-[#F9F7F2] font-sans text-[#0B4550] overflow-hidden">
-      
+
       {/* SIDEBAR - Hidden when in ClassMode or on mobile */}
       {activePage !== 'ClassMode' && (
-      <aside className="hidden md:flex w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
-        <div className="flex items-center px-4 md:px-6 py-5 md:py-8">
-          <button 
-            onClick={() => {
-              setActivePage('Dashboard');
-              setSelectedClient(null);
-            }} 
-            className="hover:opacity-70 transition-opacity cursor-pointer focus:outline-none"
-          >
-            <img 
-              src={companyLogo || newLogo} 
-              alt={companyName} 
-              className="h-20 w-auto object-contain max-h-[80px]" 
-              onError={(e) => { e.target.style.display = 'none' }} 
-            />
-          </button>
-        </div>
-  
-        <nav className="flex-1 px-4 space-y-1 mt-2 overflow-y-auto">
-          <NavItem icon={<Home size={28} />} label="Dashboard" isActive={activePage === 'Dashboard'} onClick={() => {setActivePage('Dashboard'); setSelectedClient(null);}} />
-          <NavItem icon={<Users size={28} />} label="Clients" isActive={activePage === 'Clients'} onClick={() => { handleNavigateToPage('Clients'); setSelectedClient(null); }} />
-          <NavItem icon={<DollarSign size={28} />} label="Revenue" isActive={activePage === 'Revenue'} onClick={() => { handleNavigateToPage('Revenue'); setSelectedClient(null); }} />
-          <NavItem icon={<CheckSquare size={28} />} label="Attendance" isActive={activePage === 'Attendance'} onClick={() => { handleNavigateToPage('Attendance'); setSelectedClient(null); }} />
-          <NavItem icon={<CalendarSearch size={28} />} label="Schedule" isActive={activePage === 'Schedule'} onClick={() => {setActivePage('Schedule'); setSelectedClient(null);}} />
-          <NavItem icon={<Calendar size={28} />} label="Calendar" isActive={activePage === 'Calendar'} onClick={() => { setActivePage('Calendar'); setSelectedClient(null); }} />
-          <NavItem icon={<BarChart2 size={28} />} label="Analytics" isActive={activePage === 'Analytics'} onClick={() => handleNavigateToPage('Analytics')} />
-          <NavItem icon={<Package size={28} />} label="Packages" isActive={activePage === 'Packages'} onClick={() => setActivePage('Packages')} />
-          <NavItem icon={<Monitor size={28} />} label="Class Mode" isActive={activePage === 'ClassMode'} onClick={() => setActivePage('ClassMode')} />
-        </nav>
-  
-        <div className="px-4 pb-6 space-y-1 mt-6">
-          <NavItem icon={<Settings size={28} />} label="Settings" isActive={activePage === 'Settings'} onClick={() => setActivePage('Settings')} />
-          <NavItem icon={<LogOut size={28} />} label="Log out" onClick={handleLogout} />
-        </div>
-      </aside>
+        <aside className="hidden md:flex w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+          <div className="flex items-center px-4 md:px-6 py-5 md:py-8">
+            <button
+              onClick={() => {
+                setActivePage('Dashboard');
+                setSelectedClient(null);
+              }}
+              className="hover:opacity-70 transition-opacity cursor-pointer focus:outline-none"
+            >
+              <img
+                src={companyLogo || newLogo}
+                alt={companyName}
+                className="h-20 w-auto object-contain max-h-[80px]"
+                onError={(e) => { e.target.style.display = 'none' }}
+              />
+            </button>
+          </div>
+
+          <nav className="flex-1 px-4 space-y-1 mt-2 overflow-y-auto">
+            <NavItem icon={<Home size={28} />} label="Dashboard" isActive={activePage === 'Dashboard'} onClick={() => { setActivePage('Dashboard'); setSelectedClient(null); }} />
+            <NavItem icon={<Users size={28} />} label="Clients" isActive={activePage === 'Clients'} onClick={() => { handleNavigateToPage('Clients'); setSelectedClient(null); }} />
+            <NavItem icon={<DollarSign size={28} />} label="Revenue" isActive={activePage === 'Revenue'} onClick={() => { handleNavigateToPage('Revenue'); setSelectedClient(null); }} />
+            <NavItem icon={<CheckSquare size={28} />} label="Attendance" isActive={activePage === 'Attendance'} onClick={() => { handleNavigateToPage('Attendance'); setSelectedClient(null); }} />
+            <NavItem icon={<CalendarSearch size={28} />} label="Schedule" isActive={activePage === 'Schedule'} onClick={() => { setActivePage('Schedule'); setSelectedClient(null); }} />
+            <NavItem icon={<Calendar size={28} />} label="Calendar" isActive={activePage === 'Calendar'} onClick={() => { setActivePage('Calendar'); setSelectedClient(null); }} />
+            <NavItem icon={<BarChart2 size={28} />} label="Analytics" isActive={activePage === 'Analytics'} onClick={() => handleNavigateToPage('Analytics')} />
+            <NavItem icon={<Package size={28} />} label="Packages" isActive={activePage === 'Packages'} onClick={() => setActivePage('Packages')} />
+            <NavItem icon={<Monitor size={28} />} label="Class Mode" isActive={activePage === 'ClassMode'} onClick={() => setActivePage('ClassMode')} />
+          </nav>
+
+          <div className="px-4 pb-6 space-y-1 mt-6">
+            <NavItem icon={<Settings size={28} />} label="Settings" isActive={activePage === 'Settings'} onClick={() => setActivePage('Settings')} />
+            <NavItem icon={<LogOut size={28} />} label="Log out" onClick={handleLogout} />
+          </div>
+        </aside>
       )}
-  
+
       {/* MOBILE BOTTOM NAVIGATION - Visible only on small screens, hidden in ClassMode */}
       {activePage !== 'ClassMode' && (
-      <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 flex justify-around items-center py-4 px-2 z-[50] pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
-        <button onClick={() => setActivePage('Dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Dashboard' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
-          <Home size={24} strokeWidth={activePage === 'Dashboard' ? 2.5 : 2} />
-          <span className="text-[10px] font-bold">Home</span>
-        </button>
-        <button onClick={() => handleNavigateToPage('Clients')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Clients' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
-          <Users size={24} strokeWidth={activePage === 'Clients' ? 2.5 : 2} />
-          <span className="text-[10px] font-bold">Clients</span>
-        </button>
-        <button onClick={() => handleNavigateToPage('Revenue')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Revenue' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
-          <DollarSign size={24} strokeWidth={activePage === 'Revenue' ? 2.5 : 2} />
-          <span className="text-[10px] font-bold">Revenue</span>
-        </button>
-        <button onClick={() => setActivePage('Schedule')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Schedule' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
-          <Calendar size={24} strokeWidth={activePage === 'Schedule' ? 2.5 : 2} />
-          <span className="text-[10px] font-bold">Schedule</span>
-        </button>
-        <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 transition-all ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
-          <LayoutGrid size={24} strokeWidth={['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 2.5 : 2} />
-          <span className="text-[10px] font-bold">More</span>
-        </button>
-      </div>
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 flex justify-around items-center py-4 px-2 z-[50] pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+          <button onClick={() => setActivePage('Dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Dashboard' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
+            <Home size={24} strokeWidth={activePage === 'Dashboard' ? 2.5 : 2} />
+            <span className="text-[10px] font-bold">Home</span>
+          </button>
+          <button onClick={() => handleNavigateToPage('Clients')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Clients' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
+            <Users size={24} strokeWidth={activePage === 'Clients' ? 2.5 : 2} />
+            <span className="text-[10px] font-bold">Clients</span>
+          </button>
+          <button onClick={() => handleNavigateToPage('Revenue')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Revenue' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
+            <DollarSign size={24} strokeWidth={activePage === 'Revenue' ? 2.5 : 2} />
+            <span className="text-[10px] font-bold">Revenue</span>
+          </button>
+          <button onClick={() => setActivePage('Schedule')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Schedule' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
+            <Calendar size={24} strokeWidth={activePage === 'Schedule' ? 2.5 : 2} />
+            <span className="text-[10px] font-bold">Schedule</span>
+          </button>
+          <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 transition-all ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
+            <LayoutGrid size={24} strokeWidth={['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 2.5 : 2} />
+            <span className="text-[10px] font-bold">More</span>
+          </button>
+        </div>
       )}
-  
+
       {/* MAIN CONTENT AREA */}
       {/* pb-36 ensures content isn't hidden behind the mobile bottom nav */}
       <main className="flex-1 h-full overflow-y-auto p-4 md:p-6 lg:p-8 pb-36 lg:pb-8 relative">
 
         {/* UNIVERSAL DYNAMIC HEADER - Hidden in ClassMode */}
-{activePage !== 'ClassMode' && (
-  <>
-    {/* MOBILE HEADER */}
-    <header className="md:hidden flex items-center justify-between mb-6 gap-2 bg-white p-4 rounded-3xl shadow-sm border border-gray-150">
-      <div className="flex items-center gap-3">
-        <img src={companyLogo || newLogo} alt={companyName} className="h-10 w-auto object-contain max-h-[40px]" />
-        <div>
-          <h1 className="text-sm font-black text-[#0B4550] tracking-wide">
-            {activePage === 'Dashboard' ? `${greeting}, ${trainerName.split(' ')[0]}` : activePage}
-          </h1>
-          <p className="text-[10px] text-[#898A8D] font-bold uppercase tracking-widest">{todayFormattedFull}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <button 
-          onClick={() => setShowAICopilot(true)}
-          className="w-10 h-10 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center relative hover:scale-105 transition-all shadow-sm border border-gray-150"
-        >
-          <Sparkles size={18} />
-        </button>
-        <div className="w-10 h-10 rounded-full bg-[#E6FF2B] flex items-center justify-center text-[#0B4550] text-xs font-black border-2 border-white shadow-md">
-          {getInitials(trainerName)}
-        </div>
-      </div>
-    </header>
-
-    {/* DESKTOP HEADER */}
-    <header className="hidden md:flex flex-col lg:flex-row lg:justify-between lg:items-start mb-8 gap-4 md:gap-6">
-  <div className="flex-1">
-    {/* DASHBOARD HEADER */}
-    {activePage === 'Dashboard' && (
-      <>
-        <h1 className="text-2xl sm:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">{greeting}, {trainerName}</h1>
-        <p className="text-[#898A8D] font-medium text-sm sm:text-base lg:text-xl">Here is your gym's overview for today, {todayFormattedFull}.</p>
-      </>
-    )}
-
-    {/* REVENUE HEADER */}
-    {activePage === 'Revenue' && (
-      <>
-        <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Revenue History</h1>
-        <p className="text-[#898A8D] font-medium text-base lg:text-xl">Manage payments and download invoices.</p>
-      </>
-    )}
-
-    {/* ATTENDANCE HEADER */}
-    {activePage === 'Attendance' && (
-      <>
-        <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Attendance History</h1>
-        <p className="text-[#898A8D] font-medium text-base lg:text-xl">Track client attendance and total training hours.</p>
-      </>
-    )}
-
-    {/* CLIENT ROSTER HEADER */}
-    {activePage === 'Clients' && !selectedClient && (
-      <>
-        <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Client Roster</h1>
-        <p className="text-[#898A8D] font-medium text-base lg:text-xl">Manage your active clients and memberships.</p>
-      </>
-    )}
-
-    {/* ... (Repeat the same pattern for other activePage views: text-2xl md:text-3xl lg:text-5xl and text-base lg:text-xl) ... */}
-    
-    {/* For example, for Settings: */}
-    {activePage === 'Settings' && (
-      <>
-        <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Settings</h1>
-        <p className="text-[#898A8D] font-medium text-base lg:text-xl">Manage your profile and preferences.</p>
-      </>
-    )}
-  </div>
-  
-  {/* TOP RIGHT TOOLS (Search & Profile) */}
-  <div className="flex items-center gap-3 lg:gap-5 shrink-0 mt-1">
-    {/* Search Bar - Full width on mobile, fixed width on desktop */}
-    <div className="relative flex-1 lg:flex-none">
-      <Search className="absolute left-4 lg:left-5 top-1/2 -translate-y-1/2 text-[#898A8D]" size={20} />
-      <input 
-        type="text" 
-        placeholder="Search clients, classes, coaches..." 
-        value={searchQuery}
-        onChange={(e) => setSearchQuery(e.target.value)}
-        className="w-full lg:w-72 pl-12 lg:pl-14 pr-4 py-2.5 lg:py-3 bg-white border-none rounded-full text-base lg:text-lg font-medium focus:outline-none focus:ring-2 focus:ring-[#E6FF2B] shadow-sm text-[#0B4550] placeholder-[#898A8D]"
-      />
-      {searchQuery.trim() && (
-        <div className="absolute right-0 left-0 lg:left-auto lg:w-96 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-[999] p-4 max-h-[400px] overflow-y-auto flex flex-col gap-4">
-          {/* CLIENTS RESULTS */}
-          <div>
-            <h4 className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2 border-b border-gray-50 pb-1">Clients ({searchResults.clients.length})</h4>
-            <div className="flex flex-col gap-1">
-              {searchResults.clients.map(c => (
-                <button 
-                  key={c.id} 
-                  onClick={() => handleSelectClientFromSearch(c)}
-                  className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#F9F7F2] transition-all text-left text-sm font-semibold text-[#0B4550]"
+        {activePage !== 'ClassMode' && (
+          <>
+            {/* MOBILE HEADER */}
+            <header className="md:hidden flex items-center justify-between mb-6 gap-2 bg-white p-4 rounded-3xl shadow-sm border border-gray-150">
+              <div className="flex items-center gap-3">
+                <img src={companyLogo || newLogo} alt={companyName} className="h-10 w-auto object-contain max-h-[40px]" />
+                <div>
+                  <h1 className="text-sm font-black text-[#0B4550] tracking-wide">
+                    {activePage === 'Dashboard' ? `${greeting}, ${trainerName.split(' ')[0]}` : activePage}
+                  </h1>
+                  <p className="text-[10px] text-[#898A8D] font-bold uppercase tracking-widest">{todayFormattedFull}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowAICopilot(true)}
+                  className="w-10 h-10 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center relative hover:scale-105 transition-all shadow-sm border border-gray-150"
                 >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className="w-8 h-8 rounded-full bg-[#0B4550]/10 text-[#0B4550] flex items-center justify-center text-xs font-bold shrink-0">{getInitials(c.name)}</span>
-                    <div className="flex flex-col truncate">
-                      <span className="truncate">{c.name}</span>
-                      <span className="text-xs text-[#898A8D] truncate font-medium">{c.email || 'No email'}</span>
-                    </div>
-                  </div>
-                  <ChevronRight size={14} className="text-gray-300" />
+                  <Sparkles size={18} />
                 </button>
-              ))}
-              {searchResults.clients.length === 0 && (
-                <p className="text-xs text-gray-400 font-medium text-center py-2">No matching clients.</p>
-              )}
-            </div>
-          </div>
-          
-          {/* SCHEDULE RESULTS */}
-          <div>
-            <h4 className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2 border-b border-gray-50 pb-1">Schedule ({searchResults.sessions.length})</h4>
-            <div className="flex flex-col gap-1">
-              {searchResults.sessions.map(s => (
-                <button 
-                  key={s.id} 
-                  onClick={() => handleSelectSessionFromSearch(s)}
-                  className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#F9F7F2] transition-all text-left text-sm font-semibold text-[#0B4550]"
-                >
-                  <div className="flex items-center gap-2.5 truncate">
-                    <span className="w-8 h-8 rounded-full bg-[#E6FF2B]/20 text-[#0B4550] flex items-center justify-center shrink-0"><Calendar size={14} /></span>
-                    <div className="flex flex-col truncate">
-                      <span className="truncate">{s.title || 'Blocked Slot'}</span>
-                      <span className="text-xs text-[#898A8D] font-medium truncate">{formatDbDate(s.date)} • {s.time}</span>
+                <div className="w-10 h-10 rounded-full bg-[#E6FF2B] flex items-center justify-center text-[#0B4550] text-xs font-black border-2 border-white shadow-md">
+                  {getInitials(trainerName)}
+                </div>
+              </div>
+            </header>
+
+            {/* DESKTOP HEADER */}
+            <header className="hidden md:flex flex-col lg:flex-row lg:justify-between lg:items-start mb-8 gap-4 md:gap-6">
+              <div className="flex-1">
+                {/* DASHBOARD HEADER */}
+                {activePage === 'Dashboard' && (
+                  <>
+                    <h1 className="text-2xl sm:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">{greeting}, {trainerName}</h1>
+                    <p className="text-[#898A8D] font-medium text-sm sm:text-base lg:text-xl">Here is your gym's overview for today, {todayFormattedFull}.</p>
+                  </>
+                )}
+
+                {/* REVENUE HEADER */}
+                {activePage === 'Revenue' && (
+                  <>
+                    <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Revenue History</h1>
+                    <p className="text-[#898A8D] font-medium text-base lg:text-xl">Manage payments and download invoices.</p>
+                  </>
+                )}
+
+                {/* ATTENDANCE HEADER */}
+                {activePage === 'Attendance' && (
+                  <>
+                    <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Attendance History</h1>
+                    <p className="text-[#898A8D] font-medium text-base lg:text-xl">Track client attendance and total training hours.</p>
+                  </>
+                )}
+
+                {/* CLIENT ROSTER HEADER */}
+                {activePage === 'Clients' && !selectedClient && (
+                  <>
+                    <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Client Roster</h1>
+                    <p className="text-[#898A8D] font-medium text-base lg:text-xl">Manage your active clients and memberships.</p>
+                  </>
+                )}
+
+                {/* ... (Repeat the same pattern for other activePage views: text-2xl md:text-3xl lg:text-5xl and text-base lg:text-xl) ... */}
+
+                {/* For example, for Settings: */}
+                {activePage === 'Settings' && (
+                  <>
+                    <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Settings</h1>
+                    <p className="text-[#898A8D] font-medium text-base lg:text-xl">Manage your profile and preferences.</p>
+                  </>
+                )}
+              </div>
+
+              {/* TOP RIGHT TOOLS (Search & Profile) */}
+              <div className="flex items-center gap-3 lg:gap-5 shrink-0 mt-1">
+                {/* Search Bar - Full width on mobile, fixed width on desktop */}
+                <div className="relative flex-1 lg:flex-none">
+                  <Search className="absolute left-4 lg:left-5 top-1/2 -translate-y-1/2 text-[#898A8D]" size={20} />
+                  <input
+                    type="text"
+                    placeholder="Search clients, classes, coaches..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full lg:w-72 pl-12 lg:pl-14 pr-10 py-2.5 lg:py-3 bg-white border-none rounded-full text-base lg:text-lg font-medium focus:outline-none focus:ring-2 focus:ring-[#E6FF2B] shadow-sm text-[#0B4550] placeholder-[#898A8D]"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-4 top-1/2 -translate-y-1/2 text-[#898A8D] hover:text-[#0B4550] transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
+                  )}
+                  {searchQuery.trim() && (
+                    <div className="absolute right-0 left-0 lg:left-auto lg:w-96 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-[999] p-4 max-h-[400px] overflow-y-auto flex flex-col gap-4">
+                      {/* CLIENTS RESULTS */}
+                      <div>
+                        <h4 className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2 border-b border-gray-50 pb-1">Clients ({searchResults.clients.length})</h4>
+                        <div className="flex flex-col gap-1">
+                          {searchResults.clients.map(c => (
+                            <button
+                              key={c.id}
+                              onClick={() => handleSelectClientFromSearch(c)}
+                              className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#F9F7F2] transition-all text-left text-sm font-semibold text-[#0B4550]"
+                            >
+                              <div className="flex items-center gap-2.5 truncate">
+                                <span className="w-8 h-8 rounded-full bg-[#0B4550]/10 text-[#0B4550] flex items-center justify-center text-xs font-bold shrink-0">{getInitials(c.name)}</span>
+                                <div className="flex flex-col truncate">
+                                  <span className="truncate">{c.name}</span>
+                                  <span className="text-xs text-[#898A8D] truncate font-medium">{c.email || 'No email'}</span>
+                                </div>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300" />
+                            </button>
+                          ))}
+                          {searchResults.clients.length === 0 && (
+                            <p className="text-xs text-gray-400 font-medium text-center py-2">No matching clients.</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* SCHEDULE RESULTS */}
+                      <div>
+                        <h4 className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest mb-2 border-b border-gray-50 pb-1">Schedule ({searchResults.sessions.length})</h4>
+                        <div className="flex flex-col gap-1">
+                          {searchResults.sessions.map(s => (
+                            <button
+                              key={s.id}
+                              onClick={() => handleSelectSessionFromSearch(s)}
+                              className="w-full flex items-center justify-between p-2.5 rounded-xl hover:bg-[#F9F7F2] transition-all text-left text-sm font-semibold text-[#0B4550]"
+                            >
+                              <div className="flex items-center gap-2.5 truncate">
+                                <span className="w-8 h-8 rounded-full bg-[#E6FF2B]/20 text-[#0B4550] flex items-center justify-center shrink-0"><Calendar size={14} /></span>
+                                <div className="flex flex-col truncate">
+                                  <span className="truncate">{s.title || 'Blocked Slot'}</span>
+                                  <span className="text-xs text-[#898A8D] font-medium truncate">{formatDbDate(s.date)} • {s.time}</span>
+                                </div>
+                              </div>
+                              <ChevronRight size={14} className="text-gray-300" />
+                            </button>
+                          ))}
+                          {searchResults.sessions.length === 0 && (
+                            <p className="text-xs text-gray-400 font-medium text-center py-2">No matching classes.</p>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronRight size={14} className="text-gray-300" />
+                  )}
+                </div>
+
+                {/* Notification Bell */}
+                <button className="relative p-2.5 lg:p-3 bg-white rounded-full shadow-sm text-[#898A8D] hover:text-[#0B4550] transition-colors shrink-0">
+                  <Bell size={22} />
+                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></span>
                 </button>
-              ))}
-              {searchResults.sessions.length === 0 && (
-                <p className="text-xs text-gray-400 font-medium text-center py-2">No matching classes.</p>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
 
-    {/* Notification Bell */}
-    <button className="relative p-2.5 lg:p-3 bg-white rounded-full shadow-sm text-[#898A8D] hover:text-[#0B4550] transition-colors shrink-0">
-      <Bell size={22} />
-      <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></span>
-    </button>
-
-    {/* User Avatar */}
-    <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-[#0B4550] flex items-center justify-center text-[#E6FF2B] text-lg lg:text-xl font-medium shadow-sm border-2 border-white cursor-pointer shrink-0">
-      {getInitials(trainerName)}
-    </div>
-  </div>
-</header>
-  </>
-)}
+                {/* User Avatar */}
+                <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-full bg-[#0B4550] flex items-center justify-center text-[#E6FF2B] text-lg lg:text-xl font-medium shadow-sm border-2 border-white cursor-pointer shrink-0">
+                  {getInitials(trainerName)}
+                </div>
+              </div>
+            </header>
+          </>
+        )}
         {/* VIEW: DASHBOARD OVERVIEW */}
         {activePage === 'Dashboard' && (
           <>
             {/* MOBILE DASHBOARD (HIGH FIDELITY) */}
             <div className="md:hidden space-y-4 animate-in fade-in duration-300 pb-8">
               {/* Main Balance / Revenue Card */}
-              <div 
+              <div
                 onClick={() => handleNavigateToPage('Revenue')}
                 className="bg-gradient-to-br from-[#0B4550] to-[#08353E] p-6 rounded-[2rem] shadow-md relative overflow-hidden cursor-pointer group"
               >
@@ -4587,7 +4614,7 @@ export default function Dashboard({ session }) {
                 <div className="relative z-10 flex flex-col h-full justify-between">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-white/75 text-xs font-bold uppercase tracking-widest">Total Revenue</span>
-                    <button 
+                    <button
                       onClick={(e) => {
                         e.stopPropagation();
                         handleToggleRevenueVisibility();
@@ -4610,7 +4637,7 @@ export default function Dashboard({ session }) {
 
               {/* Secondary Metrics Grid */}
               <div className="grid grid-cols-2 gap-4">
-                <div 
+                <div
                   onClick={() => handleNavigateToPage('Clients', 'Active')}
                   className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-between cursor-pointer"
                 >
@@ -4620,7 +4647,7 @@ export default function Dashboard({ session }) {
                   <span className="text-3xl font-black text-[#0B4550] mb-1">{activeClientsCount}</span>
                   <span className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest">Active Clients</span>
                 </div>
-                <div 
+                <div
                   onClick={() => handleNavigateToPage('Schedule')}
                   className="bg-white p-5 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-between cursor-pointer"
                 >
@@ -4636,13 +4663,13 @@ export default function Dashboard({ session }) {
 
               {/* Segmented Control for Schedule vs Logs */}
               <div className="bg-[#F9F7F2] rounded-[1.5rem] p-1.5 flex border border-gray-100">
-                <button 
+                <button
                   onClick={() => setMobileDashboardTab('schedule')}
                   className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDashboardTab === 'schedule' ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}
                 >
                   Schedule
                 </button>
-                <button 
+                <button
                   onClick={() => setMobileDashboardTab('history')}
                   className={`flex-1 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all ${mobileDashboardTab === 'history' ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}
                 >
@@ -4671,7 +4698,7 @@ export default function Dashboard({ session }) {
                       const isPast = isSessionPast(session);
                       const attendedCount = session.attendees ? session.attendees.length : 0;
                       return (
-                        <div 
+                        <div
                           key={session.id}
                           onClick={() => { setSelectedSession(session); setShowMobileRosterDrawer(true); }}
                           className={`bg-white border border-gray-100 rounded-[1.5rem] p-5 flex justify-between items-center transition-all active:scale-[0.98] cursor-pointer ${isPast ? 'opacity-50' : ''}`}
@@ -4704,279 +4731,277 @@ export default function Dashboard({ session }) {
 
             {/* DESKTOP DASHBOARD */}
             <div className="hidden md:block animate-in fade-in duration-500">
-            <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-8 gap-4">
-              <div className="bg-white px-4 md:px-6 py-3 rounded-xl border-l-4 border-[#E6FF2B] shadow-sm max-w-2xl">
-                <p className="text-[#0B4550] font-medium text-lg italic">{quote}</p>
-              </div>
-              <div className="flex bg-white rounded-full p-1 shadow-sm border border-gray-100 overflow-x-auto no-scrollbar max-w-full">
-                {['Day', 'Week', 'Month', 'Year'].map((tab) => (
-                  <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 sm:px-6 py-2 rounded-full text-sm sm:text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
-                    {tab}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
-              <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-transform" onClick={() => handleNavigateToPage('Revenue')}>
-                <div className="absolute right-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-xl group-hover:bg-white/10 transition-all"></div>
-                <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-2">
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-white/80 font-medium text-lg">Total Revenue</h3>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleToggleRevenueVisibility();
-                      }}
-                      className="text-white/60 hover:text-white transition-colors focus:outline-none p-0.5 rounded"
-                      title={isRevenueHidden ? "Show Revenue" : "Hide Revenue"}
-                    >
-                      {isRevenueHidden ? <EyeOff size={18} /> : <Eye size={18} />}
+              <div className="flex flex-col md:flex-row justify-between items-stretch md:items-center mb-8 gap-4">
+                <div className="bg-white px-4 md:px-6 py-3 rounded-xl border-l-4 border-[#E6FF2B] shadow-sm max-w-2xl">
+                  <p className="text-[#0B4550] font-medium text-lg italic">{quote}</p>
+                </div>
+                <div className="flex bg-white rounded-full p-1 shadow-sm border border-gray-100 overflow-x-auto no-scrollbar max-w-full">
+                  {['Day', 'Week', 'Month', 'Year'].map((tab) => (
+                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 sm:px-6 py-2 rounded-full text-sm sm:text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
+                      {tab}
                     </button>
-                  </div>
-                  <ArrowUpRight className="text-white/50 group-hover:text-[#E6FF2B] transition-colors" size={20} />
+                  ))}
                 </div>
-                <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-white mb-1 tracking-tight">
-                  {isRevenueHidden ? 'RM ••••' : `RM ${dashboardMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-                </h2>
-              </div>
-              
-              <StatCard 
-                title="Total Transactions" 
-                value={dashboardMetrics.totalCount} 
-                trend="+1" 
-                isPositive={true} 
-                onClick={() => handleNavigateToPage('Revenue')} 
-              />
-              
-              <StatCard 
-                title="Upcoming Expiries" 
-                value={liveExpiries.length} 
-                trend="-2" 
-                isPositive={false} 
-                onClick={() => handleNavigateToPage('Clients', 'Expiring Soon')} 
-              />
-              
-              <StatCard 
-                title="Active Clients" 
-                value={activeClientsCount} 
-                trend="+1" 
-                isPositive={true} 
-                onClick={() => handleNavigateToPage('Clients', 'Active')} 
-              />
-            </div>
-
-            <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mb-6">
-              <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
-                <div>
-                  <h3 className="font-medium text-2xl text-[#0B4550]">Upcoming Schedule</h3>
-                  <p className="text-sm text-[#898A8D] mt-1">Your next high-value sessions and member check-ins</p>
-                </div>
-                <button onClick={() => setActivePage('Schedule')} className="flex items-center gap-2 text-[#898A8D] font-medium hover:text-[#0B4550] transition-colors">
-                  View Full Calendar <ArrowRight size={20} />
-                </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                {(() => {
-                  const upcomingSessions = sessions
-                    .filter(s => !isSessionPast(s))
-                    .sort((a, b) => {
-                      const dateDiff = new Date(a.date) - new Date(b.date);
-                      if (dateDiff !== 0) return dateDiff;
-                      return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
-                    });
-
-                  if (upcomingSessions.length === 0) {
-                    return (
-                      <div className="md:col-span-3 text-center py-6 md:py-10 text-[#898A8D] font-medium">No upcoming sessions. Head to the Schedule tab to add some!</div>
-                    );
-                  }
-
-                  return upcomingSessions.slice(0, 3).map((session, index) => {
-                    const isNext = index === 0;
-                    return (
-                      <div 
-                        key={session.id} 
-                        className={`rounded-2xl p-5 border transition-all duration-300 cursor-pointer group flex flex-col justify-between ${
-                          isNext 
-                            ? 'bg-[#F9F7F2] border-[#E6FF2B] shadow-[0_4px_20px_rgba(11,69,80,0.05)] hover:scale-[1.03]' 
-                            : 'bg-white border-gray-100 hover:border-[#0B4550] hover:scale-[1.01]'
-                        }`}
-                        onClick={() => setActivePage('Schedule')}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-8">
+                <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden group cursor-pointer hover:scale-[1.02] transition-transform" onClick={() => handleNavigateToPage('Revenue')}>
+                  <div className="absolute right-6 -top-6 w-24 h-24 bg-white/5 rounded-full blur-xl group-hover:bg-white/10 transition-all"></div>
+                  <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-2">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-white/80 font-medium text-lg">Total Revenue</h3>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleRevenueVisibility();
+                        }}
+                        className="text-white/60 hover:text-white transition-colors focus:outline-none p-0.5 rounded"
+                        title={isRevenueHidden ? "Show Revenue" : "Hide Revenue"}
                       >
-                        <div>
-                          <div className="flex justify-between items-start mb-4">
-                            <span className={`inline-block px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${
-                              isNext ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-[#F9F7F2] text-[#0B4550]'
-                            }`}>
-                              {session.type}
-                            </span>
-                            
-                            {isNext && (
-                              <span className="flex items-center gap-1 bg-[#E6FF2B]/20 text-[#0B4550] px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse border border-[#E6FF2B]/30">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[#0B4550] inline-block animate-ping"></span>
-                                Up Next
+                        {isRevenueHidden ? <EyeOff size={18} /> : <Eye size={18} />}
+                      </button>
+                    </div>
+                    <ArrowUpRight className="text-white/50 group-hover:text-[#E6FF2B] transition-colors" size={20} />
+                  </div>
+                  <h2 className="text-3xl md:text-4xl lg:text-5xl font-medium text-white mb-1 tracking-tight">
+                    {isRevenueHidden ? 'RM ••••' : `RM ${dashboardMetrics.totalRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                  </h2>
+                </div>
+
+                <StatCard
+                  title="Total Transactions"
+                  value={dashboardMetrics.totalCount}
+                  trend="+1"
+                  isPositive={true}
+                  onClick={() => handleNavigateToPage('Revenue')}
+                />
+
+                <StatCard
+                  title="Upcoming Expiries"
+                  value={liveExpiries.length}
+                  trend="-2"
+                  isPositive={false}
+                  onClick={() => handleNavigateToPage('Clients', 'Expiring Soon')}
+                />
+
+                <StatCard
+                  title="Active Clients"
+                  value={activeClientsCount}
+                  trend="+1"
+                  isPositive={true}
+                  onClick={() => handleNavigateToPage('Clients', 'Active')}
+                />
+              </div>
+
+              <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mb-6">
+                <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
+                  <div>
+                    <h3 className="font-medium text-2xl text-[#0B4550]">Upcoming Schedule</h3>
+                    <p className="text-sm text-[#898A8D] mt-1">Your next high-value sessions and member check-ins</p>
+                  </div>
+                  <button onClick={() => setActivePage('Schedule')} className="flex items-center gap-2 text-[#898A8D] font-medium hover:text-[#0B4550] transition-colors">
+                    View Full Calendar <ArrowRight size={20} />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                  {(() => {
+                    const upcomingSessions = sessions
+                      .filter(s => !isSessionPast(s))
+                      .sort((a, b) => {
+                        const dateDiff = new Date(a.date) - new Date(b.date);
+                        if (dateDiff !== 0) return dateDiff;
+                        return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
+                      });
+
+                    if (upcomingSessions.length === 0) {
+                      return (
+                        <div className="md:col-span-3 text-center py-6 md:py-10 text-[#898A8D] font-medium">No upcoming sessions. Head to the Schedule tab to add some!</div>
+                      );
+                    }
+
+                    return upcomingSessions.slice(0, 3).map((session, index) => {
+                      const isNext = index === 0;
+                      return (
+                        <div
+                          key={session.id}
+                          className={`rounded-2xl p-5 border transition-all duration-300 cursor-pointer group flex flex-col justify-between ${isNext
+                            ? 'bg-[#F9F7F2] border-[#E6FF2B] shadow-[0_4px_20px_rgba(11,69,80,0.05)] hover:scale-[1.03]'
+                            : 'bg-white border-gray-100 hover:border-[#0B4550] hover:scale-[1.01]'
+                            }`}
+                          onClick={() => setActivePage('Schedule')}
+                        >
+                          <div>
+                            <div className="flex justify-between items-start mb-4">
+                              <span className={`inline-block px-3 py-1 rounded-lg text-xs font-bold uppercase tracking-wider ${isNext ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-[#F9F7F2] text-[#0B4550]'
+                                }`}>
+                                {session.type}
+                              </span>
+
+                              {isNext && (
+                                <span className="flex items-center gap-1 bg-[#E6FF2B]/20 text-[#0B4550] px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-widest animate-pulse border border-[#E6FF2B]/30">
+                                  <span className="w-1.5 h-1.5 rounded-full bg-[#0B4550] inline-block animate-ping"></span>
+                                  Up Next
+                                </span>
+                              )}
+                            </div>
+
+                            <h4 className="text-xl font-bold text-[#0B4550] mb-2 group-hover:text-black transition-colors">
+                              {getSessionDisplayTitle(session)}
+                            </h4>
+
+                            <div className="space-y-2 mb-4">
+                              <p className="text-xs font-semibold text-[#898A8D] flex items-center gap-1.5">
+                                <Clock size={14} className="text-[#0B4550]" /> {formatDbDate(session.date)} - {session.time}
+                              </p>
+                              <p className="text-xs font-semibold text-[#898A8D] flex items-center gap-1.5">
+                                <MapPin size={14} className="text-[#0B4550]" /> {session.location}
+                              </p>
+                              <p className="text-xs font-semibold text-[#898A8D] flex items-center gap-1.5">
+                                <User size={14} className="text-[#0B4550]" /> Coach: {session.coach || session.trainer || trainerName || 'Unassigned'}
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-col gap-2 pt-4 border-t border-gray-100 mt-2">
+                            <div className="flex justify-between items-center">
+                              <div className="flex -space-x-2">
+                                {session.attendees && session.attendees.length > 0 ? (
+                                  session.attendees.slice(0, 4).map((att, idx) => {
+                                    const initials = att.name ? att.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?';
+                                    return (
+                                      <div
+                                        key={idx}
+                                        className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white text-white bg-[#0B4550]"
+                                        title={att.name}
+                                      >
+                                        {initials}
+                                      </div>
+                                    );
+                                  })
+                                ) : (
+                                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 border-white bg-gray-100 text-gray-400" title="No attendees yet">
+                                    ?
+                                  </div>
+                                )}
+                                {session.attendees && session.attendees.length > 4 && (
+                                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white bg-[#898A8D] text-white" title={`${session.attendees.length - 4} more`}>
+                                    +{session.attendees.length - 4}
+                                  </div>
+                                )}
+                              </div>
+                              <span className="text-xs font-bold text-[#898A8D]">
+                                {session.attendees ? session.attendees.length : 0} / {session.capacity} Booked
+                              </span>
+                            </div>
+
+                            {session.capacity > (session.attendees ? session.attendees.length : 0) ? (
+                              <span className="text-[10px] font-bold text-emerald-600/90 text-right">
+                                {session.capacity - (session.attendees ? session.attendees.length : 0)} slots available
+                              </span>
+                            ) : (
+                              <span className="text-[10px] font-bold text-red-500 text-right">
+                                Fully Booked
                               </span>
                             )}
                           </div>
-                          
-                          <h4 className="text-xl font-bold text-[#0B4550] mb-2 group-hover:text-black transition-colors">
-                            {getSessionDisplayTitle(session)}
-                          </h4>
-                          
-                          <div className="space-y-2 mb-4">
-                            <p className="text-xs font-semibold text-[#898A8D] flex items-center gap-1.5">
-                              <Clock size={14} className="text-[#0B4550]" /> {formatDbDate(session.date)} - {session.time}
-                            </p>
-                            <p className="text-xs font-semibold text-[#898A8D] flex items-center gap-1.5">
-                              <MapPin size={14} className="text-[#0B4550]" /> {session.location}
-                            </p>
-                            <p className="text-xs font-semibold text-[#898A8D] flex items-center gap-1.5">
-                              <User size={14} className="text-[#0B4550]" /> Coach: {session.coach || session.trainer || trainerName || 'Unassigned'}
-                            </p>
-                          </div>
                         </div>
-
-                        <div className="flex flex-col gap-2 pt-4 border-t border-gray-100 mt-2">
-                          <div className="flex justify-between items-center">
-                            <div className="flex -space-x-2">
-                              {session.attendees && session.attendees.length > 0 ? (
-                                session.attendees.slice(0, 4).map((att, idx) => {
-                                  const initials = att.name ? att.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase() : '?';
-                                  return (
-                                    <div 
-                                      key={idx} 
-                                      className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white text-white bg-[#0B4550]"
-                                      title={att.name}
-                                    >
-                                      {initials}
-                                    </div>
-                                  );
-                                })
-                              ) : (
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold border-2 border-white bg-gray-100 text-gray-400" title="No attendees yet">
-                                  ?
-                                </div>
-                              )}
-                              {session.attendees && session.attendees.length > 4 && (
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-black border-2 border-white bg-[#898A8D] text-white" title={`${session.attendees.length - 4} more`}>
-                                  +{session.attendees.length - 4}
-                                </div>
-                              )}
-                            </div>
-                            <span className="text-xs font-bold text-[#898A8D]">
-                              {session.attendees ? session.attendees.length : 0} / {session.capacity} Booked
-                            </span>
-                          </div>
-                          
-                          {session.capacity > (session.attendees ? session.attendees.length : 0) ? (
-                            <span className="text-[10px] font-bold text-emerald-600/90 text-right">
-                              {session.capacity - (session.attendees ? session.attendees.length : 0)} slots available
-                            </span>
-                          ) : (
-                            <span className="text-[10px] font-bold text-red-500 text-right">
-                              Fully Booked
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
+                      );
+                    });
+                  })()}
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
-              {/* Quick Tasks */}
-              <div className="lg:col-span-2 bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 flex flex-col min-h-[350px]">
-                <h3 className="font-medium text-xl text-[#0B4550] mb-4">Quick Tasks</h3>
-                <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2 max-h-[220px]">
-                  {todos.length === 0 ? (
-                    <p className="text-[#898A8D] font-medium text-sm text-center pt-4">You're all caught up!</p>
-                  ) : (
-                    todos.map((todo) => (
-                      <div key={todo.id} className="flex items-start justify-between group py-1">
-                        <div className="flex items-start gap-3 flex-1">
-                          <div 
-                            className={`mt-0.5 cursor-pointer ${todo.done ? 'text-[#E6FF2B]' : 'text-[#898A8D] group-hover:text-[#0B4550]'}`}
-                            onClick={() => toggleTodo(todo.id, todo.done)}
-                          >
-                            {todo.done ? <CheckSquare size={20} /> : <Square size={20} />}
-                          </div>
-                          
-                          {editingTodoId === todo.id ? (
-                            <input
-                              autoFocus
-                              className="flex-1 bg-gray-50 border-none px-2 py-0 rounded text-base font-medium text-[#0B4550] outline-none ring-1 ring-[#E6FF2B] rounded-md"
-                              value={editValue}
-                              onChange={(e) => setEditValue(e.target.value)}
-                              onBlur={() => handleUpdateTodo(todo.id)}
-                              onKeyDown={(e) => e.key === 'Enter' && handleUpdateTodo(todo.id)}
-                            />
-                          ) : (
-                            <span 
-                              onClick={() => {
-                                setEditingTodoId(todo.id);
-                                setEditValue(todo.text || todo.task || "");
-                              }}
-                              className={`text-base font-medium transition-all cursor-pointer flex-1 ${todo.done ? 'text-[#898A8D] line-through' : 'text-[#0B4550]'}`}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 mb-6">
+                {/* Quick Tasks */}
+                <div className="lg:col-span-2 bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 flex flex-col min-h-[350px]">
+                  <h3 className="font-medium text-xl text-[#0B4550] mb-4">Quick Tasks</h3>
+                  <div className="flex-1 overflow-y-auto space-y-3 mb-4 pr-2 max-h-[220px]">
+                    {todos.length === 0 ? (
+                      <p className="text-[#898A8D] font-medium text-sm text-center pt-4">You're all caught up!</p>
+                    ) : (
+                      todos.map((todo) => (
+                        <div key={todo.id} className="flex items-start justify-between group py-1">
+                          <div className="flex items-start gap-3 flex-1">
+                            <div
+                              className={`mt-0.5 cursor-pointer ${todo.done ? 'text-[#E6FF2B]' : 'text-[#898A8D] group-hover:text-[#0B4550]'}`}
+                              onClick={() => toggleTodo(todo.id, todo.done)}
                             >
-                              {todo.text || todo.task}
-                            </span>
-                          )}
+                              {todo.done ? <CheckSquare size={20} /> : <Square size={20} />}
+                            </div>
+
+                            {editingTodoId === todo.id ? (
+                              <input
+                                autoFocus
+                                className="flex-1 bg-gray-50 border-none px-2 py-0 rounded text-base font-medium text-[#0B4550] outline-none ring-1 ring-[#E6FF2B] rounded-md"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onBlur={() => handleUpdateTodo(todo.id)}
+                                onKeyDown={(e) => e.key === 'Enter' && handleUpdateTodo(todo.id)}
+                              />
+                            ) : (
+                              <span
+                                onClick={() => {
+                                  setEditingTodoId(todo.id);
+                                  setEditValue(todo.text || todo.task || "");
+                                }}
+                                className={`text-base font-medium transition-all cursor-pointer flex-1 ${todo.done ? 'text-[#898A8D] line-through' : 'text-[#0B4550]'}`}
+                              >
+                                {todo.text || todo.task}
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            onClick={() => deleteTodo(todo.id)}
+                            className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
+                          >
+                            <Trash2 size={18} />
+                          </button>
                         </div>
+                      ))
+                    )}
+                  </div>
 
-                        <button 
-                          onClick={() => deleteTodo(todo.id)}
-                          className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity p-1"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    ))
-                  )}
+                  <form onSubmit={handleAddTodo} className="relative mt-auto">
+                    <input
+                      type="text" value={newTodo} onChange={(e) => setNewTodo(e.target.value)}
+                      placeholder="Add a new task..."
+                      className="w-full bg-[#F9F7F2] rounded-xl py-2.5 pl-4 pr-10 text-sm font-medium text-[#0B4550] outline-none focus:border focus:border-[#E6FF2B]"
+                    />
+                    <button type="submit" disabled={!newTodo.trim()} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#898A8D] hover:text-[#0B4550] disabled:opacity-50">
+                      <Plus size={20} />
+                    </button>
+                  </form>
                 </div>
 
-                <form onSubmit={handleAddTodo} className="relative mt-auto">
-                  <input 
-                    type="text" value={newTodo} onChange={(e) => setNewTodo(e.target.value)}
-                    placeholder="Add a new task..."
-                    className="w-full bg-[#F9F7F2] rounded-xl py-2.5 pl-4 pr-10 text-sm font-medium text-[#0B4550] outline-none focus:border focus:border-[#E6FF2B]"
-                  />
-                  <button type="submit" disabled={!newTodo.trim()} className="absolute right-3 top-1/2 -translate-y-1/2 text-[#898A8D] hover:text-[#0B4550] disabled:opacity-50">
-                    <Plus size={20} />
-                  </button>
-                </form>
-              </div>
-
-              {/* Birthdays */}
-              <div className="lg:col-span-1 bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 flex flex-col min-h-[350px]">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-medium text-xl text-[#0B4550]">
-                    {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][currentMonth]} Birthdays
-                  </h3>
-                  <span className="bg-[#E6FF2B]/30 text-[#0B4550] text-xs font-medium px-2 py-1 rounded-lg">{liveBirthdays.length}</span>
-                </div>
-                <div className="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
-                  {liveBirthdays.length === 0 ? (
-                    <p className="text-[#898A8D] font-medium text-sm text-center pt-8">No birthdays this month</p>
-                  ) : (
-                    liveBirthdays.map(b => (
-                      <div key={b.id} className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 text-sm font-medium p-2 hover:bg-[#F9F7F2] rounded-lg transition-colors cursor-pointer">
-                        <span className="text-[#0B4550] flex items-center">
-                          {b.name} {b.date === todayMonthDay && <span className="ml-2 text-base" title="Birthday Today!">🎁</span>}
-                        </span>
-                        <span className="text-[#898A8D]">{b.date}</span>
-                      </div>
-                    ))
-                  )}
+                {/* Birthdays */}
+                <div className="lg:col-span-1 bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 flex flex-col min-h-[350px]">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-medium text-xl text-[#0B4550]">
+                      {["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"][currentMonth]} Birthdays
+                    </h3>
+                    <span className="bg-[#E6FF2B]/30 text-[#0B4550] text-xs font-medium px-2 py-1 rounded-lg">{liveBirthdays.length}</span>
+                  </div>
+                  <div className="space-y-3 flex-1 overflow-y-auto max-h-[220px] pr-1">
+                    {liveBirthdays.length === 0 ? (
+                      <p className="text-[#898A8D] font-medium text-sm text-center pt-8">No birthdays this month</p>
+                    ) : (
+                      liveBirthdays.map(b => (
+                        <div key={b.id} className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 text-sm font-medium p-2 hover:bg-[#F9F7F2] rounded-lg transition-colors cursor-pointer">
+                          <span className="text-[#0B4550] flex items-center">
+                            {b.name} {b.date === todayMonthDay && <span className="ml-2 text-base" title="Birthday Today!">🎁</span>}
+                          </span>
+                          <span className="text-[#898A8D]">{b.date}</span>
+                        </div>
+                      ))
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-  </>
-)}
+          </>
+        )}
 
         {/* VIEW: REVENUE */}
         {activePage === 'Revenue' && (
@@ -4987,7 +5012,7 @@ export default function Dashboard({ session }) {
               </div>
               <h3 className="text-3xl font-black text-[#0B4550] mb-2">Revenue Access Locked</h3>
               <p className="text-[#898A8D] font-medium mb-8 max-w-sm text-base leading-relaxed">Financial history and analytics require a secure owner verification.</p>
-              <button 
+              <button
                 onClick={() => {
                   setPendingPageAction('Revenue');
                   setSecurityPinInput('');
@@ -5001,277 +5026,277 @@ export default function Dashboard({ session }) {
             </div>
           ) : (
             <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
-            {/* NEW: Backlog Button */}
-            <button 
-              onClick={() => setShowBacklogModal(true)}
-              className="bg-[#0B4550] text-[#E6FF2B] px-4 md:px-6 py-3 rounded-[1.5rem] md:rounded-full font-black md:font-medium hover:bg-opacity-90 transition-all flex items-center gap-2 shadow-sm border-transparent w-full md:w-auto justify-center md:justify-start"
-            >
-              <Plus size={20} />
-              Add Historical Data
-            </button>
-
-            {/* Your existing tabs */}
-            <div className="flex bg-[#F9F7F2] md:bg-white rounded-[1.5rem] md:rounded-full p-1.5 shadow-lg md:shadow-sm border border-gray-100 w-full md:w-auto overflow-x-auto no-scrollbar">
-              {['Day', 'Week', 'Month', 'Year', 'All Time'].map((tab) => (
-                <button 
-                  key={tab} 
-                  onClick={() => setActiveRevenuePeriod(tab)} 
-                  className={`flex-1 min-w-[60px] md:flex-none px-4 md:px-6 py-2 rounded-xl md:rounded-full text-[10px] md:text-lg font-black md:font-medium uppercase tracking-widest md:normal-case md:tracking-normal transition-all ${activeRevenuePeriod === tab ? 'bg-[#0B4550] md:bg-[#898A8D] text-[#E6FF2B] md:text-white shadow-md md:shadow-none' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+              <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
+                {/* NEW: Backlog Button */}
+                <button
+                  onClick={() => setShowBacklogModal(true)}
+                  className="bg-[#0B4550] text-[#E6FF2B] px-4 md:px-6 py-3 rounded-[1.5rem] md:rounded-full font-black md:font-medium hover:bg-opacity-90 transition-all flex items-center gap-2 shadow-sm border-transparent w-full md:w-auto justify-center md:justify-start"
                 >
-                  {tab}
+                  <Plus size={20} />
+                  Add Historical Data
                 </button>
-              ))}
-            </div>
-          </div>
 
-            {/* DESKTOP REVENUE STATS */}
-            <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-               <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden">
-                 <div className="flex justify-between items-center mb-2">
-                   <h3 className="text-white/80 font-medium text-lg">Total Collected (This Month)</h3>
-                   <button 
-                     onClick={(e) => {
-                       e.stopPropagation();
-                       handleToggleRevenueVisibility();
-                     }}
-                     className="text-white/60 hover:text-white transition-colors focus:outline-none p-0.5 rounded"
-                     title={isRevenueHidden ? "Show Revenue" : "Hide Revenue"}
-                   >
-                     {isRevenueHidden ? <EyeOff size={18} /> : <Eye size={18} />}
-                   </button>
-                 </div>
-                 <h2 className="text-3xl md:text-4xl font-medium text-white">
-                   {isRevenueHidden ? 'RM ••••' : `RM ${totalCollectedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                 </h2>
-               </div>
-               <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
-                 <h3 className="text-[#898A8D] font-medium text-lg mb-2">Pending Payments</h3>
-                 <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550]">
-                   {isRevenueHidden ? 'RM ••••' : 'RM 0.00'}
-                 </h2>
-               </div>
-               <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
-                 <h3 className="text-[#898A8D] font-medium text-lg mb-2">Projected Renewals</h3>
-                 <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550]">
-                   {isRevenueHidden ? 'RM ••••' : `RM ${estimatedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                 </h2>
-               </div>
-            </div>
-            
-            {/* MOBILE REVENUE STATS */}
-            <div className="md:hidden grid grid-cols-2 gap-4 mb-6">
-               <div className="bg-gradient-to-br from-[#0B4550] to-[#08353E] rounded-[2rem] p-5 shadow-md col-span-2 relative overflow-hidden">
-                 <div className="absolute top-0 right-0 p-4 opacity-10">
-                   <DollarSign size={80} className="text-[#E6FF2B]" />
-                 </div>
-                 <div className="relative z-10 flex flex-col h-full justify-between">
-                   <div className="flex justify-between items-center mb-2">
-                     <span className="text-white/75 text-[10px] font-bold uppercase tracking-widest">Collected (This Month)</span>
-                     <button 
-                       onClick={(e) => {
-                         e.stopPropagation();
-                         handleToggleRevenueVisibility();
-                       }}
-                       className="text-white/60 hover:text-white p-1"
-                     >
-                       {isRevenueHidden ? <EyeOff size={14} /> : <Eye size={14} />}
-                     </button>
-                   </div>
-                   <h2 className="text-4xl font-black text-white tracking-tight">
-                     {isRevenueHidden ? 'RM ••••' : `RM ${totalCollectedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-                   </h2>
-                 </div>
-               </div>
-               <div className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm">
-                 <span className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest block mb-2">Pending</span>
-                 <span className="text-xl font-black text-[#0B4550] block">
-                   {isRevenueHidden ? 'RM ••••' : 'RM 0'}
-                 </span>
-               </div>
-               <div className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm">
-                 <span className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest block mb-2">Projected</span>
-                 <span className="text-xl font-black text-emerald-600 block">
-                   {isRevenueHidden ? 'RM ••••' : `RM ${estimatedRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
-                 </span>
-               </div>
-            </div>
-
-            <div className="hidden md:block bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
-              <h3 className="font-medium text-2xl text-[#0B4550] mb-6 border-b-2 border-gray-100 pb-4">Recent Transactions</h3>
-              {filteredTransactions.length === 0 ? (
-                <div className="text-center py-6 md:py-10 text-[#898A8D] font-medium">No transactions found for this period.</div>
-              ) : (
-                <div className="space-y-8">
-                  {Object.values(groupedTransactions)
-                    .sort((a, b) => b.year - a.year)
-                    .map((yearData) => (
-                      <div key={yearData.year} className="space-y-6">
-                        {/* YEAR HEADER */}
-                        <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 border-b border-gray-100 pb-3 mt-4">
-                          <h4 className="text-base font-extrabold text-[#0B4550] flex items-center gap-2">
-                            <Calendar size={18} /> {yearData.year}
-                          </h4>
-                          <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                            Yearly Collected: <span className="text-emerald-600 font-extrabold">{isRevenueHidden ? 'RM ••••' : `RM ${yearData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</span>
-                          </div>
-                        </div>
-
-                        {/* MONTHS LIST */}
-                        <div className="space-y-4">
-                          {Object.values(yearData.months)
-                            .sort((a, b) => b.maxTimestamp - a.maxTimestamp)
-                            .map((monthData) => {
-                              const monthYearKey = monthData.monthYear;
-                              const expanded = expandedMonths[monthYearKey] !== false; // Default to open!
-                              
-                              return (
-                                <div key={monthYearKey} className="space-y-4">
-                                  {/* COLLAPSIBLE HEADER BAR */}
-                                  <div 
-                                    onClick={() => {
-                                      setExpandedMonths(prev => ({
-                                        ...prev,
-                                        [monthYearKey]: !expanded
-                                      }));
-                                    }}
-                                    className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 bg-[#F9F7F2] p-4 rounded-2xl border border-gray-100 shadow-sm sticky top-0 z-10 cursor-pointer hover:bg-gray-100 transition-colors group/header"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <ChevronRight size={18} className={`text-[#0B4550] transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`} />
-                                      <h4 className="font-bold text-[#0B4550] text-sm uppercase tracking-wider">{monthData.monthName}</h4>
-                                    </div>
-                                    <div className="text-right">
-                                      <p className="text-[10px] font-bold text-[#898A8D] uppercase">Collected</p>
-                                      <p className="text-sm font-bold text-emerald-600">{isRevenueHidden ? 'RM ••••' : `RM ${monthData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
-                                    </div>
-                                  </div>
-
-                                  {/* MONTH TABLE CONTENT */}
-                                  {expanded && (
-                                    <div className="overflow-x-auto pr-2 no-scrollbar animate-in slide-in-from-top-2 duration-300">
-                                      <table className="w-full min-w-[650px] md:min-w-full text-left border-collapse mb-2 md:table-fixed table-auto">
-                                        <thead>
-                                          <tr className="text-xs font-bold text-[#898A8D] uppercase tracking-wider border-b border-gray-100">
-                                            <th className="pb-3 pt-1 pl-4 w-[12%]">Date</th>
-                                            <th className="pb-3 pt-1 w-[23%]">Client Name</th>
-                                            <th className="pb-3 pt-1 w-[45%]">Description</th>
-                                            <th className="pb-3 pt-1 w-[12%] text-right">Amount</th>
-                                            <th className="pb-3 pt-1 pr-4 w-[8%] text-right">Actions</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody className="text-base font-semibold text-[#0B4550]">
-                                          {monthData.items
-                                            .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                                            .map((t) => (
-                                              <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
-                                                <td className="py-3 pl-4 text-xs font-semibold text-gray-500 w-[12%]">{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
-                                                <td className="py-3 font-bold w-[23%]">{clients.find(c => c.id === t.client_name)?.name || t.client_name}</td>
-                                                <td className="py-3 text-xs text-gray-500 font-semibold w-[45%]">{t.description}</td>
-                                                <td className="py-3 font-black text-emerald-600 text-right w-[12%]">{isRevenueHidden ? 'RM ••••' : `+RM ${Number(t.amount).toFixed(2)}`}</td>
-                                                <td className="py-3 pr-4 text-right w-[8%]">
-                                                   <div className="flex items-center justify-end gap-2">
-                                                     {t.amount > 0 && !t.is_backlog && (
-                                                       <button 
-                                                         onClick={() => {
-                                                           setSelectedInvoiceTransaction(t);
-                                                           setIsInvoiceModalOpen(true);
-                                                         }}
-                                                         className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center justify-center" 
-                                                         title="Download Invoice PDF"
-                                                       >
-                                                         <FileText size={14} />
-                                                       </button>
-                                                     )}
-                                                     <button 
-                                                       onClick={() => handleDeleteTransaction(t.id)} 
-                                                       className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex items-center justify-center" 
-                                                       title="Delete Transaction"
-                                                     >
-                                                       <Trash2 size={14} />
-                                                     </button>
-                                                   </div>
-                                                </td>
-                                              </tr>
-                                            ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  )}
-                                </div>
-                              );
-                            })}
-                        </div>
-                      </div>
-                    ))}
-                </div>
-              )}
-            </div>
-
-            {/* MOBILE TRANSACTIONS LIST (HIGH FIDELITY) */}
-            <div className="md:hidden bg-white rounded-[2rem] p-4 border border-gray-100 shadow-sm mt-6">
-              <h3 className="font-black text-[#0B4550] text-lg mb-4 uppercase tracking-widest pl-2">Recent Transactions</h3>
-              {filteredTransactions.length === 0 ? (
-                <div className="text-center py-10 bg-[#F9F7F2] rounded-[1.5rem] border border-gray-100">
-                  <p className="text-[#898A8D] font-bold text-sm">No transactions found.</p>
-                </div>
-              ) : (
-                <div className="space-y-6">
-                  {Object.values(groupedTransactions)
-                    .sort((a, b) => b.year - a.year)
-                    .map((yearData) => (
-                      <div key={yearData.year} className="space-y-4">
-                        <div className="flex justify-between items-center px-2 border-b border-gray-100 pb-2">
-                          <span className="text-[#0B4550] font-black">{yearData.year}</span>
-                          <span className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest">
-                            {isRevenueHidden ? 'RM ••••' : `RM ${yearData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
-                          </span>
-                        </div>
-                        
-                        {Object.values(yearData.months)
-                          .sort((a, b) => b.maxTimestamp - a.maxTimestamp)
-                          .map((monthData) => (
-                            <div key={monthData.monthYear} className="space-y-2">
-                              <h4 className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest pl-2 border-l-2 border-[#0B4550] ml-1 mb-2">
-                                {monthData.monthName}
-                              </h4>
-                              {monthData.items
-                                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
-                                .map((t) => (
-                                  <div 
-                                    key={t.id} 
-                                    className="bg-[#F9F7F2] border border-gray-100 p-4 rounded-[1.5rem] flex items-center justify-between transition-all active:scale-[0.98]"
-                                  >
-                                    <div className="flex items-center gap-3 overflow-hidden">
-                                      <div className="w-10 h-10 rounded-full bg-white text-[#0B4550] flex items-center justify-center shrink-0 border border-gray-150">
-                                        <DollarSign size={16} />
-                                      </div>
-                                      <div className="flex flex-col min-w-0">
-                                        <span className="text-[#0B4550] font-bold text-sm truncate">
-                                          {clients.find(c => c.id === t.client_name)?.name || t.client_name}
-                                        </span>
-                                        <span className="text-[#898A8D] text-[10px] font-semibold truncate">
-                                          {t.description} • {new Date(t.created_at).toLocaleDateString('en-GB')}
-                                        </span>
-                                      </div>
-                                    </div>
-                                    <div className="text-right shrink-0 ml-3">
-                                      <span className="text-emerald-600 font-black text-sm block">
-                                        {isRevenueHidden ? 'RM ••••' : `+RM ${Number(t.amount).toFixed(2)}`}
-                                      </span>
-                                    </div>
-                                  </div>
-                                ))}
-                            </div>
-                        ))}
-                      </div>
+                {/* Your existing tabs */}
+                <div className="flex bg-[#F9F7F2] md:bg-white rounded-[1.5rem] md:rounded-full p-1.5 shadow-lg md:shadow-sm border border-gray-100 w-full md:w-auto overflow-x-auto no-scrollbar">
+                  {['Day', 'Week', 'Month', 'Year', 'All Time'].map((tab) => (
+                    <button
+                      key={tab}
+                      onClick={() => setActiveRevenuePeriod(tab)}
+                      className={`flex-1 min-w-[60px] md:flex-none px-4 md:px-6 py-2 rounded-xl md:rounded-full text-[10px] md:text-lg font-black md:font-medium uppercase tracking-widest md:normal-case md:tracking-normal transition-all ${activeRevenuePeriod === tab ? 'bg-[#0B4550] md:bg-[#898A8D] text-[#E6FF2B] md:text-white shadow-md md:shadow-none' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                    >
+                      {tab}
+                    </button>
                   ))}
                 </div>
-              )}
+              </div>
+
+              {/* DESKTOP REVENUE STATS */}
+              <div className="hidden md:grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+                <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md relative overflow-hidden">
+                  <div className="flex justify-between items-center mb-2">
+                    <h3 className="text-white/80 font-medium text-lg">Total Collected (This Month)</h3>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleToggleRevenueVisibility();
+                      }}
+                      className="text-white/60 hover:text-white transition-colors focus:outline-none p-0.5 rounded"
+                      title={isRevenueHidden ? "Show Revenue" : "Hide Revenue"}
+                    >
+                      {isRevenueHidden ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  <h2 className="text-3xl md:text-4xl font-medium text-white">
+                    {isRevenueHidden ? 'RM ••••' : `RM ${totalCollectedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  </h2>
+                </div>
+                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
+                  <h3 className="text-[#898A8D] font-medium text-lg mb-2">Pending Payments</h3>
+                  <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550]">
+                    {isRevenueHidden ? 'RM ••••' : 'RM 0.00'}
+                  </h2>
+                </div>
+                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
+                  <h3 className="text-[#898A8D] font-medium text-lg mb-2">Projected Renewals</h3>
+                  <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550]">
+                    {isRevenueHidden ? 'RM ••••' : `RM ${estimatedRevenue.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  </h2>
+                </div>
+              </div>
+
+              {/* MOBILE REVENUE STATS */}
+              <div className="md:hidden grid grid-cols-2 gap-4 mb-6">
+                <div className="bg-gradient-to-br from-[#0B4550] to-[#08353E] rounded-[2rem] p-5 shadow-md col-span-2 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4 opacity-10">
+                    <DollarSign size={80} className="text-[#E6FF2B]" />
+                  </div>
+                  <div className="relative z-10 flex flex-col h-full justify-between">
+                    <div className="flex justify-between items-center mb-2">
+                      <span className="text-white/75 text-[10px] font-bold uppercase tracking-widest">Collected (This Month)</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleToggleRevenueVisibility();
+                        }}
+                        className="text-white/60 hover:text-white p-1"
+                      >
+                        {isRevenueHidden ? <EyeOff size={14} /> : <Eye size={14} />}
+                      </button>
+                    </div>
+                    <h2 className="text-4xl font-black text-white tracking-tight">
+                      {isRevenueHidden ? 'RM ••••' : `RM ${totalCollectedThisMonth.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                    </h2>
+                  </div>
+                </div>
+                <div className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm">
+                  <span className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest block mb-2">Pending</span>
+                  <span className="text-xl font-black text-[#0B4550] block">
+                    {isRevenueHidden ? 'RM ••••' : 'RM 0'}
+                  </span>
+                </div>
+                <div className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm">
+                  <span className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest block mb-2">Projected</span>
+                  <span className="text-xl font-black text-emerald-600 block">
+                    {isRevenueHidden ? 'RM ••••' : `RM ${estimatedRevenue.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`}
+                  </span>
+                </div>
+              </div>
+
+              <div className="hidden md:block bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
+                <h3 className="font-medium text-2xl text-[#0B4550] mb-6 border-b-2 border-gray-100 pb-4">Recent Transactions</h3>
+                {filteredTransactions.length === 0 ? (
+                  <div className="text-center py-6 md:py-10 text-[#898A8D] font-medium">No transactions found for this period.</div>
+                ) : (
+                  <div className="space-y-8">
+                    {Object.values(groupedTransactions)
+                      .sort((a, b) => b.year - a.year)
+                      .map((yearData) => (
+                        <div key={yearData.year} className="space-y-6">
+                          {/* YEAR HEADER */}
+                          <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 border-b border-gray-100 pb-3 mt-4">
+                            <h4 className="text-base font-extrabold text-[#0B4550] flex items-center gap-2">
+                              <Calendar size={18} /> {yearData.year}
+                            </h4>
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                              Yearly Collected: <span className="text-emerald-600 font-extrabold">{isRevenueHidden ? 'RM ••••' : `RM ${yearData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</span>
+                            </div>
+                          </div>
+
+                          {/* MONTHS LIST */}
+                          <div className="space-y-4">
+                            {Object.values(yearData.months)
+                              .sort((a, b) => b.maxTimestamp - a.maxTimestamp)
+                              .map((monthData) => {
+                                const monthYearKey = monthData.monthYear;
+                                const expanded = expandedMonths[monthYearKey] !== false; // Default to open!
+
+                                return (
+                                  <div key={monthYearKey} className="space-y-4">
+                                    {/* COLLAPSIBLE HEADER BAR */}
+                                    <div
+                                      onClick={() => {
+                                        setExpandedMonths(prev => ({
+                                          ...prev,
+                                          [monthYearKey]: !expanded
+                                        }));
+                                      }}
+                                      className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 bg-[#F9F7F2] p-4 rounded-2xl border border-gray-100 shadow-sm sticky top-0 z-10 cursor-pointer hover:bg-gray-100 transition-colors group/header"
+                                    >
+                                      <div className="flex items-center gap-3">
+                                        <ChevronRight size={18} className={`text-[#0B4550] transition-transform duration-300 ${expanded ? 'rotate-90' : ''}`} />
+                                        <h4 className="font-bold text-[#0B4550] text-sm uppercase tracking-wider">{monthData.monthName}</h4>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-[10px] font-bold text-[#898A8D] uppercase">Collected</p>
+                                        <p className="text-sm font-bold text-emerald-600">{isRevenueHidden ? 'RM ••••' : `RM ${monthData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}</p>
+                                      </div>
+                                    </div>
+
+                                    {/* MONTH TABLE CONTENT */}
+                                    {expanded && (
+                                      <div className="overflow-x-auto pr-2 no-scrollbar animate-in slide-in-from-top-2 duration-300">
+                                        <table className="w-full min-w-[650px] md:min-w-full text-left border-collapse mb-2 md:table-fixed table-auto">
+                                          <thead>
+                                            <tr className="text-xs font-bold text-[#898A8D] uppercase tracking-wider border-b border-gray-100">
+                                              <th className="pb-3 pt-1 pl-4 w-[12%]">Date</th>
+                                              <th className="pb-3 pt-1 w-[23%]">Client Name</th>
+                                              <th className="pb-3 pt-1 w-[45%]">Description</th>
+                                              <th className="pb-3 pt-1 w-[12%] text-right">Amount</th>
+                                              <th className="pb-3 pt-1 pr-4 w-[8%] text-right">Actions</th>
+                                            </tr>
+                                          </thead>
+                                          <tbody className="text-base font-semibold text-[#0B4550]">
+                                            {monthData.items
+                                              .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                                              .map((t) => (
+                                                <tr key={t.id} className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
+                                                  <td className="py-3 pl-4 text-xs font-semibold text-gray-500 w-[12%]">{new Date(t.created_at).toLocaleDateString('en-GB')}</td>
+                                                  <td className="py-3 font-bold w-[23%]">{clients.find(c => c.id === t.client_name)?.name || t.client_name}</td>
+                                                  <td className="py-3 text-xs text-gray-500 font-semibold w-[45%]">{t.description}</td>
+                                                  <td className="py-3 font-black text-emerald-600 text-right w-[12%]">{isRevenueHidden ? 'RM ••••' : `+RM ${Number(t.amount).toFixed(2)}`}</td>
+                                                  <td className="py-3 pr-4 text-right w-[8%]">
+                                                    <div className="flex items-center justify-end gap-2">
+                                                      {t.amount > 0 && !t.is_backlog && (
+                                                        <button
+                                                          onClick={() => {
+                                                            setSelectedInvoiceTransaction(t);
+                                                            setIsInvoiceModalOpen(true);
+                                                          }}
+                                                          className="p-1.5 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all flex items-center justify-center"
+                                                          title="Download Invoice PDF"
+                                                        >
+                                                          <FileText size={14} />
+                                                        </button>
+                                                      )}
+                                                      <button
+                                                        onClick={() => handleDeleteTransaction(t.id)}
+                                                        className="p-1.5 text-red-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all flex items-center justify-center"
+                                                        title="Delete Transaction"
+                                                      >
+                                                        <Trash2 size={14} />
+                                                      </button>
+                                                    </div>
+                                                  </td>
+                                                </tr>
+                                              ))}
+                                          </tbody>
+                                        </table>
+                                      </div>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+
+              {/* MOBILE TRANSACTIONS LIST (HIGH FIDELITY) */}
+              <div className="md:hidden bg-white rounded-[2rem] p-4 border border-gray-100 shadow-sm mt-6">
+                <h3 className="font-black text-[#0B4550] text-lg mb-4 uppercase tracking-widest pl-2">Recent Transactions</h3>
+                {filteredTransactions.length === 0 ? (
+                  <div className="text-center py-10 bg-[#F9F7F2] rounded-[1.5rem] border border-gray-100">
+                    <p className="text-[#898A8D] font-bold text-sm">No transactions found.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-6">
+                    {Object.values(groupedTransactions)
+                      .sort((a, b) => b.year - a.year)
+                      .map((yearData) => (
+                        <div key={yearData.year} className="space-y-4">
+                          <div className="flex justify-between items-center px-2 border-b border-gray-100 pb-2">
+                            <span className="text-[#0B4550] font-black">{yearData.year}</span>
+                            <span className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest">
+                              {isRevenueHidden ? 'RM ••••' : `RM ${yearData.totalEarned.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                            </span>
+                          </div>
+
+                          {Object.values(yearData.months)
+                            .sort((a, b) => b.maxTimestamp - a.maxTimestamp)
+                            .map((monthData) => (
+                              <div key={monthData.monthYear} className="space-y-2">
+                                <h4 className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest pl-2 border-l-2 border-[#0B4550] ml-1 mb-2">
+                                  {monthData.monthName}
+                                </h4>
+                                {monthData.items
+                                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+                                  .map((t) => (
+                                    <div
+                                      key={t.id}
+                                      className="bg-[#F9F7F2] border border-gray-100 p-4 rounded-[1.5rem] flex items-center justify-between transition-all active:scale-[0.98]"
+                                    >
+                                      <div className="flex items-center gap-3 overflow-hidden">
+                                        <div className="w-10 h-10 rounded-full bg-white text-[#0B4550] flex items-center justify-center shrink-0 border border-gray-150">
+                                          <DollarSign size={16} />
+                                        </div>
+                                        <div className="flex flex-col min-w-0">
+                                          <span className="text-[#0B4550] font-bold text-sm truncate">
+                                            {clients.find(c => c.id === t.client_name)?.name || t.client_name}
+                                          </span>
+                                          <span className="text-[#898A8D] text-[10px] font-semibold truncate">
+                                            {t.description} • {new Date(t.created_at).toLocaleDateString('en-GB')}
+                                          </span>
+                                        </div>
+                                      </div>
+                                      <div className="text-right shrink-0 ml-3">
+                                        <span className="text-emerald-600 font-black text-sm block">
+                                          {isRevenueHidden ? 'RM ••••' : `+RM ${Number(t.amount).toFixed(2)}`}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                            ))}
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        )
-      )}
+          )
+        )}
 
         {/* VIEW: ATTENDANCE HISTORY */}
         {activePage === 'Attendance' && (
@@ -5333,7 +5358,7 @@ export default function Dashboard({ session }) {
                               return (
                                 <div key={monthYearKey} className="space-y-4">
                                   {/* MONTH HEADER BAR */}
-                                  <div 
+                                  <div
                                     onClick={() => {
                                       setExpandedMonths(prev => ({
                                         ...prev,
@@ -5364,7 +5389,7 @@ export default function Dashboard({ session }) {
                                           return (
                                             <div key={dateKey} className="border border-gray-50 rounded-2xl overflow-hidden shadow-sm">
                                               {/* COLLAPSIBLE DATE ROW */}
-                                              <div 
+                                              <div
                                                 onClick={() => {
                                                   setExpandedDates(prev => ({
                                                     ...prev,
@@ -5446,7 +5471,7 @@ export default function Dashboard({ session }) {
               </div>
               <h3 className="text-3xl font-black text-[#0B4550] mb-2">Clients Access Locked</h3>
               <p className="text-[#898A8D] font-medium mb-8 max-w-sm text-base leading-relaxed">Member details, activity logs, and profiles require a secure owner verification.</p>
-              <button 
+              <button
                 onClick={() => {
                   setPendingPageAction('Clients');
                   setSecurityPinInput('');
@@ -5460,1227 +5485,1286 @@ export default function Dashboard({ session }) {
             </div>
           ) : (
             <div className="animate-in fade-in duration-500">
-            {!selectedClient && (
-              <>
-                {/* MOBILE CONTROLS (HIGH FIDELITY) */}
-                <div className="md:hidden flex flex-col gap-4 mb-6">
-                  <div className="flex bg-white rounded-[1.5rem] p-1.5 shadow-sm border border-gray-150 overflow-x-auto no-scrollbar">
-                    {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
-                      <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}>
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-2">
-                    <div className="relative flex-1">
-                      <input 
-                        type="text" 
-                        placeholder="Search clients..." 
-                        value={clientSearchQuery}
-                        onChange={(e) => setClientSearchQuery(e.target.value)}
-                        className="w-full bg-white border border-gray-150 text-[#0B4550] pl-10 pr-4 py-3 rounded-2xl font-bold text-xs outline-none shadow-sm"
-                      />
-                      <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#898A8D]" size={14} />
+              {!selectedClient && (
+                <>
+                  {/* MOBILE CONTROLS (HIGH FIDELITY) */}
+                  <div className="md:hidden flex flex-col gap-4 mb-6">
+                    <div className="flex bg-white rounded-[1.5rem] p-1.5 shadow-sm border border-gray-150 overflow-x-auto no-scrollbar">
+                      {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
+                        <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}>
+                          {tab}
+                        </button>
+                      ))}
                     </div>
-                    <select 
-                      value={sortBy} 
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="bg-white border border-gray-150 text-[#0B4550] px-4 py-3 rounded-2xl font-bold text-xs outline-none shadow-sm cursor-pointer appearance-none"
-                    >
-                      <option value="newest">Recently Added</option>
-                      <option value="az">Alphabetical (A-Z)</option>
-                      <option value="za">Alphabetical (Z-A)</option>
-                      <option value="expire">Earliest to Expire</option>
-                      <option value="sessions">Most Sessions</option>
-                    </select>
-                    <button onClick={() => setShowAddModal(true)} className="bg-[#0B4550] text-[#E6FF2B] w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-md shrink-0">
-                      <Plus size={20} strokeWidth={3} />
-                    </button>
-                  </div>
-                </div>
-
-                {/* DESKTOP CONTROLS */}
-                <div className="hidden md:flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
-                  <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 shrink-0 overflow-x-auto no-scrollbar max-w-full">
-                    {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
-                      <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
-                        {tab}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="flex gap-3">
-                    <div className="bg-white border border-gray-100 rounded-xl p-1 flex items-center shadow-sm">
-                      <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-[#0B4550] text-[#E6FF2B]' : 'text-[#898A8D] hover:text-[#0B4550]'}`} title="Grid View">
-                        <LayoutGrid size={20} />
-                      </button>
-                      <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-[#0B4550] text-[#E6FF2B]' : 'text-[#898A8D] hover:text-[#0B4550]'}`} title="List View">
-                        <List size={20} />
-                      </button>
-                    </div>
-                    
-                    <select 
-                      value={sortBy} 
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="bg-white border border-gray-100 text-[#0B4550] px-4 py-3 rounded-xl font-medium text-base outline-none shadow-sm cursor-pointer"
-                    >
-                      <option value="newest">Recently Added</option>
-                      <option value="az">Alphabetical (A-Z)</option>
-                      <option value="za">Alphabetical (Z-A)</option>
-                      <option value="expire">Earliest to Expire</option>
-                      <option value="sessions">Most Sessions</option>
-                    </select>
-
-                    <button 
-                      onClick={() => setIsArchiveMode(!isArchiveMode)} 
-                      className={`px-4 md:px-6 py-3 rounded-xl font-medium text-lg flex items-center gap-2 transition-all shadow-sm ${isArchiveMode ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-white text-[#898A8D] border border-gray-100 hover:text-[#0B4550]'}`}
-                    >
-                      <Download size={20} className={isArchiveMode ? "" : "opacity-70"} /> 
-                      {isArchiveMode ? 'Exit Archive' : 'View Archive'}
-                    </button>
-                    <button onClick={() => setShowAddModal(true)} className="bg-[#E6FF2B] text-[#0B4550] px-4 md:px-6 py-3 rounded-xl font-medium text-lg flex items-center gap-2 hover:brightness-95 transition-all shadow-sm">
-                      <Plus size={24} />
-                      Add New Client
-                    </button>
-                  </div>
-                </div>
-
-                {isLoadingClients ? (
-                  <div className="flex justify-center items-center py-20">
-                    <RotateCw className="animate-spin text-[#0B4550]" size={40} />
-                  </div>
-                ) : sortedAndFilteredClients.length === 0 ? (
-                  <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
-                    <Users size={64} className="mx-auto text-gray-300 mb-4" />
-                    <h2 className="text-2xl font-medium text-[#0B4550] mb-2">{isArchiveMode ? 'No archived clients' : 'No clients found'}</h2>
-                    <p className="text-[#898A8D]">
-                      {isArchiveMode ? "You haven't archived any clients yet." : <><button onClick={() => setShowAddModal(true)} className="text-[#0B4550] hover:underline font-medium">Click here</button> to start building your roster.</>}
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                  {/* MOBILE CLIENT CARDS */}
-                  <div className="md:hidden space-y-4">
-                    {sortedAndFilteredClients.map(client => (
-                      <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm relative overflow-hidden group active:scale-[0.98] transition-all cursor-pointer">
-                        <div className="flex items-center gap-4 mb-4 relative z-10">
-                          <div className="w-14 h-14 rounded-full bg-[#F9F7F2] border border-gray-100 text-[#0B4550] flex items-center justify-center text-xl font-black shadow-inner">
-                            {getInitials(client.name)}
-                          </div>
-                          <div className="flex-1 overflow-hidden">
-                            <h3 className="text-xl font-black text-[#0B4550] truncate">{client.name}</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest truncate">{client.package || 'No package'}</span>
-                              {client.member_status === 'Trial' && (
-                                <span className="bg-[#E6FF2B]/10 text-[#0B4550] border border-[#E6FF2B]/20 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Trial</span>
-                              )}
-                              {client.member_status === 'Follow Up' && (
-                                <span className="bg-orange-50 text-orange-600 border border-orange-200 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Follow Up</span>
-                              )}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-2 gap-3 relative z-10">
-                          <div className="bg-[#F9F7F2] rounded-2xl p-3 border border-gray-100">
-                            <span className="text-[#898A8D] font-bold text-[9px] uppercase tracking-widest block mb-1">Sessions Used</span>
-                            <span className="text-[#0B4550] font-black text-lg">
-                              {client.initial_package ? `${(client.initial_package || 0) - (client.remaining_package || 0)} / ${client.initial_package}` : (client.unlimited ? 'Unlimited' : '-')}
-                            </span>
-                          </div>
-                          <div className="bg-[#F9F7F2] rounded-2xl p-3 border border-gray-100">
-                            <span className="text-[#898A8D] font-bold text-[9px] uppercase tracking-widest block mb-1">Expiry Date</span>
-                            <span className={`font-black text-sm ${getLiveClientStatus(client) === 'Expired' ? 'text-red-600' : getLiveClientStatus(client) === 'Expiring Soon' ? 'text-amber-600' : 'text-emerald-600'}`}>
-                              {client.expiry || 'No date set'}
-                            </span>
-                          </div>
-                        </div>
+                    <div className="flex gap-2">
+                      <div className="relative flex-1">
+                        <input
+                          type="text"
+                          placeholder="Search clients..."
+                          value={clientSearchQuery}
+                          onChange={(e) => setClientSearchQuery(e.target.value)}
+                          className="w-full bg-white border border-gray-150 text-[#0B4550] pl-10 pr-8 py-3 rounded-2xl font-bold text-xs outline-none shadow-sm"
+                        />
+                        <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#898A8D]" size={14} />
+                        {clientSearchQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setClientSearchQuery('')}
+                            className="absolute right-3 top-1/2 -translate-y-1/2 text-[#898A8D] hover:text-[#0B4550] transition-colors"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
                       </div>
-                    ))}
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="bg-white border border-gray-150 text-[#0B4550] px-4 py-3 rounded-2xl font-bold text-xs outline-none shadow-sm cursor-pointer appearance-none"
+                      >
+                        <option value="newest">Recently Added</option>
+                        <option value="az">Alphabetical (A-Z)</option>
+                        <option value="za">Alphabetical (Z-A)</option>
+                        <option value="expire">Earliest to Expire</option>
+                        <option value="sessions">Most Sessions</option>
+                      </select>
+                      <button onClick={() => setShowAddModal(true)} className="bg-[#0B4550] text-[#E6FF2B] w-12 h-12 rounded-2xl flex items-center justify-center transition-all shadow-md shrink-0">
+                        <Plus size={20} strokeWidth={3} />
+                      </button>
+                    </div>
                   </div>
 
-                  {/* DESKTOP CLIENTS (LIST / GRID) */}
-                  <div className="hidden md:block">
-                  {viewMode === 'list' ? (
-                  <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 overflow-hidden">
-                    <table className="w-full text-left border-collapse">
-                      <thead>
-                        <tr className="text-sm font-medium text-[#898A8D] uppercase tracking-wider border-b border-gray-100">
-                          <th className="pb-4 px-4 font-bold">Name</th>
-                          <th className="pb-4 px-4 font-bold">Sessions</th>
-                          <th className="pb-4 px-4 font-bold">Expiry Date</th>
-                          <th className="pb-4 px-4 font-bold text-right">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="text-lg font-medium text-[#0B4550]">
+                  {/* DESKTOP CONTROLS */}
+                  <div className="hidden md:flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
+                    <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 shrink-0 overflow-x-auto no-scrollbar max-w-full">
+                      {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
+                        <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="bg-white border border-gray-100 rounded-xl p-1 flex items-center shadow-sm">
+                        <button onClick={() => setViewMode('grid')} className={`p-2 rounded-lg transition-colors ${viewMode === 'grid' ? 'bg-[#0B4550] text-[#E6FF2B]' : 'text-[#898A8D] hover:text-[#0B4550]'}`} title="Grid View">
+                          <LayoutGrid size={20} />
+                        </button>
+                        <button onClick={() => setViewMode('list')} className={`p-2 rounded-lg transition-colors ${viewMode === 'list' ? 'bg-[#0B4550] text-[#E6FF2B]' : 'text-[#898A8D] hover:text-[#0B4550]'}`} title="List View">
+                          <List size={20} />
+                        </button>
+                      </div>
+
+                      <select
+                        value={sortBy}
+                        onChange={(e) => setSortBy(e.target.value)}
+                        className="bg-white border border-gray-100 text-[#0B4550] px-4 py-3 rounded-xl font-medium text-base outline-none shadow-sm cursor-pointer"
+                      >
+                        <option value="newest">Recently Added</option>
+                        <option value="az">Alphabetical (A-Z)</option>
+                        <option value="za">Alphabetical (Z-A)</option>
+                        <option value="expire">Earliest to Expire</option>
+                        <option value="sessions">Most Sessions</option>
+                      </select>
+
+                      <button
+                        onClick={() => setIsArchiveMode(!isArchiveMode)}
+                        className={`px-4 md:px-6 py-3 rounded-xl font-medium text-lg flex items-center gap-2 transition-all shadow-sm ${isArchiveMode ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-white text-[#898A8D] border border-gray-100 hover:text-[#0B4550]'}`}
+                      >
+                        <Download size={20} className={isArchiveMode ? "" : "opacity-70"} />
+                        {isArchiveMode ? 'Exit Archive' : 'View Archive'}
+                      </button>
+                      <button onClick={() => setShowAddModal(true)} className="bg-[#E6FF2B] text-[#0B4550] px-4 md:px-6 py-3 rounded-xl font-medium text-lg flex items-center gap-2 hover:brightness-95 transition-all shadow-sm">
+                        <Plus size={24} />
+                        Add New Client
+                      </button>
+                    </div>
+                  </div>
+
+                  {isLoadingClients ? (
+                    <div className="flex justify-center items-center py-20">
+                      <RotateCw className="animate-spin text-[#0B4550]" size={40} />
+                    </div>
+                  ) : sortedAndFilteredClients.length === 0 ? (
+                    <div className="text-center py-20 bg-white rounded-3xl border border-gray-100 shadow-sm">
+                      <Users size={64} className="mx-auto text-gray-300 mb-4" />
+                      <h2 className="text-2xl font-medium text-[#0B4550] mb-2">{isArchiveMode ? 'No archived clients' : 'No clients found'}</h2>
+                      <p className="text-[#898A8D]">
+                        {isArchiveMode ? "You haven't archived any clients yet." : <><button onClick={() => setShowAddModal(true)} className="text-[#0B4550] hover:underline font-medium">Click here</button> to start building your roster.</>}
+                      </p>
+                    </div>
+                  ) : (
+                    <>
+                      {/* MOBILE CLIENT CARDS */}
+                      <div className="md:hidden space-y-4">
                         {sortedAndFilteredClients.map(client => (
-                          <tr key={client.id} onClick={() => setSelectedClient(client)} className="border-b border-gray-50 hover:bg-[#F9F7F2] transition-colors cursor-pointer group">
-                            <td className="py-4 px-4 flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-[#F9F7F2] text-[#0B4550] flex items-center justify-center text-sm font-bold group-hover:bg-[#E6FF2B] transition-colors">
+                          <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm relative overflow-hidden group active:scale-[0.98] transition-all cursor-pointer">
+                            <div className="flex items-center gap-4 mb-4 relative z-10">
+                              <div className="w-14 h-14 rounded-full bg-[#F9F7F2] border border-gray-100 text-[#0B4550] flex items-center justify-center text-xl font-black shadow-inner">
                                 {getInitials(client.name)}
                               </div>
-                              <div className="flex flex-col">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-bold">{client.name}</span>
+                              <div className="flex-1 overflow-hidden">
+                                <h3 className="text-xl font-black text-[#0B4550] truncate">{client.name}</h3>
+                                <div className="flex items-center gap-2 mt-1">
+                                  <span className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest truncate">{client.package || 'No package'}</span>
                                   {client.member_status === 'Trial' && (
-                                    <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Trial</span>
+                                    <span className="bg-[#E6FF2B]/10 text-[#0B4550] border border-[#E6FF2B]/20 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Trial</span>
                                   )}
                                   {client.member_status === 'Follow Up' && (
-                                    <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Follow Up</span>
+                                    <span className="bg-orange-50 text-orange-600 border border-orange-200 text-[8px] font-black px-2 py-0.5 rounded-full uppercase tracking-widest">Follow Up</span>
                                   )}
                                 </div>
-                                <span className="text-[#898A8D] text-sm">{client.package || 'No package'}</span>
                               </div>
-                            </td>
-                            <td className="py-4 px-4 text-base">
-                              {client.initial_package ? `${(client.initial_package || 0) - (client.remaining_package || 0)} / ${client.initial_package}` : (client.unlimited ? 'Unlimited' : '-')}
-                            </td>
-                            <td className="py-4 px-4 text-base">
-                              <span className={`px-3 py-1 rounded-lg text-sm font-medium ${
-                                getLiveClientStatus(client) === 'Expired' ? 'bg-red-100 text-red-600' : 
-                                getLiveClientStatus(client) === 'Expiring Soon' ? 'bg-[#E6FF2B]/30 text-[#0B4550]' : 
-                                'text-[#0B4550]'
-                              }`}>
-                                {client.expiry || 'No date set'}
-                              </span>
-                            </td>
-                            <td className="py-4 px-4 text-right">
-                              <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-                                <button onClick={(e) => { e.stopPropagation(); handleArchiveClient(client.id, client.status); }} className="p-2 text-[#898A8D] hover:text-[#0B4550] bg-white rounded-lg shadow-sm hover:shadow transition-all" title={client.status === 'Archived' ? 'Restore' : 'Archive'}>
-                                  <Download size={18} className={client.status === 'Archived' ? "rotate-180" : ""} />
-                                </button>
-                                <button onClick={(e) => { e.stopPropagation(); handleDeleteClient(client.id); }} className="p-2 text-red-400 hover:text-red-600 bg-white rounded-lg shadow-sm hover:shadow transition-all" title="Delete">
-                                  <Trash2 size={18} />
-                                </button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-                    {sortedAndFilteredClients.map(client => (
-                      <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all group relative">
-                        <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-6">
-                          <div className="flex items-center gap-4">
-                            <div className="w-14 h-14 rounded-full bg-[#F9F7F2] text-[#0B4550] flex items-center justify-center text-xl font-medium group-hover:bg-[#E6FF2B] transition-colors">
-                              {getInitials(client.name)}
                             </div>
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <h3 className="text-2xl font-medium text-[#0B4550]">{client.name}</h3>
-                                {client.member_status === 'Trial' && (
-                                  <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Trial</span>
-                                )}
-                                {client.member_status === 'Follow Up' && (
-                                  <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Follow Up</span>
-                                )}
+                            <div className="grid grid-cols-2 gap-3 relative z-10">
+                              <div className="bg-[#F9F7F2] rounded-2xl p-3 border border-gray-100">
+                                <span className="text-[#898A8D] font-bold text-[9px] uppercase tracking-widest block mb-1">Sessions Used</span>
+                                <span className="text-[#0B4550] font-black text-lg">
+                                  {!client.unlimited && client.initial_package ? `${(client.initial_package || 0) - (client.remaining_package || 0)} / ${client.initial_package}` : (client.unlimited ? 'Unlimited' : '-')}
+                                </span>
                               </div>
-                              <p className="text-[#898A8D] font-medium text-sm">{client.package || 'No package'}</p>
+                              <div className="bg-[#F9F7F2] rounded-2xl p-3 border border-gray-100">
+                                <span className="text-[#898A8D] font-bold text-[9px] uppercase tracking-widest block mb-1">Expiry Date</span>
+                                <span className={`font-black text-sm ${getLiveClientStatus(client) === 'Expired' ? 'text-red-600' : getLiveClientStatus(client) === 'Expiring Soon' ? 'text-amber-600' : 'text-emerald-600'}`}>
+                                  {client.expiry || 'No date set'}
+                                </span>
+                              </div>
                             </div>
                           </div>
+                        ))}
+                      </div>
+
+                      {/* DESKTOP CLIENTS (LIST / GRID) */}
+                      <div className="hidden md:block">
+                        {viewMode === 'list' ? (
+                          <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 overflow-hidden">
+                            <table className="w-full text-left border-collapse">
+                              <thead>
+                                <tr className="text-sm font-medium text-[#898A8D] uppercase tracking-wider border-b border-gray-100">
+                                  <th className="pb-4 px-4 font-bold">Name</th>
+                                  <th className="pb-4 px-4 font-bold">Sessions</th>
+                                  <th className="pb-4 px-4 font-bold">Expiry Date</th>
+                                  <th className="pb-4 px-4 font-bold text-right">Actions</th>
+                                </tr>
+                              </thead>
+                              <tbody className="text-lg font-medium text-[#0B4550]">
+                                {sortedAndFilteredClients.map(client => (
+                                  <tr key={client.id} onClick={() => setSelectedClient(client)} className="border-b border-gray-50 hover:bg-[#F9F7F2] transition-colors cursor-pointer group">
+                                    <td className="py-4 px-4 flex items-center gap-3">
+                                      <div className="w-10 h-10 rounded-full bg-[#F9F7F2] text-[#0B4550] flex items-center justify-center text-sm font-bold group-hover:bg-[#E6FF2B] transition-colors">
+                                        {getInitials(client.name)}
+                                      </div>
+                                      <div className="flex flex-col">
+                                        <div className="flex items-center gap-2">
+                                          <span className="font-bold">{client.name}</span>
+                                          {client.member_status === 'Trial' && (
+                                            <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Trial</span>
+                                          )}
+                                          {client.member_status === 'Follow Up' && (
+                                            <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Follow Up</span>
+                                          )}
+                                        </div>
+                                        <span className="text-[#898A8D] text-sm">{client.package || 'No package'}</span>
+                                      </div>
+                                    </td>
+                                    <td className="py-4 px-4 text-base">
+                                      {!client.unlimited && client.initial_package ? `${(client.initial_package || 0) - (client.remaining_package || 0)} / ${client.initial_package}` : (client.unlimited ? 'Unlimited' : '-')}
+                                    </td>
+                                    <td className="py-4 px-4 text-base">
+                                      <span className={`px-3 py-1 rounded-lg text-sm font-medium ${getLiveClientStatus(client) === 'Expired' ? 'bg-red-100 text-red-600' :
+                                        getLiveClientStatus(client) === 'Expiring Soon' ? 'bg-[#E6FF2B]/30 text-[#0B4550]' :
+                                          'text-[#0B4550]'
+                                        }`}>
+                                        {client.expiry || 'No date set'}
+                                      </span>
+                                    </td>
+                                    <td className="py-4 px-4 text-right">
+                                      <div className="flex gap-2 justify-end opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <button onClick={(e) => { e.stopPropagation(); handleArchiveClient(client.id, client.status); }} className="p-2 text-[#898A8D] hover:text-[#0B4550] bg-white rounded-lg shadow-sm hover:shadow transition-all" title={client.status === 'Archived' ? 'Restore' : 'Archive'}>
+                                          <Download size={18} className={client.status === 'Archived' ? "rotate-180" : ""} />
+                                        </button>
+                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteClient(client.id); }} className="p-2 text-red-400 hover:text-red-600 bg-white rounded-lg shadow-sm hover:shadow transition-all" title="Delete">
+                                          <Trash2 size={18} />
+                                        </button>
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+                            {sortedAndFilteredClients.map(client => (
+                              <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all group relative">
+                                <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-6">
+                                  <div className="flex items-center gap-4">
+                                    <div className="w-14 h-14 rounded-full bg-[#F9F7F2] text-[#0B4550] flex items-center justify-center text-xl font-medium group-hover:bg-[#E6FF2B] transition-colors">
+                                      {getInitials(client.name)}
+                                    </div>
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <h3 className="text-2xl font-medium text-[#0B4550]">{client.name}</h3>
+                                        {client.member_status === 'Trial' && (
+                                          <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Trial</span>
+                                        )}
+                                        {client.member_status === 'Follow Up' && (
+                                          <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider">Follow Up</span>
+                                        )}
+                                      </div>
+                                      <p className="text-[#898A8D] font-medium text-sm">{client.package || 'No package'}</p>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="mb-6">
+                                  {!client.unlimited && client.initial_package ? (
+                                    <>
+                                      <div className="flex justify-between text-sm font-medium mb-2">
+                                        <span className="text-[#898A8D]">Sessions (Used/Total)</span>
+                                        <span className="text-[#0B4550]">{(client.initial_package || 0) - (client.remaining_package || 0)} / {client.initial_package}</span>
+                                      </div>
+                                      <div className="w-full bg-gray-100 rounded-full h-3">
+                                        <div
+                                          className={`h-3 rounded-full transition-all ${client.remaining_package === 0 ? 'bg-red-400' : 'bg-[#0B4550]'}`}
+                                          style={{ width: `${Math.min(((client.initial_package - (client.remaining_package || 0)) / client.initial_package) * 100, 100)}%` }}
+                                        ></div>
+                                      </div>
+                                    </>
+                                  ) : (
+                                    <div className="flex justify-between text-sm font-medium mb-2 pt-5">
+                                      <span className="text-[#898A8D]">Subscription Type</span>
+                                      <span className="text-[#0B4550]">{client.unlimited ? 'Unlimited (Time-Based)' : 'Standard'}</span>
+                                    </div>
+                                  )}
+                                </div>
+
+                                <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 pt-4 border-t border-gray-100">
+                                  <span className="text-[#898A8D] font-medium text-sm">Expires:</span>
+                                  <span className={`font-medium text-base px-3 py-1 rounded-lg ${client.status === 'Expired' ? 'bg-red-100 text-red-600' :
+                                    client.status === 'Expiring Soon' ? 'bg-[#E6FF2B]/30 text-[#0B4550]' :
+                                      'text-[#0B4550]'
+                                    }`}>
+                                    {client.expiry || 'No date set'}
+                                  </span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
+              {selectedClient && (
+                <div className="animate-in slide-in-from-right-8 duration-300">
+                  <button onClick={() => setSelectedClient(null)} className="flex items-center gap-2 text-[#898A8D] font-medium text-lg mb-8 hover:text-[#0B4550] transition-colors">
+                    <ArrowLeft size={24} /> Back to Roster
+                  </button>
+
+                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-8">
+                    <div className="lg:col-span-2 space-y-6">
+                      <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 text-center">
+                        <div className="w-24 h-24 rounded-full bg-[#F9F7F2] text-[#0B4550] flex items-center justify-center text-2xl md:text-3xl font-medium mx-auto mb-4 border-4 border-white shadow-sm">
+                          {getInitials(selectedClient.name)}
+                        </div>
+                        <h2 className="text-2xl md:text-3xl font-medium text-[#0B4550] mb-2">{selectedClient.name}</h2>
+                        {/* MANUAL OVERRIDE BUTTONS */}
+                        {!selectedClient.unlimited && (
+                          <div className="bg-[#F9F7F2] rounded-2xl p-4 mt-6 mb-4 flex items-center justify-between">
+                            <span className="text-[#898A8D] font-medium text-sm uppercase">Remaining</span>
+                            <div className="flex items-center gap-3">
+                              <button onClick={() => adjustSessions(-1)} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#0B4550] hover:bg-red-50 hover:text-red-500 shadow-sm transition-colors"><Minus size={16} /></button>
+                              <span className="text-2xl font-medium text-[#0B4550] w-6 text-center">{selectedClient.remaining_package}</span>
+                              <button onClick={() => adjustSessions(1)} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#0B4550] hover:bg-emerald-50 hover:text-emerald-500 shadow-sm transition-colors"><Plus size={16} /></button>
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex items-center justify-center gap-3 mb-6">
+                          <span className={`inline-block px-4 py-1.5 rounded-full text-sm font-medium ${selectedClient.status === 'Expired' ? 'bg-red-100 text-red-600' :
+                            selectedClient.status === 'Expiring Soon' ? 'bg-[#E6FF2B] text-[#0B4550]' :
+                              selectedClient.status === 'Archived' ? 'bg-gray-200 text-gray-500' :
+                                'bg-gray-100 text-[#898A8D]'
+                            }`}>
+                            {selectedClient.status || 'Active'}
+                          </span>
+                          <button onClick={() => handleArchiveClient(selectedClient.id, selectedClient.status)} className="p-2 text-[#898A8D] hover:text-[#0B4550] bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors" title={selectedClient.status === 'Archived' ? 'Restore' : 'Archive'}>
+                            <Download size={18} className={selectedClient.status === 'Archived' ? "rotate-180" : ""} />
+                          </button>
+                          <button onClick={() => handleDeleteClient(selectedClient.id)} className="p-2 text-red-300 hover:text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors" title="Delete">
+                            <Trash2 size={18} />
+                          </button>
                         </div>
 
-                        <div className="mb-6">
-                          {client.initial_package ? (
-                            <>
-                              <div className="flex justify-between text-sm font-medium mb-2">
-                                <span className="text-[#898A8D]">Sessions (Used/Total)</span>
-                                <span className="text-[#0B4550]">{(client.initial_package || 0) - (client.remaining_package || 0)} / {client.initial_package}</span>
+                        <div className="text-left space-y-4 border-t border-gray-100 pt-6 mt-4">
+                          <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-2">
+                            <h4 className="font-bold text-[#0B4550]">Details</h4>
+                            <button
+                              onClick={() => isEditingClient ? handleUpdateClient() : setIsEditingClient(true)}
+                              className={`text-sm font-bold px-4 py-1.5 rounded-lg transition-all ${isEditingClient ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-[#F9F7F2] text-[#898A8D] hover:text-[#0B4550]'}`}
+                            >
+                              {isEditingClient ? 'Save Changes' : 'Edit Profile'}
+                            </button>
+                          </div>
+
+                          {isEditingClient ? (
+                            <div className="space-y-3 animate-in fade-in duration-300">
+                              <div><label className="text-xs font-bold text-[#898A8D] uppercase">Name</label><input type="text" value={editClientForm.name || ''} onChange={e => setEditClientForm({ ...editClientForm, name: e.target.value })} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
+                              <div><label className="text-xs font-bold text-[#898A8D] uppercase">Email</label><input type="email" value={editClientForm.email || ''} onChange={e => setEditClientForm({ ...editClientForm, email: e.target.value })} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
+
+                              <div><label className="text-xs font-bold text-[#898A8D] uppercase">Billing Address</label><input type="text" value={editClientForm.address || ''} onChange={e => setEditClientForm({ ...editClientForm, address: e.target.value })} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" placeholder="e.g. 123 Main St, Kuala Lumpur" /></div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs font-bold text-[#898A8D] uppercase">Phone</label>
+                                  <input type="text" value={editClientForm.phone || ''} onChange={e => setEditClientForm({ ...editClientForm, phone: e.target.value })} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-bold text-[#898A8D] uppercase">Date of Birth</label>
+                                  <input type="date" value={editClientForm.dob || ''} onChange={e => setEditClientForm({ ...editClientForm, dob: e.target.value })} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
+                                </div>
                               </div>
-                              <div className="w-full bg-gray-100 rounded-full h-3">
-                                <div 
-                                  className={`h-3 rounded-full transition-all ${client.remaining_package === 0 ? 'bg-red-400' : 'bg-[#0B4550]'}`}
-                                  style={{ width: `${Math.min(((client.initial_package - (client.remaining_package || 0)) / client.initial_package) * 100, 100)}%` }}
-                                ></div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs font-bold text-[#898A8D] uppercase">Type</label>
+                                  <select value={editClientForm.client_type} onChange={e => setEditClientForm({ ...editClientForm, client_type: e.target.value })} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none">
+                                    <option value="Group">Group</option><option value="PT">PT</option><option value="Group & PT">Group & PT</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="text-xs font-bold text-[#898A8D] uppercase">Status</label>
+                                  <select value={editClientForm.member_status} onChange={e => setEditClientForm({ ...editClientForm, member_status: e.target.value })} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none">
+                                    <option value="Member">Member</option><option value="Non-Member">Non-Member</option><option value="Trial">Trial</option><option value="Follow Up">Follow Up</option>
+                                  </select>
+                                </div>
                               </div>
-                            </>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs font-bold text-[#898A8D] uppercase">Subscription Type</label>
+                                  <select
+                                    value={editClientForm.unlimited ? 'Unlimited' : 'Standard'}
+                                    onChange={e => {
+                                      const isUnlimited = e.target.value === 'Unlimited';
+                                      setEditClientForm({
+                                        ...editClientForm,
+                                        unlimited: isUnlimited,
+                                        initial_package: isUnlimited ? 0 : editClientForm.initial_package || 0,
+                                        remaining_package: isUnlimited ? 0 : editClientForm.remaining_package || 0
+                                      });
+                                    }}
+                                    className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none"
+                                  >
+                                    <option value="Standard">Standard</option>
+                                    <option value="Unlimited">Unlimited (Time-Based)</option>
+                                  </select>
+                                </div>
+                                <div>
+                                  <label className="text-xs font-bold text-[#898A8D] uppercase">Package Type</label>
+                                  <select
+                                    value={editClientForm.package || ''}
+                                    onChange={e => {
+                                      const selectedName = e.target.value;
+                                      const pkg = packagesList.find(p => p.name === selectedName);
+                                      setEditClientForm({
+                                        ...editClientForm,
+                                        package: selectedName,
+                                        initial_package: pkg ? (pkg.type === 'Unlimited' ? 0 : pkg.session_count) : 0,
+                                        remaining_package: pkg ? (pkg.type === 'Unlimited' ? 0 : pkg.session_count) : 0,
+                                        unlimited: pkg ? pkg.type === 'Unlimited' : false
+                                      });
+                                    }}
+                                    className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none"
+                                  >
+                                    <option value="">No Package</option>
+                                    {packagesList.map(pkg => (
+                                      <option key={pkg.id} value={pkg.name}>{pkg.name}</option>
+                                    ))}
+                                  </select>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs font-bold text-[#898A8D] uppercase">Expiry Date</label>
+                                  <input type="date" value={editClientForm.expiry || ''} onChange={e => setEditClientForm({ ...editClientForm, expiry: e.target.value })} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-bold text-[#898A8D] uppercase">Date Paid</label>
+                                  <input type="date" value={editClientForm.date_paid || ''} onChange={e => setEditClientForm({ ...editClientForm, date_paid: e.target.value })} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                                <div>
+                                  <label className="text-xs font-bold text-[#898A8D] uppercase">Total Sessions</label>
+                                  <input
+                                    type="number"
+                                    disabled={editClientForm.unlimited}
+                                    value={editClientForm.unlimited ? 0 : editClientForm.initial_package || 0}
+                                    onChange={e => setEditClientForm({ ...editClientForm, initial_package: parseInt(e.target.value) || 0 })}
+                                    className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B] disabled:opacity-50"
+                                  />
+                                </div>
+                                <div>
+                                  <label className="text-xs font-bold text-[#898A8D] uppercase">Remaining</label>
+                                  <input
+                                    type="number"
+                                    disabled={editClientForm.unlimited}
+                                    value={editClientForm.unlimited ? 0 : editClientForm.remaining_package || 0}
+                                    onChange={e => setEditClientForm({ ...editClientForm, remaining_package: parseInt(e.target.value) || 0 })}
+                                    className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B] disabled:opacity-50"
+                                  />
+                                </div>
+                              </div>
+                              <button onClick={() => setIsEditingClient(false)} className="w-full text-center text-red-400 font-bold text-sm mt-2 hover:text-red-500">Cancel</button>
+                            </div>
                           ) : (
-                            <div className="flex justify-between text-sm font-medium mb-2 pt-5">
-                              <span className="text-[#898A8D]">Subscription Type</span>
-                              <span className="text-[#0B4550]">{client.unlimited ? 'Unlimited (Time-Based)' : 'Standard'}</span>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-300">
+                              <div className="col-span-1 md:col-span-2"><p className="text-sm font-medium text-[#898A8D]">Full Name</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.name || 'N/A'}</p></div>
+                              <div className="col-span-1 md:col-span-2"><p className="text-sm font-medium text-[#898A8D]">Email</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.email || 'N/A'}</p></div>
+                              <div className="col-span-1 md:col-span-2"><p className="text-sm font-medium text-[#898A8D]">Billing Address</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.address || 'N/A'}</p></div>
+                              <div><p className="text-sm font-medium text-[#898A8D]">Phone</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.phone || 'N/A'}</p></div>
+                              <div><p className="text-sm font-medium text-[#898A8D]">Date of Birth</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.dob || 'N/A'}</p></div>
+                              <div><p className="text-sm font-medium text-[#898A8D]">Client Type</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.client_type || 'N/A'}</p></div>
+                              <div><p className="text-sm font-medium text-[#898A8D]">Member Status</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.member_status || 'N/A'}</p></div>
+
+                              <div className="col-span-1 md:col-span-2 border-t border-gray-100 pt-4 mt-2">
+                                <p className="font-bold text-[#0B4550] mb-2">Package Details</p>
+                              </div>
+                              <div className="col-span-1 md:col-span-2"><p className="text-sm font-medium text-[#898A8D]">Package Type</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.package || (selectedClient.unlimited ? 'Unlimited' : 'None')}</p></div>
+                              {selectedClient.unlimited ? (
+                                <div>
+                                  <p className="text-sm font-medium text-[#898A8D]">Subscription Type</p>
+                                  <p className="text-lg font-medium text-emerald-600">Unlimited Membership</p>
+                                </div>
+                              ) : (
+                                <div>
+                                  <p className="text-sm font-medium text-[#898A8D]">Sessions (Used/Total)</p>
+                                  <p className="text-lg font-medium text-[#0B4550]">{(selectedClient.initial_package || 0) - (selectedClient.remaining_package || 0)} / {selectedClient.initial_package || 0}</p>
+                                </div>
+                              )}
+                              <div><p className="text-sm font-medium text-[#898A8D]">Date Paid</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.date_paid || 'N/A'}</p></div>
+                              <div><p className="text-sm font-medium text-[#898A8D]">Expiry Date</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.expiry || 'No date set'}</p></div>
+
+                              <div className="col-span-1 md:col-span-2 mt-2">
+                                <button
+                                  onClick={handleRenewPackage}
+                                  className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-extrabold text-lg hover:scale-[1.02] transition-all shadow-lg flex items-center justify-center gap-3 group"
+                                >
+                                  <RotateCw size={22} className="group-hover:rotate-180 transition-transform duration-500" />
+                                  Renew Package
+                                </button>
+                              </div>
+
+                              <div className="col-span-1 md:col-span-2 mt-1">
+                                {selectedClient.member_status === 'Follow Up' ? (
+                                  <button
+                                    onClick={() => handleToggleFollowUp(selectedClient)}
+                                    className="w-full bg-[#E6FF2B] text-[#0B4550] py-4 rounded-2xl font-extrabold text-lg hover:scale-[1.02] transition-all shadow-md flex items-center justify-center gap-3 group"
+                                  >
+                                    <Check size={22} />
+                                    Mark Follow Up as Done
+                                  </button>
+                                ) : (
+                                  <button
+                                    onClick={() => handleToggleFollowUp(selectedClient)}
+                                    className="w-full bg-[#F9F7F2] border-2 border-[#0B4550] text-[#0B4550] py-4 rounded-2xl font-extrabold text-lg hover:bg-[#0B4550]/5 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 group"
+                                  >
+                                    <Clock size={22} />
+                                    Move to Follow Up
+                                  </button>
+                                )}
+                              </div>
                             </div>
                           )}
                         </div>
-
-                        <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 pt-4 border-t border-gray-100">
-                          <span className="text-[#898A8D] font-medium text-sm">Expires:</span>
-                          <span className={`font-medium text-base px-3 py-1 rounded-lg ${
-                            client.status === 'Expired' ? 'bg-red-100 text-red-600' : 
-                            client.status === 'Expiring Soon' ? 'bg-[#E6FF2B]/30 text-[#0B4550]' : 
-                            'text-[#0B4550]'
-                          }`}>
-                            {client.expiry || 'No date set'}
-                          </span>
-                        </div>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </>
-          )}
-        </>
-      )}
 
-            {selectedClient && (
-              <div className="animate-in slide-in-from-right-8 duration-300">
-                <button onClick={() => setSelectedClient(null)} className="flex items-center gap-2 text-[#898A8D] font-medium text-lg mb-8 hover:text-[#0B4550] transition-colors">
-                  <ArrowLeft size={24} /> Back to Roster
-                </button>
-
-                <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-8">
-                  <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 text-center">
-                      <div className="w-24 h-24 rounded-full bg-[#F9F7F2] text-[#0B4550] flex items-center justify-center text-2xl md:text-3xl font-medium mx-auto mb-4 border-4 border-white shadow-sm">
-                        {getInitials(selectedClient.name)}
-                      </div>
-                      <h2 className="text-2xl md:text-3xl font-medium text-[#0B4550] mb-2">{selectedClient.name}</h2>
-                      {/* MANUAL OVERRIDE BUTTONS */}
-                      {!selectedClient.unlimited && (
-                        <div className="bg-[#F9F7F2] rounded-2xl p-4 mt-6 mb-4 flex items-center justify-between">
-                          <span className="text-[#898A8D] font-medium text-sm uppercase">Remaining</span>
-                          <div className="flex items-center gap-3">
-                            <button onClick={() => adjustSessions(-1)} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#0B4550] hover:bg-red-50 hover:text-red-500 shadow-sm transition-colors"><Minus size={16}/></button>
-                            <span className="text-2xl font-medium text-[#0B4550] w-6 text-center">{selectedClient.remaining_package}</span>
-                            <button onClick={() => adjustSessions(1)} className="w-8 h-8 bg-white rounded-full flex items-center justify-center text-[#0B4550] hover:bg-emerald-50 hover:text-emerald-500 shadow-sm transition-colors"><Plus size={16}/></button>
-                          </div>
-                        </div>
-                      )}
-                      <div className="flex items-center justify-center gap-3 mb-6">
-                        <span className={`inline-block px-4 py-1.5 rounded-full text-sm font-medium ${
-                            selectedClient.status === 'Expired' ? 'bg-red-100 text-red-600' : 
-                            selectedClient.status === 'Expiring Soon' ? 'bg-[#E6FF2B] text-[#0B4550]' : 
-                            selectedClient.status === 'Archived' ? 'bg-gray-200 text-gray-500' :
-                            'bg-gray-100 text-[#898A8D]'
-                        }`}>
-                          {selectedClient.status || 'Active'}
-                        </span>
-                        <button onClick={() => handleArchiveClient(selectedClient.id, selectedClient.status)} className="p-2 text-[#898A8D] hover:text-[#0B4550] bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors" title={selectedClient.status === 'Archived' ? 'Restore' : 'Archive'}>
-                          <Download size={18} className={selectedClient.status === 'Archived' ? "rotate-180" : ""} />
-                        </button>
-                        <button onClick={() => handleDeleteClient(selectedClient.id)} className="p-2 text-red-300 hover:text-red-500 bg-red-50 hover:bg-red-100 rounded-lg transition-colors" title="Delete">
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                      
-                      <div className="text-left space-y-4 border-t border-gray-100 pt-6 mt-4">
-                        <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-2">
-                          <h4 className="font-bold text-[#0B4550]">Details</h4>
-                          <button 
-                            onClick={() => isEditingClient ? handleUpdateClient() : setIsEditingClient(true)} 
-                            className={`text-sm font-bold px-4 py-1.5 rounded-lg transition-all ${isEditingClient ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-[#F9F7F2] text-[#898A8D] hover:text-[#0B4550]'}`}
-                          >
-                            {isEditingClient ? 'Save Changes' : 'Edit Profile'}
+                      <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md">
+                        <h3 className="text-white font-medium text-xl mb-2">Personal Portal</h3>
+                        <p className="text-white/70 text-sm font-medium mb-4">Share this link for {selectedClient.name} to view their progress.</p>
+                        <div className="flex bg-white/10 rounded-xl p-2 border border-white/20">
+                          <input type="text" readOnly value={`${window.location.origin}/client/${selectedClient.id}`} className="bg-transparent text-white w-full px-2 outline-none font-medium text-sm" />
+                          <button onClick={handleCopyLink} className="bg-[#E6FF2B] text-[#0B4550] p-2 rounded-lg hover:brightness-95 transition-all flex items-center justify-center shrink-0 w-10 h-10">
+                            {copiedLink ? <Check size={20} /> : <Copy size={20} />}
                           </button>
                         </div>
-
-                        {isEditingClient ? (
-                          <div className="space-y-3 animate-in fade-in duration-300">
-                            <div><label className="text-xs font-bold text-[#898A8D] uppercase">Name</label><input type="text" value={editClientForm.name || ''} onChange={e => setEditClientForm({...editClientForm, name: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
-                            <div><label className="text-xs font-bold text-[#898A8D] uppercase">Email</label><input type="email" value={editClientForm.email || ''} onChange={e => setEditClientForm({...editClientForm, email: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" /></div>
-                            
-                            <div><label className="text-xs font-bold text-[#898A8D] uppercase">Billing Address</label><input type="text" value={editClientForm.address || ''} onChange={e => setEditClientForm({...editClientForm, address: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" placeholder="e.g. 123 Main St, Kuala Lumpur" /></div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-xs font-bold text-[#898A8D] uppercase">Phone</label>
-                                <input type="text" value={editClientForm.phone || ''} onChange={e => setEditClientForm({...editClientForm, phone: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
-                              </div>
-                              <div>
-                                <label className="text-xs font-bold text-[#898A8D] uppercase">Date of Birth</label>
-                                <input type="date" value={editClientForm.dob || ''} onChange={e => setEditClientForm({...editClientForm, dob: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
-                              </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-xs font-bold text-[#898A8D] uppercase">Type</label>
-                                <select value={editClientForm.client_type} onChange={e => setEditClientForm({...editClientForm, client_type: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none">
-                                  <option value="Group">Group</option><option value="PT">PT</option><option value="Group & PT">Group & PT</option>
-                                </select>
-                              </div>
-                              <div>
-                                <label className="text-xs font-bold text-[#898A8D] uppercase">Status</label>
-                                <select value={editClientForm.member_status} onChange={e => setEditClientForm({...editClientForm, member_status: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none">
-                                  <option value="Member">Member</option><option value="Non-Member">Non-Member</option><option value="Trial">Trial</option><option value="Follow Up">Follow Up</option>
-                                </select>
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-xs font-bold text-[#898A8D] uppercase">Package Type</label>
-                              <select value={editClientForm.package} onChange={e => setEditClientForm({...editClientForm, package: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none">
-                                <option value="">No Package</option>
-                                {packagesList.map(pkg => (
-                                  <option key={pkg.id} value={pkg.name}>{pkg.name}</option>
-                                ))}
-                              </select>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-xs font-bold text-[#898A8D] uppercase">Expiry Date</label>
-                                <input type="date" value={editClientForm.expiry || ''} onChange={e => setEditClientForm({...editClientForm, expiry: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
-                              </div>
-                              <div>
-                                <label className="text-xs font-bold text-[#898A8D] uppercase">Date Paid</label>
-                                <input type="date" value={editClientForm.date_paid || ''} onChange={e => setEditClientForm({...editClientForm, date_paid: e.target.value})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
-                              </div>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-xs font-bold text-[#898A8D] uppercase">Total Sessions</label>
-                                <input type="number" value={editClientForm.initial_package} onChange={e => setEditClientForm({...editClientForm, initial_package: parseInt(e.target.value) || 0})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
-                              </div>
-                              <div>
-                                <label className="text-xs font-bold text-[#898A8D] uppercase">Remaining</label>
-                                <input type="number" value={editClientForm.remaining_package} onChange={e => setEditClientForm({...editClientForm, remaining_package: parseInt(e.target.value) || 0})} className="w-full bg-[#F9F7F2] rounded-lg p-2 text-[#0B4550] font-medium outline-none focus:border focus:border-[#E6FF2B]" />
-                              </div>
-                            </div>
-                            <button onClick={() => setIsEditingClient(false)} className="w-full text-center text-red-400 font-bold text-sm mt-2 hover:text-red-500">Cancel</button>
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 animate-in fade-in duration-300">
-                            <div className="col-span-1 md:col-span-2"><p className="text-sm font-medium text-[#898A8D]">Full Name</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.name || 'N/A'}</p></div>
-                            <div className="col-span-1 md:col-span-2"><p className="text-sm font-medium text-[#898A8D]">Email</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.email || 'N/A'}</p></div>
-                            <div className="col-span-1 md:col-span-2"><p className="text-sm font-medium text-[#898A8D]">Billing Address</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.address || 'N/A'}</p></div>
-                            <div><p className="text-sm font-medium text-[#898A8D]">Phone</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.phone || 'N/A'}</p></div>
-                            <div><p className="text-sm font-medium text-[#898A8D]">Date of Birth</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.dob || 'N/A'}</p></div>
-                            <div><p className="text-sm font-medium text-[#898A8D]">Client Type</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.client_type || 'N/A'}</p></div>
-                            <div><p className="text-sm font-medium text-[#898A8D]">Member Status</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.member_status || 'N/A'}</p></div>
-                            
-                            <div className="col-span-1 md:col-span-2 border-t border-gray-100 pt-4 mt-2">
-                              <p className="font-bold text-[#0B4550] mb-2">Package Details</p>
-                            </div>
-                            <div className="col-span-1 md:col-span-2"><p className="text-sm font-medium text-[#898A8D]">Package Type</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.package || (selectedClient.unlimited ? 'Unlimited' : 'None')}</p></div>
-                            <div><p className="text-sm font-medium text-[#898A8D]">Sessions (Used/Total)</p><p className="text-lg font-medium text-[#0B4550]">{(selectedClient.initial_package || 0) - (selectedClient.remaining_package || 0)} / {selectedClient.initial_package || 0}</p></div>
-                            <div><p className="text-sm font-medium text-[#898A8D]">Date Paid</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.date_paid || 'N/A'}</p></div>
-                            <div><p className="text-sm font-medium text-[#898A8D]">Expiry Date</p><p className="text-lg font-medium text-[#0B4550]">{selectedClient.expiry || 'No date set'}</p></div>
-
-                             <div className="col-span-1 md:col-span-2 mt-2">
-                              <button 
-                                onClick={handleRenewPackage}
-                                className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-extrabold text-lg hover:scale-[1.02] transition-all shadow-lg flex items-center justify-center gap-3 group"
-                              >
-                                <RotateCw size={22} className="group-hover:rotate-180 transition-transform duration-500" />
-                                Renew Package
-                              </button>
-                            </div>
-
-                            <div className="col-span-1 md:col-span-2 mt-1">
-                              {selectedClient.member_status === 'Follow Up' ? (
-                                <button 
-                                  onClick={() => handleToggleFollowUp(selectedClient)}
-                                  className="w-full bg-[#E6FF2B] text-[#0B4550] py-4 rounded-2xl font-extrabold text-lg hover:scale-[1.02] transition-all shadow-md flex items-center justify-center gap-3 group"
-                                >
-                                  <Check size={22} />
-                                  Mark Follow Up as Done
-                                </button>
-                              ) : (
-                                <button 
-                                  onClick={() => handleToggleFollowUp(selectedClient)}
-                                  className="w-full bg-[#F9F7F2] border-2 border-[#0B4550] text-[#0B4550] py-4 rounded-2xl font-extrabold text-lg hover:bg-[#0B4550]/5 hover:scale-[1.02] transition-all flex items-center justify-center gap-3 group"
-                                >
-                                  <Clock size={22} />
-                                  Move to Follow Up
-                                </button>
-                              )}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md">
-                      <h3 className="text-white font-medium text-xl mb-2">Personal Portal</h3>
-                      <p className="text-white/70 text-sm font-medium mb-4">Share this link for {selectedClient.name} to view their progress.</p>
-                      <div className="flex bg-white/10 rounded-xl p-2 border border-white/20">
-                        <input type="text" readOnly value={`${window.location.origin}/client/${selectedClient.id}`} className="bg-transparent text-white w-full px-2 outline-none font-medium text-sm" />
-                        <button onClick={handleCopyLink} className="bg-[#E6FF2B] text-[#0B4550] p-2 rounded-lg hover:brightness-95 transition-all flex items-center justify-center shrink-0 w-10 h-10">
-                          {copiedLink ? <Check size={20} /> : <Copy size={20} />}
-                        </button>
-                      </div>
-                    </div>
-
-                    {selectedClient.member_status === 'Trial' && (
-                      <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col gap-4 md:gap-6 animate-in fade-in duration-300">
-                        <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 pb-4 border-b border-gray-100">
-                          <h3 className="font-medium text-2xl text-[#0B4550] flex items-center gap-2">
-                            <Sparkles size={22} className="text-[#0B4550]" /> Trial Conversion Hub
-                          </h3>
-                          <span className="bg-[#E6FF2B] text-[#0B4550] text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Prospect</span>
-                        </div>
-                        
-                        {/* Pipeline Checklist */}
-                        <div className="flex flex-col gap-4">
-                          <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider">Trial Progression Pipeline</p>
-                          <div className="flex flex-col gap-3.5">
-                            {[
-                              "Scheduled Trial Session",
-                              "Attended Trial Session",
-                              "Sent Follow-up message",
-                              "Final Decision Made"
-                            ].map((step, idx) => {
-                              const isChecked = trialMeta.checklist[idx];
-                              return (
-                                <button
-                                  key={idx}
-                                  onClick={() => {
-                                    const nextChecklist = [...trialMeta.checklist];
-                                    nextChecklist[idx] = !isChecked;
-                                    handleSaveTrialMeta({ ...trialMeta, checklist: nextChecklist });
-                                  }}
-                                  className="flex items-center gap-3 text-left group hover:bg-[#F9F7F2] p-2 rounded-xl transition-all"
-                                >
-                                  {isChecked ? (
-                                    <CheckSquare size={22} className="text-[#0B4550] shrink-0" />
-                                  ) : (
-                                    <Square size={22} className="text-[#898A8D] group-hover:text-[#0B4550] shrink-0" />
-                                  )}
-                                  <span className={`text-base font-medium ${isChecked ? 'line-through text-[#898A8D]' : 'text-[#0B4550]'}`}>
-                                    {step}
-                                  </span>
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Roster Status Pills */}
-                        <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
-                          <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider mb-2">Follow-up Pipeline Status</p>
-                          <div className="grid grid-cols-1 md:grid-cols-2 md:grid-cols-4 gap-2">
-                            {['Pending', 'Contacted', 'Completed', 'Lost'].map((st) => {
-                              const isActive = trialMeta.status === st;
-                              const colors = 
-                                st === 'Pending' ? (isActive ? 'bg-[#898A8D] text-white' : 'bg-gray-100 text-[#898A8D]') :
-                                st === 'Contacted' ? (isActive ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600') :
-                                st === 'Completed' ? (isActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600') :
-                                (isActive ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-600');
-                              return (
-                                <button
-                                  key={st}
-                                  onClick={() => handleSaveTrialMeta({ ...trialMeta, status: st })}
-                                  className={`py-2 px-1 rounded-xl text-xs font-bold text-center transition-all hover:scale-[1.03] ${colors}`}
-                                >
-                                  {st}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-
-                        {/* Convert Call to Action */}
-                        <button
-                          onClick={() => handleConvertToMember(selectedClient)}
-                          className="w-full mt-2 bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-extrabold text-lg hover:scale-[1.02] transition-all shadow-lg flex items-center justify-center gap-3 group relative overflow-hidden"
-                        >
-                          <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
-                          <Sparkles size={20} className="animate-pulse" />
-                          Convert to Full Member
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="lg:col-span-3 flex flex-col gap-4 md:gap-6">
-                    <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col relative h-[440px] shrink-0 overflow-hidden">
-                      {/* Tabs Header */}
-                      <div className="flex border-b border-gray-100 mb-6 gap-6 shrink-0">
-                        <button 
-                          onClick={() => setClientDetailTab('notes')}
-                          className={`pb-3 text-xl font-bold transition-all relative ${clientDetailTab === 'notes' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
-                        >
-                          Trainer Notes
-                          {clientDetailTab === 'notes' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
-                        </button>
-                        <button 
-                          onClick={() => setClientDetailTab('workouts')}
-                          className={`pb-3 text-xl font-bold transition-all relative ${clientDetailTab === 'workouts' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
-                        >
-                          Workout Logs
-                          {clientDetailTab === 'workouts' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
-                        </button>
                       </div>
 
-                      {clientDetailTab === 'notes' ? (
-                        <div className="flex flex-col flex-1 overflow-hidden">
-                          <textarea 
-                            value={clientNotes}
-                            onChange={(e) => setClientNotes(e.target.value)}
-                            className="w-full flex-1 bg-[#F9F7F2] border-2 border-gray-100 rounded-2xl p-4 md:p-6 text-lg font-medium text-[#0B4550] focus:outline-none focus:border-[#E6FF2B] transition-colors resize-none" 
-                            placeholder="Add workout notes, injury updates, or goals here..."
-                          ></textarea>
-                          <div className="flex justify-end items-center gap-4 mt-4 shrink-0">
-                            {notesSavedMsg && <span className="text-emerald-500 font-medium flex items-center gap-1"><Check size={18}/> Saved!</span>}
-                            <button 
-                              onClick={handleSaveNotes}
-                              disabled={isSavingNotes}
-                              className="bg-[#0B4550] text-white px-5 md:px-8 py-2 rounded-xl font-medium text-base hover:bg-[#0B4550]/90 transition-all shadow-sm flex items-center gap-2"
-                            >
-                              {isSavingNotes ? <RotateCw className="animate-spin" size={18}/> : <Save size={18}/>}
-                              Save Notes
-                            </button>
+                      {selectedClient.member_status === 'Trial' && (
+                        <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col gap-4 md:gap-6 animate-in fade-in duration-300">
+                          <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 pb-4 border-b border-gray-100">
+                            <h3 className="font-medium text-2xl text-[#0B4550] flex items-center gap-2">
+                              <Sparkles size={22} className="text-[#0B4550]" /> Trial Conversion Hub
+                            </h3>
+                            <span className="bg-[#E6FF2B] text-[#0B4550] text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">Prospect</span>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
-                          {/* Left Pane: Workouts List */}
-                          <div className="col-span-1 border-r border-gray-100 flex flex-col pr-4 overflow-hidden h-full">
-                            <button 
-                              onClick={handleCreateWorkoutLog}
-                              className="w-full bg-[#0B4550] text-[#E6FF2B] py-2 px-3 rounded-xl font-bold text-sm hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 shadow-sm shrink-0"
-                            >
-                              <Plus size={16} /> New Workout
-                            </button>
-                            
-                            <div className="flex-1 overflow-y-auto space-y-1.5 mt-3 pr-1 no-scrollbar">
-                              {workoutLogs.map((log) => {
-                                const isSelected = activeWorkoutLogId === log.id;
+
+                          {/* Pipeline Checklist */}
+                          <div className="flex flex-col gap-4">
+                            <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider">Trial Progression Pipeline</p>
+                            <div className="flex flex-col gap-3.5">
+                              {[
+                                "Scheduled Trial Session",
+                                "Attended Trial Session",
+                                "Sent Follow-up message",
+                                "Final Decision Made"
+                              ].map((step, idx) => {
+                                const isChecked = trialMeta.checklist[idx];
                                 return (
-                                  <div 
-                                    key={log.id} 
-                                    onClick={() => setActiveWorkoutLogId(log.id)}
-                                    className={`p-3 rounded-xl cursor-pointer transition-all flex flex-col text-left group border ${isSelected ? 'bg-[#F9F7F2] border-gray-200 shadow-xs' : 'border-transparent hover:bg-gray-50'}`}
+                                  <button
+                                    key={idx}
+                                    onClick={() => {
+                                      const nextChecklist = [...trialMeta.checklist];
+                                      nextChecklist[idx] = !isChecked;
+                                      handleSaveTrialMeta({ ...trialMeta, checklist: nextChecklist });
+                                    }}
+                                    className="flex items-center gap-3 text-left group hover:bg-[#F9F7F2] p-2 rounded-xl transition-all"
                                   >
-                                    <div className="flex justify-between items-center gap-1">
-                                      <span className="text-[10px] text-[#898A8D] font-bold">{log.date || 'No Date'}</span>
-                                      <button 
-                                        onClick={(e) => { e.stopPropagation(); handleDeleteWorkoutLog(log.id); }}
-                                        className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-0.5 rounded transition-opacity"
-                                      >
-                                        <Trash2 size={12} />
-                                      </button>
-                                    </div>
-                                    <span className="text-sm font-bold text-[#0B4550] mt-1 truncate">{log.title || 'Untitled Workout'}</span>
-                                    <span className="text-xs text-[#898A8D] truncate mt-0.5 font-medium">{log.content || 'No details...'}</span>
-                                  </div>
+                                    {isChecked ? (
+                                      <CheckSquare size={22} className="text-[#0B4550] shrink-0" />
+                                    ) : (
+                                      <Square size={22} className="text-[#898A8D] group-hover:text-[#0B4550] shrink-0" />
+                                    )}
+                                    <span className={`text-base font-medium ${isChecked ? 'line-through text-[#898A8D]' : 'text-[#0B4550]'}`}>
+                                      {step}
+                                    </span>
+                                  </button>
                                 );
                               })}
-                              {workoutLogs.length === 0 && (
-                                <div className="text-center py-12 text-xs text-gray-400 font-semibold">No workouts logged yet.</div>
-                              )}
                             </div>
                           </div>
 
-                          {/* Right Pane: Workout Log Editor */}
-                          <div className="col-span-2 flex flex-col overflow-hidden h-full">
-                            {(() => {
-                              const activeLog = workoutLogs.find(l => l.id === activeWorkoutLogId);
-                              if (!activeLog) {
+                          {/* Roster Status Pills */}
+                          <div className="flex flex-col gap-2 pt-2 border-t border-gray-100">
+                            <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider mb-2">Follow-up Pipeline Status</p>
+                            <div className="grid grid-cols-1 md:grid-cols-2 md:grid-cols-4 gap-2">
+                              {['Pending', 'Contacted', 'Completed', 'Lost'].map((st) => {
+                                const isActive = trialMeta.status === st;
+                                const colors =
+                                  st === 'Pending' ? (isActive ? 'bg-[#898A8D] text-white' : 'bg-gray-100 text-[#898A8D]') :
+                                    st === 'Contacted' ? (isActive ? 'bg-blue-600 text-white' : 'bg-blue-50 text-blue-600') :
+                                      st === 'Completed' ? (isActive ? 'bg-emerald-600 text-white' : 'bg-emerald-50 text-emerald-600') :
+                                        (isActive ? 'bg-rose-600 text-white' : 'bg-rose-50 text-rose-600');
                                 return (
-                                  <div className="flex flex-col items-center justify-center flex-1 text-center text-gray-400 gap-2">
-                                    <FileText size={36} className="stroke-1" />
-                                    <p className="text-xs font-semibold">Select or create a workout to view/edit details.</p>
-                                  </div>
+                                  <button
+                                    key={st}
+                                    onClick={() => handleSaveTrialMeta({ ...trialMeta, status: st })}
+                                    className={`py-2 px-1 rounded-xl text-xs font-bold text-center transition-all hover:scale-[1.03] ${colors}`}
+                                  >
+                                    {st}
+                                  </button>
                                 );
-                              }
-                              return (
-                                <div className="flex flex-col flex-1 overflow-hidden h-full">
-                                  <div className="flex gap-2 items-center mb-3 shrink-0">
-                                    <input 
-                                      type="text" 
-                                      value={activeLog.title}
-                                      onChange={(e) => handleUpdateActiveWorkoutLog('title', e.target.value)}
-                                      className="text-lg font-black text-[#0B4550] bg-transparent border-none outline-none flex-1 placeholder-gray-300"
-                                      placeholder="Workout Title..."
-                                    />
-                                    <input 
-                                      type="text"
-                                      value={activeLog.date}
-                                      onChange={(e) => handleUpdateActiveWorkoutLog('date', e.target.value)}
-                                      className="text-xs font-bold text-[#898A8D] bg-transparent border-none outline-none w-28 text-right placeholder-gray-300"
-                                      placeholder="Date (e.g. 15/6/2026)"
-                                    />
-                                  </div>
-                                  <textarea 
-                                    value={activeLog.content}
-                                    onChange={(e) => handleUpdateActiveWorkoutLog('content', e.target.value)}
-                                    className="w-full flex-1 bg-[#F9F7F2]/50 border border-gray-100 rounded-2xl p-4 text-sm font-semibold text-[#0B4550] focus:outline-none focus:border-[#E6FF2B] transition-colors resize-none overflow-y-auto"
-                                    placeholder="Start writing workout details (e.g., sets, reps, notes)..."
-                                  />
-                                  <div className="flex justify-end gap-3 items-center shrink-0 border-t border-gray-50 pt-3 mt-3">
-                                    {workoutLogsSavedMsg && <span className="text-emerald-500 text-xs font-bold flex items-center gap-1"><Check size={14}/> Saved!</span>}
-                                    <button 
-                                      onClick={handleSaveWorkoutLogs}
-                                      disabled={isSavingWorkoutLogs}
-                                      className="bg-[#0B4550] text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-[#0B4550]/90 transition-all flex items-center gap-1.5"
-                                    >
-                                      {isSavingWorkoutLogs ? <RotateCw className="animate-spin" size={14}/> : <Save size={14}/>}
-                                      Save Logs
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })()}
+                              })}
+                            </div>
                           </div>
+
+                          {/* Convert Call to Action */}
+                          <button
+                            onClick={() => handleConvertToMember(selectedClient)}
+                            className="w-full mt-2 bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-extrabold text-lg hover:scale-[1.02] transition-all shadow-lg flex items-center justify-center gap-3 group relative overflow-hidden"
+                          >
+                            <span className="absolute inset-0 bg-white/10 opacity-0 group-hover:opacity-100 transition-opacity" />
+                            <Sparkles size={20} className="animate-pulse" />
+                            Convert to Full Member
+                          </button>
                         </div>
                       )}
                     </div>
 
-                    <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
-                      <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
-                        <h3 className="font-medium text-2xl text-[#0B4550]">Activity Ledger</h3>
-                        <div className="flex gap-2">
-                          <button 
-                            onClick={() => setShowLedgerModal(true)}
-                            className="bg-[#F9F7F2] text-[#0B4550] px-4 py-2 rounded-xl text-xs font-bold uppercase hover:bg-gray-100 transition-colors flex items-center gap-2"
+                    <div className="lg:col-span-3 flex flex-col gap-4 md:gap-6">
+                      <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col relative h-[440px] shrink-0 overflow-hidden">
+                        {/* Tabs Header */}
+                        <div className="flex border-b border-gray-100 mb-6 gap-6 shrink-0">
+                          <button
+                            onClick={() => setClientDetailTab('notes')}
+                            className={`pb-3 text-xl font-bold transition-all relative ${clientDetailTab === 'notes' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
                           >
-                            <Plus size={14} /> Add Entry
+                            Trainer Notes
+                            {clientDetailTab === 'notes' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
+                          </button>
+                          <button
+                            onClick={() => setClientDetailTab('workouts')}
+                            className={`pb-3 text-xl font-bold transition-all relative ${clientDetailTab === 'workouts' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
+                          >
+                            Workout Logs
+                            {clientDetailTab === 'workouts' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
                           </button>
                         </div>
-                      </div>
-                      
-                      <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-8">
-                        {clientHistory.length === 0 ? (
-                          <div className="text-center py-6 md:py-10">
-                            <p className="text-sm font-medium text-[#898A8D]">No activity recorded yet.</p>
+
+                        {clientDetailTab === 'notes' ? (
+                          <div className="flex flex-col flex-1 overflow-hidden">
+                            <textarea
+                              value={clientNotes}
+                              onChange={(e) => setClientNotes(e.target.value)}
+                              className="w-full flex-1 bg-[#F9F7F2] border-2 border-gray-100 rounded-2xl p-4 md:p-6 text-lg font-medium text-[#0B4550] focus:outline-none focus:border-[#E6FF2B] transition-colors resize-none"
+                              placeholder="Add workout notes, injury updates, or goals here..."
+                            ></textarea>
+                            <div className="flex justify-end items-center gap-4 mt-4 shrink-0">
+                              {notesSavedMsg && <span className="text-emerald-500 font-medium flex items-center gap-1"><Check size={18} /> Saved!</span>}
+                              <button
+                                onClick={handleSaveNotes}
+                                disabled={isSavingNotes}
+                                className="bg-[#0B4550] text-white px-5 md:px-8 py-2 rounded-xl font-medium text-base hover:bg-[#0B4550]/90 transition-all shadow-sm flex items-center gap-2"
+                              >
+                                {isSavingNotes ? <RotateCw className="animate-spin" size={18} /> : <Save size={18} />}
+                                Save Notes
+                              </button>
+                            </div>
                           </div>
                         ) : (
-                          Object.values(groupedHistory)
-                            .sort((a, b) => b.year - a.year)
-                            .map((yearData) => (
-                              <div key={yearData.year} className="space-y-6">
-                                {/* YEAR HEADER */}
-                                <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 border-b border-gray-100 pb-3 mt-4">
-                                  <h4 className="text-base font-extrabold text-[#0B4550] flex items-center gap-2">
-                                    <Calendar size={18} /> {yearData.year}
-                                  </h4>
-                                  <div className="flex gap-4 text-[11px] font-bold uppercase tracking-wider text-gray-500">
-                                    <div>Yearly Revenue: <span className="text-emerald-600 font-extrabold">RM {yearData.totalEarned.toLocaleString()}</span></div>
-                                    <span className="text-gray-300">|</span>
-                                    <div>Sessions: <span className="text-blue-600 font-extrabold">{yearData.sessionsCount}</span></div>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-1 overflow-hidden">
+                            {/* Left Pane: Workouts List */}
+                            <div className="col-span-1 border-r border-gray-100 flex flex-col pr-4 overflow-hidden h-full">
+                              <button
+                                onClick={handleCreateWorkoutLog}
+                                className="w-full bg-[#0B4550] text-[#E6FF2B] py-2 px-3 rounded-xl font-bold text-sm hover:scale-[1.02] transition-all flex items-center justify-center gap-1.5 shadow-sm shrink-0"
+                              >
+                                <Plus size={16} /> New Workout
+                              </button>
+
+                              <div className="flex-1 overflow-y-auto space-y-1.5 mt-3 pr-1 no-scrollbar">
+                                {workoutLogs.map((log) => {
+                                  const isSelected = activeWorkoutLogId === log.id;
+                                  return (
+                                    <div
+                                      key={log.id}
+                                      onClick={() => setActiveWorkoutLogId(log.id)}
+                                      className={`p-3 rounded-xl cursor-pointer transition-all flex flex-col text-left group border ${isSelected ? 'bg-[#F9F7F2] border-gray-200 shadow-xs' : 'border-transparent hover:bg-gray-50'}`}
+                                    >
+                                      <div className="flex justify-between items-center gap-1">
+                                        <span className="text-[10px] text-[#898A8D] font-bold">{log.date || 'No Date'}</span>
+                                        <button
+                                          onClick={(e) => { e.stopPropagation(); handleDeleteWorkoutLog(log.id); }}
+                                          className="opacity-0 group-hover:opacity-100 text-red-500 hover:text-red-700 p-0.5 rounded transition-opacity"
+                                        >
+                                          <Trash2 size={12} />
+                                        </button>
+                                      </div>
+                                      <span className="text-sm font-bold text-[#0B4550] mt-1 truncate">{log.title || 'Untitled Workout'}</span>
+                                      <span className="text-xs text-[#898A8D] truncate mt-0.5 font-medium">{log.content || 'No details...'}</span>
+                                    </div>
+                                  );
+                                })}
+                                {workoutLogs.length === 0 && (
+                                  <div className="text-center py-12 text-xs text-gray-400 font-semibold">No workouts logged yet.</div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Right Pane: Workout Log Editor */}
+                            <div className="col-span-2 flex flex-col overflow-hidden h-full">
+                              {(() => {
+                                const activeLog = workoutLogs.find(l => l.id === activeWorkoutLogId);
+                                if (!activeLog) {
+                                  return (
+                                    <div className="flex flex-col items-center justify-center flex-1 text-center text-gray-400 gap-2">
+                                      <FileText size={36} className="stroke-1" />
+                                      <p className="text-xs font-semibold">Select or create a workout to view/edit details.</p>
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div className="flex flex-col flex-1 overflow-hidden h-full">
+                                    <div className="flex gap-2 items-center mb-3 shrink-0">
+                                      <input
+                                        type="text"
+                                        value={activeLog.title}
+                                        onChange={(e) => handleUpdateActiveWorkoutLog('title', e.target.value)}
+                                        className="text-lg font-black text-[#0B4550] bg-transparent border-none outline-none flex-1 placeholder-gray-300"
+                                        placeholder="Workout Title..."
+                                      />
+                                      <input
+                                        type="text"
+                                        value={activeLog.date}
+                                        onChange={(e) => handleUpdateActiveWorkoutLog('date', e.target.value)}
+                                        className="text-xs font-bold text-[#898A8D] bg-transparent border-none outline-none w-28 text-right placeholder-gray-300"
+                                        placeholder="Date (e.g. 15/6/2026)"
+                                      />
+                                    </div>
+                                    <textarea
+                                      value={activeLog.content}
+                                      onChange={(e) => handleUpdateActiveWorkoutLog('content', e.target.value)}
+                                      className="w-full flex-1 bg-[#F9F7F2]/50 border border-gray-100 rounded-2xl p-4 text-sm font-semibold text-[#0B4550] focus:outline-none focus:border-[#E6FF2B] transition-colors resize-none overflow-y-auto"
+                                      placeholder="Start writing workout details (e.g., sets, reps, notes)..."
+                                    />
+                                    <div className="flex justify-end gap-3 items-center shrink-0 border-t border-gray-50 pt-3 mt-3">
+                                      {workoutLogsSavedMsg && <span className="text-emerald-500 text-xs font-bold flex items-center gap-1"><Check size={14} /> Saved!</span>}
+                                      <button
+                                        onClick={handleSaveWorkoutLogs}
+                                        disabled={isSavingWorkoutLogs}
+                                        className="bg-[#0B4550] text-white px-4 py-2 rounded-xl font-bold text-xs hover:bg-[#0B4550]/90 transition-all flex items-center gap-1.5"
+                                      >
+                                        {isSavingWorkoutLogs ? <RotateCw className="animate-spin" size={14} /> : <Save size={14} />}
+                                        Save Logs
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
+                        <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
+                          <h3 className="font-medium text-2xl text-[#0B4550]">Activity Ledger</h3>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setShowLedgerModal(true)}
+                              className="bg-[#F9F7F2] text-[#0B4550] px-4 py-2 rounded-xl text-xs font-bold uppercase hover:bg-gray-100 transition-colors flex items-center gap-2"
+                            >
+                              <Plus size={14} /> Add Entry
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-8">
+                          {clientHistory.length === 0 ? (
+                            <div className="text-center py-6 md:py-10">
+                              <p className="text-sm font-medium text-[#898A8D]">No activity recorded yet.</p>
+                            </div>
+                          ) : (
+                            Object.values(groupedHistory)
+                              .sort((a, b) => b.year - a.year)
+                              .map((yearData) => (
+                                <div key={yearData.year} className="space-y-6">
+                                  {/* YEAR HEADER */}
+                                  <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 border-b border-gray-100 pb-3 mt-4">
+                                    <h4 className="text-base font-extrabold text-[#0B4550] flex items-center gap-2">
+                                      <Calendar size={18} /> {yearData.year}
+                                    </h4>
+                                    <div className="flex gap-4 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                                      <div>Yearly Revenue: <span className="text-emerald-600 font-extrabold">RM {yearData.totalEarned.toLocaleString()}</span></div>
+                                      <span className="text-gray-300">|</span>
+                                      <div>Sessions: <span className="text-blue-600 font-extrabold">{yearData.sessionsCount}</span></div>
+                                    </div>
+                                  </div>
+
+                                  {/* MONTHS LIST */}
+                                  <div className="space-y-4">
+                                    {Object.values(yearData.months)
+                                      .sort((a, b) => b.maxTimestamp - a.maxTimestamp)
+                                      .map((monthData) => {
+                                        const monthYearKey = monthData.monthYear;
+                                        return (
+                                          <div key={monthYearKey} className="space-y-4">
+                                            <div
+                                              onClick={() => toggleMonth(monthYearKey)}
+                                              className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 bg-[#F9F7F2] p-4 rounded-2xl border border-gray-100 shadow-sm sticky top-0 z-10 cursor-pointer hover:bg-gray-100 transition-colors group/header"
+                                            >
+                                              <div className="flex items-center gap-3">
+                                                <ChevronRight size={18} className={`text-[#0B4550] transition-transform duration-300 ${isMonthExpanded(monthYearKey) ? 'rotate-90' : ''}`} />
+                                                <h4 className="font-bold text-[#0B4550] text-sm uppercase tracking-wider">{monthData.monthName}</h4>
+                                              </div>
+                                              <div className="flex gap-4 md:gap-6">
+                                                <div className="text-right">
+                                                  <p className="text-[10px] font-bold text-[#898A8D] uppercase">Earned</p>
+                                                  <p className="text-sm font-bold text-emerald-600">RM {monthData.totalEarned.toLocaleString()}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                  <p className="text-[10px] font-bold text-[#898A8D] uppercase">Sessions</p>
+                                                  <p className="text-sm font-bold text-blue-600">{monthData.sessionsCount}</p>
+                                                </div>
+                                              </div>
+                                            </div>
+
+                                            {isMonthExpanded(monthYearKey) && (
+                                              <div className="space-y-4 pl-2 animate-in slide-in-from-top-2 duration-300">
+                                                {monthData.items.map((item) => (
+                                                  <div key={`${item.dbTable}-${item.id}`} className="flex gap-4 group">
+                                                    <div className="flex flex-col items-center">
+                                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === 'purchase' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500'}`}>
+                                                        {item.type === 'purchase' ? <DollarSign size={20} /> : <CheckSquare size={20} />}
+                                                      </div>
+                                                      <div className="w-0.5 h-full bg-gray-50 mt-2"></div>
+                                                    </div>
+                                                    <div className="flex-1 pb-6 border-b border-gray-50 group-last:border-none relative">
+                                                      <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-1">
+                                                        <h4 className="font-bold text-[#0B4550]">{item.title}</h4>
+                                                        <div className="flex items-center gap-2">
+                                                          <span className="text-xs font-bold text-[#898A8D]">{item.date}</span>
+                                                          {item.isEditable && (
+                                                            <button
+                                                              onClick={(e) => { e.stopPropagation(); handleEditHistoryEntry(item); }}
+                                                              className="text-gray-300 hover:text-[#0B4550] opacity-0 group-hover:opacity-100 transition-opacity"
+                                                            >
+                                                              <Edit3 size={14} />
+                                                            </button>
+                                                          )}
+                                                          {item.dbTable === 'bookings' && (
+                                                            <button
+                                                              onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const parsed = parseNotesAndMetadata(selectedClient?.notes);
+                                                                const currentNote = parsed.sessionNotes[item.id] || '';
+                                                                handleOpenSessionNote(item.id, item.title, currentNote);
+                                                              }}
+                                                              className="text-gray-300 hover:text-[#0B4550] opacity-0 group-hover:opacity-100 transition-opacity"
+                                                              title="Add/Edit session workout note"
+                                                            >
+                                                              <Edit3 size={14} />
+                                                            </button>
+                                                          )}
+                                                          <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDeleteHistoryEntry(item); }}
+                                                            className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                                                          >
+                                                            <Trash2 size={14} />
+                                                          </button>
+                                                        </div>
+                                                      </div>
+                                                      <p className="text-sm font-medium text-[#898A8D] mb-1">{item.detail}</p>
+
+                                                      {/* DISPLAY WORKOUT NOTE IF PRESENT */}
+                                                      {(() => {
+                                                        if (item.dbTable === 'bookings') {
+                                                          const parsed = parseNotesAndMetadata(selectedClient?.notes);
+                                                          const sessionNote = parsed.sessionNotes[item.id];
+                                                          if (sessionNote) {
+                                                            return (
+                                                              <div className="mt-2 mb-2 bg-[#F9F7F2] border border-gray-100 rounded-2xl p-4 text-[#0B4550] relative">
+                                                                <span className="text-[#898A8D] font-extrabold block text-xs uppercase tracking-wider mb-1.5">Workout Note:</span>
+                                                                <p className="text-xs font-semibold text-[#0B4550] leading-relaxed whitespace-pre-wrap">{sessionNote}</p>
+                                                              </div>
+                                                            );
+                                                          }
+                                                        }
+                                                        return null;
+                                                      })()}
+
+                                                      <span className="text-[10px] font-bold text-gray-400 uppercase">{item.time}</span>
+                                                    </div>
+                                                  </div>
+                                                ))}
+                                              </div>
+                                            )}
+                                          </div>
+                                        );
+                                      })}
                                   </div>
                                 </div>
-
-                                {/* MONTHS LIST */}
-                                <div className="space-y-4">
-                                  {Object.values(yearData.months)
-                                    .sort((a, b) => b.maxTimestamp - a.maxTimestamp)
-                                    .map((monthData) => {
-                                      const monthYearKey = monthData.monthYear;
-                                      return (
-                                        <div key={monthYearKey} className="space-y-4">
-                                          <div 
-                                            onClick={() => toggleMonth(monthYearKey)}
-                                            className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 bg-[#F9F7F2] p-4 rounded-2xl border border-gray-100 shadow-sm sticky top-0 z-10 cursor-pointer hover:bg-gray-100 transition-colors group/header"
-                                          >
-                                            <div className="flex items-center gap-3">
-                                              <ChevronRight size={18} className={`text-[#0B4550] transition-transform duration-300 ${isMonthExpanded(monthYearKey) ? 'rotate-90' : ''}`} />
-                                              <h4 className="font-bold text-[#0B4550] text-sm uppercase tracking-wider">{monthData.monthName}</h4>
-                                            </div>
-                                            <div className="flex gap-4 md:gap-6">
-                                              <div className="text-right">
-                                                <p className="text-[10px] font-bold text-[#898A8D] uppercase">Earned</p>
-                                                <p className="text-sm font-bold text-emerald-600">RM {monthData.totalEarned.toLocaleString()}</p>
-                                              </div>
-                                              <div className="text-right">
-                                                <p className="text-[10px] font-bold text-[#898A8D] uppercase">Sessions</p>
-                                                <p className="text-sm font-bold text-blue-600">{monthData.sessionsCount}</p>
-                                              </div>
-                                            </div>
-                                          </div>
-                                          
-                                          {isMonthExpanded(monthYearKey) && (
-                                            <div className="space-y-4 pl-2 animate-in slide-in-from-top-2 duration-300">
-                                              {monthData.items.map((item) => (
-                                                <div key={`${item.dbTable}-${item.id}`} className="flex gap-4 group">
-                                                  <div className="flex flex-col items-center">
-                                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center shrink-0 ${item.type === 'purchase' ? 'bg-emerald-50 text-emerald-500' : 'bg-blue-50 text-blue-500'}`}>
-                                                      {item.type === 'purchase' ? <DollarSign size={20} /> : <CheckSquare size={20} />}
-                                                    </div>
-                                                    <div className="w-0.5 h-full bg-gray-50 mt-2"></div>
-                                                  </div>
-                                                  <div className="flex-1 pb-6 border-b border-gray-50 group-last:border-none relative">
-                                                    <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-1">
-                                                      <h4 className="font-bold text-[#0B4550]">{item.title}</h4>
-                                                      <div className="flex items-center gap-2">
-                                                        <span className="text-xs font-bold text-[#898A8D]">{item.date}</span>
-                                                        {item.isEditable && (
-                                                          <button 
-                                                            onClick={(e) => { e.stopPropagation(); handleEditHistoryEntry(item); }}
-                                                            className="text-gray-300 hover:text-[#0B4550] opacity-0 group-hover:opacity-100 transition-opacity"
-                                                          >
-                                                            <Edit3 size={14} />
-                                                          </button>
-                                                        )}
-                                                        {item.dbTable === 'bookings' && (
-                                                          <button 
-                                                            onClick={(e) => { 
-                                                              e.stopPropagation(); 
-                                                              const parsed = parseNotesAndMetadata(selectedClient?.notes);
-                                                              const currentNote = parsed.sessionNotes[item.id] || '';
-                                                              handleOpenSessionNote(item.id, item.title, currentNote); 
-                                                            }}
-                                                            className="text-gray-300 hover:text-[#0B4550] opacity-0 group-hover:opacity-100 transition-opacity"
-                                                            title="Add/Edit session workout note"
-                                                          >
-                                                            <Edit3 size={14} />
-                                                          </button>
-                                                        )}
-                                                        <button 
-                                                          onClick={(e) => { e.stopPropagation(); handleDeleteHistoryEntry(item); }}
-                                                          className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
-                                                        >
-                                                          <Trash2 size={14} />
-                                                        </button>
-                                                      </div>
-                                                    </div>
-                                                    <p className="text-sm font-medium text-[#898A8D] mb-1">{item.detail}</p>
-                                                    
-                                                    {/* DISPLAY WORKOUT NOTE IF PRESENT */}
-                                                    {(() => {
-                                                      if (item.dbTable === 'bookings') {
-                                                        const parsed = parseNotesAndMetadata(selectedClient?.notes);
-                                                        const sessionNote = parsed.sessionNotes[item.id];
-                                                        if (sessionNote) {
-                                                          return (
-                                                            <div className="mt-2 mb-2 bg-[#F9F7F2] border border-gray-100 rounded-2xl p-4 text-[#0B4550] relative">
-                                                              <span className="text-[#898A8D] font-extrabold block text-xs uppercase tracking-wider mb-1.5">Workout Note:</span>
-                                                              <p className="text-xs font-semibold text-[#0B4550] leading-relaxed whitespace-pre-wrap">{sessionNote}</p>
-                                                            </div>
-                                                          );
-                                                        }
-                                                      }
-                                                      return null;
-                                                    })()}
-                                                    
-                                                    <span className="text-[10px] font-bold text-gray-400 uppercase">{item.time}</span>
-                                                  </div>
-                                                </div>
-                                              ))}
-                                            </div>
-                                          )}
-                                        </div>
-                                      );
-                                    })}
-                                </div>
-                              </div>
-                            ))
-                        )}
+                              ))
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
-        )
-      )}
+              )}
+            </div>
+          )
+        )}
 
-{/* VIEW: FULL CALENDAR */}
-{activePage === 'Calendar' && (() => {
-  const getDaysOfWeek = (date) => {
-    const current = new Date(date);
-    const day = current.getDay();
-    const diff = current.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(current.setDate(diff));
-    const days = [];
-    for (let i = 0; i < 7; i++) {
-      const next = new Date(monday);
-      next.setDate(monday.getDate() + i);
-      days.push(next);
-    }
-    return days;
-  };
+        {/* VIEW: FULL CALENDAR */}
+        {activePage === 'Calendar' && (() => {
+          const getDaysOfWeek = (date) => {
+            const current = new Date(date);
+            const day = current.getDay();
+            const diff = current.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(current.setDate(diff));
+            const days = [];
+            for (let i = 0; i < 7; i++) {
+              const next = new Date(monday);
+              next.setDate(monday.getDate() + i);
+              days.push(next);
+            }
+            return days;
+          };
 
-  const weekDays = getDaysOfWeek(currentCalendarDate);
-  const startMonth = weekDays[0].toLocaleDateString('en-US', { month: 'long' });
-  const endMonth = weekDays[6].toLocaleDateString('en-US', { month: 'long' });
-  const startYear = weekDays[0].getFullYear();
-  
-  const monthYearLabel = startMonth === endMonth 
-    ? `${startMonth} ${startYear}` 
-    : `${weekDays[0].toLocaleDateString('en-US', { month: 'short' })} – ${weekDays[6].toLocaleDateString('en-US', { month: 'short' })} ${startYear}`;
+          const weekDays = getDaysOfWeek(currentCalendarDate);
+          const startMonth = weekDays[0].toLocaleDateString('en-US', { month: 'long' });
+          const endMonth = weekDays[6].toLocaleDateString('en-US', { month: 'long' });
+          const startYear = weekDays[0].getFullYear();
 
-  const hours = Array.from({ length: 18 }, (_, i) => i + 6); // 6 AM to 11 PM
+          const monthYearLabel = startMonth === endMonth
+            ? `${startMonth} ${startYear}`
+            : `${weekDays[0].toLocaleDateString('en-US', { month: 'short' })} – ${weekDays[6].toLocaleDateString('en-US', { month: 'short' })} ${startYear}`;
 
-  const getSessionsForDay = (dateObj) => {
-    return sessions.filter(s => {
-      if (!s.date) return false;
-      const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
-      const sDate = new Date(yr, mo - 1, dy);
-      return sDate.getDate() === dateObj.getDate() && 
-             sDate.getMonth() === dateObj.getMonth() && 
-             sDate.getFullYear() === dateObj.getFullYear();
-    });
-  };
+          const hours = Array.from({ length: 18 }, (_, i) => i + 6); // 6 AM to 11 PM
 
-  const parseTimeToMinutes = (timeStr) => {
-    if (!timeStr) return 540; // 9:00 AM fallback
-    const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
-    let hours = 9;
-    let minutes = 0;
-    if (match) {
-      hours = parseInt(match[1], 10);
-      minutes = parseInt(match[2], 10);
-      const ampm = match[3].toUpperCase();
-      if (ampm === 'PM' && hours < 12) {
-        hours += 12;
-      } else if (ampm === 'AM' && hours === 12) {
-        hours = 0;
-      }
-    } else {
-      const parts = timeStr.split(':');
-      if (parts.length >= 2) {
-        hours = parseInt(parts[0], 10) || 9;
-        minutes = parseInt(parts[1].replace(/\D/g, ''), 10) || 0;
-        if (timeStr.toLowerCase().includes('pm') && hours < 12) {
-          hours += 12;
-        } else if (timeStr.toLowerCase().includes('am') && hours === 12) {
-          hours = 0;
-        }
-      }
-    }
-    return hours * 60 + minutes;
-  };
+          const getSessionsForDay = (dateObj) => {
+            return sessions.filter(s => {
+              if (!s.date) return false;
+              const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
+              const sDate = new Date(yr, mo - 1, dy);
+              return sDate.getDate() === dateObj.getDate() &&
+                sDate.getMonth() === dateObj.getMonth() &&
+                sDate.getFullYear() === dateObj.getFullYear();
+            });
+          };
 
+          const parseTimeToMinutes = (timeStr) => {
+            if (!timeStr) return 540; // 9:00 AM fallback
+            const match = timeStr.trim().match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+            let hours = 9;
+            let minutes = 0;
+            if (match) {
+              hours = parseInt(match[1], 10);
+              minutes = parseInt(match[2], 10);
+              const ampm = match[3].toUpperCase();
+              if (ampm === 'PM' && hours < 12) {
+                hours += 12;
+              } else if (ampm === 'AM' && hours === 12) {
+                hours = 0;
+              }
+            } else {
+              const parts = timeStr.split(':');
+              if (parts.length >= 2) {
+                hours = parseInt(parts[0], 10) || 9;
+                minutes = parseInt(parts[1].replace(/\D/g, ''), 10) || 0;
+                if (timeStr.toLowerCase().includes('pm') && hours < 12) {
+                  hours += 12;
+                } else if (timeStr.toLowerCase().includes('am') && hours === 12) {
+                  hours = 0;
+                }
+              }
+            }
+            return hours * 60 + minutes;
+          };
 
 
-  const getSessionTheme = (s) => {
-    const title = (s.title || '').toLowerCase();
-    const type = (s.type || '').toLowerCase();
-    const isPast = isSessionPast(s);
-    
-    let colorClass = "bg-cyan-50 border-cyan-500 text-cyan-800 hover:bg-cyan-100/80";
-    if (title.includes('muay') || title.includes('thai') || title.includes('mtr') || type.includes('muay')) {
-      colorClass = "bg-rose-50 border-rose-500 text-rose-800 hover:bg-rose-100/80";
-    } else if (title.includes('group') || type.includes('group') || title.includes('class')) {
-      colorClass = "bg-teal-50 border-teal-500 text-teal-800 hover:bg-teal-100/80";
-    } else if (title.includes('pt') || title.includes('personal') || title.includes('coach') || type.includes('personal')) {
-      colorClass = "bg-indigo-50 border-indigo-500 text-indigo-800 hover:bg-indigo-100/80";
-    } else if (title.includes('open') || title.includes('gym') || title.includes('trial')) {
-      colorClass = "bg-amber-50 border-amber-500 text-amber-800 hover:bg-amber-100/80";
-    }
-    
-    return {
-      classes: `absolute left-1.5 right-1.5 rounded-xl border-l-4 p-2 shadow-sm transition-all overflow-hidden flex flex-col group cursor-pointer ${colorClass} ${isPast ? 'opacity-65' : ''}`,
-      isPast
-    };
-  };
 
-  return (
-    <div className="animate-in fade-in duration-500 flex flex-col h-full">
-      {/* Top Header Bar */}
-      <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-4">
-        <div className="flex items-center gap-4 flex-wrap">
-          <h3 className="text-2xl font-extrabold text-[#0B4550] tracking-tight">
-            {monthYearLabel}
-          </h3>
-          <button 
-            onClick={() => setCurrentCalendarDate(new Date())}
-            className="px-4 py-2 bg-[#F9F7F2] text-[#0B4550] hover:bg-gray-200 rounded-xl font-bold text-sm transition-all shadow-sm"
-          >
-            Today
-          </button>
-          <div className="flex gap-1.5">
-            <button 
-              onClick={() => {
-                const prev = new Date(currentCalendarDate);
-                prev.setDate(prev.getDate() - 7);
-                setCurrentCalendarDate(prev);
-              }} 
-              className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-all"
-            >
-              <ChevronLeft size={18}/>
-            </button>
-            <button 
-              onClick={() => {
-                const next = new Date(currentCalendarDate);
-                next.setDate(next.getDate() + 7);
-                setCurrentCalendarDate(next);
-              }} 
-              className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-all"
-            >
-              <ChevronRight size={18}/>
-            </button>
-          </div>
-        </div>
-        <button 
-          onClick={() => setShowGoogleSyncModal(true)} 
-          className={`border-2 px-4 md:px-6 py-3 rounded-2xl font-bold flex items-center gap-3 transition-all ${
-            isGcalConnected 
-              ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm' 
-              : isGcalExpired
-              ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm'
-              : 'bg-white border-gray-100 text-[#0B4550] hover:border-[#0B4550] hover:shadow-md'
-          }`}
-        >
-          {isGcalConnected ? (
-            <>
-              <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">✓</div>
-              Google Calendar Connected
-            </>
-          ) : isGcalExpired ? (
-            <>
-              <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">⚠️</div>
-              Calendar Link Expired
-            </>
-          ) : (
-            <>
-              <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">G</div>
-              Connect Google Calendar
-            </>
-          )}
-        </button>
-      </div>
+          const getSessionTheme = (s) => {
+            const title = (s.title || '').toLowerCase();
+            const type = (s.type || '').toLowerCase();
+            const isPast = isSessionPast(s);
 
-      {/* Main Weekly hour view card container */}
-      <div className="bg-white rounded-[2.5rem] p-4 md:p-6 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
-        
-        {/* Mobile Horizontal Day Selector (Single Day Mode selector) */}
-        <div className="flex md:hidden justify-between items-center bg-[#F9F7F2] rounded-2xl p-2 mb-4 border border-gray-100">
-          {weekDays.map((dateObj, i) => {
-            const isTodayObj = new Date().toDateString() === dateObj.toDateString();
-            const isSelectedObj = currentCalendarDate.toDateString() === dateObj.toDateString();
-            const dayInitial = ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i];
-            return (
-              <button
-                key={`mobile-day-${i}`}
-                onClick={() => setCurrentCalendarDate(dateObj)}
-                className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all ${
-                  isSelectedObj 
-                    ? 'bg-[#0B4550] text-[#E6FF2B] scale-105 shadow-md' 
-                    : isTodayObj 
-                    ? 'text-[#0B4550] border border-[#0B4550]/20' 
-                    : 'text-[#898A8D]'
-                }`}
-              >
-                <span className="text-[10px] font-black tracking-widest mb-1 opacity-80">{dayInitial}</span>
-                <span className="text-base font-extrabold">{dateObj.getDate()}</span>
-              </button>
-            );
-          })}
-        </div>
+            let colorClass = "bg-cyan-50 border-cyan-500 text-cyan-800 hover:bg-cyan-100/80";
+            if (title.includes('muay') || title.includes('thai') || title.includes('mtr') || type.includes('muay')) {
+              colorClass = "bg-rose-50 border-rose-500 text-rose-800 hover:bg-rose-100/80";
+            } else if (title.includes('group') || type.includes('group') || title.includes('class')) {
+              colorClass = "bg-teal-50 border-teal-500 text-teal-800 hover:bg-teal-100/80";
+            } else if (title.includes('pt') || title.includes('personal') || title.includes('coach') || type.includes('personal')) {
+              colorClass = "bg-indigo-50 border-indigo-500 text-indigo-800 hover:bg-indigo-100/80";
+            } else if (title.includes('open') || title.includes('gym') || title.includes('trial')) {
+              colorClass = "bg-amber-50 border-amber-500 text-amber-800 hover:bg-amber-100/80";
+            }
 
-        {/* Dynamic hour grid scroll container */}
-        <div className="flex-1 overflow-y-auto no-scrollbar relative max-h-[calc(100vh-270px)] border border-gray-50 rounded-[2rem]">
-          
-          {/* Header Row (Mon-Sun on desktop, single day on mobile) */}
-          <div className="sticky top-0 z-30 bg-white border-b border-gray-100 flex shadow-sm">
-            {/* Hour column spacing placeholder */}
-            <div className="w-16 shrink-0 border-r border-gray-100 bg-gray-50/50"></div>
-            
-            {/* Desktop 7 Column Day headers */}
-            <div className="hidden md:flex flex-1">
-              {weekDays.map((dateObj, i) => {
-                const isTodayObj = new Date().toDateString() === dateObj.toDateString();
-                const isSelectedObj = currentCalendarDate.toDateString() === dateObj.toDateString();
-                const dayLabel = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'][i];
-                return (
-                  <div 
-                    key={`header-day-${i}`} 
-                    onClick={() => setCurrentCalendarDate(dateObj)}
-                    className={`flex-1 text-center py-4 border-r border-gray-100 last:border-r-0 cursor-pointer hover:bg-gray-50/50 transition-colors flex flex-col items-center justify-center ${
-                      isSelectedObj ? 'bg-[#0B4550]/5' : ''
-                    }`}
+            return {
+              classes: `absolute left-1.5 right-1.5 rounded-xl border-l-4 p-2 shadow-sm transition-all overflow-hidden flex flex-col group cursor-pointer ${colorClass} ${isPast ? 'opacity-65' : ''}`,
+              isPast
+            };
+          };
+
+          return (
+            <div className="animate-in fade-in duration-500 flex flex-col h-full">
+              {/* Top Header Bar */}
+              <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-4">
+                <div className="flex items-center gap-4 flex-wrap">
+                  <h3 className="text-2xl font-extrabold text-[#0B4550] tracking-tight">
+                    {monthYearLabel}
+                  </h3>
+                  <button
+                    onClick={() => setCurrentCalendarDate(new Date())}
+                    className="px-4 py-2 bg-[#F9F7F2] text-[#0B4550] hover:bg-gray-200 rounded-xl font-bold text-sm transition-all shadow-sm"
                   >
-                    <span className="text-xs font-black tracking-widest text-[#898A8D] mb-1">{dayLabel}</span>
-                    <span className={`text-base font-black w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                      isTodayObj 
-                        ? 'bg-[#0B4550] text-[#E6FF2B]' 
-                        : isSelectedObj 
-                        ? 'bg-gray-200 text-[#0B4550]' 
-                        : 'text-[#0B4550]'
-                    }`}>
-                      {dateObj.getDate()}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Mobile Column Day Header */}
-            <div className="flex md:hidden flex-1 text-left py-4 px-4 bg-gray-50/50 justify-between items-center">
-              <span className="text-base font-black text-[#0B4550]">
-                {currentCalendarDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
-              </span>
-              <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
-                Selected Day View
-              </span>
-            </div>
-          </div>
-
-          {/* Core scrollable weekly grid body */}
-          <div className="relative flex min-h-[1020px]">
-            
-            {/* Time Labels Column */}
-            <div className="w-16 shrink-0 border-r border-gray-100 bg-gray-50/20 flex flex-col justify-between py-1.5 relative select-none">
-              {hours.map(h => {
-                const displayHour = h === 12 ? '12 PM' : h > 12 ? `${h - 12} PM` : `${h} AM`;
-                return (
-                  <div 
-                    key={`hour-label-${h}`} 
-                    className="h-[60px] text-[10px] font-black text-[#898A8D] pr-3 text-right flex items-start justify-end"
-                    style={{ transform: 'translateY(-6px)' }}
-                  >
-                    {displayHour}
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* Day columns layers (where hourly rows + absolute sessions sit) */}
-            <div className="flex-1 flex relative">
-              
-              {/* background horizontal hour row lines (drawn once, overlaying the background) */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col z-0">
-                {hours.map(h => (
-                  <div key={`grid-row-${h}`} className="h-[60px] border-b border-gray-100/80 last:border-b-0 w-full"></div>
-                ))}
-              </div>
-
-              {/* Desktop view: 7 separate columns overlay */}
-              <div className="hidden md:flex flex-1 relative z-10">
-                {weekDays.map((dateObj, colIdx) => {
-                  const daySessions = getSessionsForDay(dateObj);
-                  return (
-                    <div 
-                      key={`col-day-${colIdx}`} 
-                      className="flex-1 border-r border-gray-100 last:border-r-0 relative h-[1020px] hover:bg-gray-50/20 transition-colors"
+                    Today
+                  </button>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => {
+                        const prev = new Date(currentCalendarDate);
+                        prev.setDate(prev.getDate() - 7);
+                        setCurrentCalendarDate(prev);
+                      }}
+                      className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-all"
                     >
-                      {(() => {
-                        const isToday = currentTime.toDateString() === dateObj.toDateString();
-                        const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
-                        const lineTop = currentMins - (6 * 60); // minutes from 6 AM
-                        const isLineVisible = lineTop >= 0 && lineTop <= 1020;
-                        
-                        if (isToday && isLineVisible) {
-                          return (
-                            <div 
-                              className="absolute left-0 right-0 flex items-center z-20 pointer-events-none"
-                              style={{ top: `${lineTop}px` }}
-                            >
-                              <div className="w-2.5 h-2.5 rounded-full bg-[#EA4335] -ml-[5px] shrink-0 shadow-sm z-30"></div>
-                              <div className="flex-1 h-0.5 bg-[#EA4335] shadow-[0_1px_2px_rgba(0,0,0,0.15)] z-20"></div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-                      {daySessions.map(s => {
-                        const startMins = parseTimeToMinutes(s.time);
-                        const top = startMins - (6 * 60); // minutes from 6 AM
-                        const duration = parseInt(s.duration, 10) || 60;
-                        const theme = getSessionTheme(s);
-                        
+                      <ChevronLeft size={18} />
+                    </button>
+                    <button
+                      onClick={() => {
+                        const next = new Date(currentCalendarDate);
+                        next.setDate(next.getDate() + 7);
+                        setCurrentCalendarDate(next);
+                      }}
+                      className="w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-all"
+                    >
+                      <ChevronRight size={18} />
+                    </button>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowGoogleSyncModal(true)}
+                  className={`border-2 px-4 md:px-6 py-3 rounded-2xl font-bold flex items-center gap-3 transition-all ${isGcalConnected
+                    ? 'bg-emerald-50 border-emerald-200 text-emerald-700 shadow-sm'
+                    : isGcalExpired
+                      ? 'bg-amber-50 border-amber-200 text-amber-700 shadow-sm'
+                      : 'bg-white border-gray-100 text-[#0B4550] hover:border-[#0B4550] hover:shadow-md'
+                    }`}
+                >
+                  {isGcalConnected ? (
+                    <>
+                      <div className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">✓</div>
+                      Google Calendar Connected
+                    </>
+                  ) : isGcalExpired ? (
+                    <>
+                      <div className="w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">⚠️</div>
+                      Calendar Link Expired
+                    </>
+                  ) : (
+                    <>
+                      <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center text-white text-[10px] font-black tracking-tighter">G</div>
+                      Connect Google Calendar
+                    </>
+                  )}
+                </button>
+              </div>
+
+              {/* Main Weekly hour view card container */}
+              <div className="bg-white rounded-[2.5rem] p-4 md:p-6 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
+
+                {/* Mobile Horizontal Day Selector (Single Day Mode selector) */}
+                <div className="flex md:hidden justify-between items-center bg-[#F9F7F2] rounded-2xl p-2 mb-4 border border-gray-100">
+                  {weekDays.map((dateObj, i) => {
+                    const isTodayObj = new Date().toDateString() === dateObj.toDateString();
+                    const isSelectedObj = currentCalendarDate.toDateString() === dateObj.toDateString();
+                    const dayInitial = ['M', 'T', 'W', 'T', 'F', 'S', 'S'][i];
+                    return (
+                      <button
+                        key={`mobile-day-${i}`}
+                        onClick={() => setCurrentCalendarDate(dateObj)}
+                        className={`flex-1 flex flex-col items-center py-2 rounded-xl transition-all ${isSelectedObj
+                          ? 'bg-[#0B4550] text-[#E6FF2B] scale-105 shadow-md'
+                          : isTodayObj
+                            ? 'text-[#0B4550] border border-[#0B4550]/20'
+                            : 'text-[#898A8D]'
+                          }`}
+                      >
+                        <span className="text-[10px] font-black tracking-widest mb-1 opacity-80">{dayInitial}</span>
+                        <span className="text-base font-extrabold">{dateObj.getDate()}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Dynamic hour grid scroll container */}
+                <div className="flex-1 overflow-y-auto no-scrollbar relative max-h-[calc(100vh-270px)] border border-gray-50 rounded-[2rem]">
+
+                  {/* Header Row (Mon-Sun on desktop, single day on mobile) */}
+                  <div className="sticky top-0 z-30 bg-white border-b border-gray-100 flex shadow-sm">
+                    {/* Hour column spacing placeholder */}
+                    <div className="w-16 shrink-0 border-r border-gray-100 bg-gray-50/50"></div>
+
+                    {/* Desktop 7 Column Day headers */}
+                    <div className="hidden md:flex flex-1">
+                      {weekDays.map((dateObj, i) => {
+                        const isTodayObj = new Date().toDateString() === dateObj.toDateString();
+                        const isSelectedObj = currentCalendarDate.toDateString() === dateObj.toDateString();
+                        const dayLabel = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'][i];
                         return (
                           <div
-                            key={s.id}
-                            style={{ 
-                              top: `${top}px`, 
-                              height: `${duration}px`,
-                              minHeight: '38px' 
-                            }}
-                            className={theme.classes}
-                            onClick={() => {
-                              const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
-                              const sessionDate = new Date(yr, mo - 1, dy);
-                              setSelectedScheduleDate(sessionDate);
-                              setSelectedSession(s);
-                              setActivePage('Schedule');
-                            }}
+                            key={`header-day-${i}`}
+                            onClick={() => setCurrentCalendarDate(dateObj)}
+                            className={`flex-1 text-center py-4 border-r border-gray-100 last:border-r-0 cursor-pointer hover:bg-gray-50/50 transition-colors flex flex-col items-center justify-center ${isSelectedObj ? 'bg-[#0B4550]/5' : ''
+                              }`}
                           >
-                            <span className={`text-[12px] font-black tracking-tight leading-none mb-1 truncate ${theme.isPast ? 'line-through opacity-70' : ''}`}>
-                              {getSessionDisplayTitle(s)}
+                            <span className="text-xs font-black tracking-widest text-[#898A8D] mb-1">{dayLabel}</span>
+                            <span className={`text-base font-black w-8 h-8 rounded-full flex items-center justify-center transition-all ${isTodayObj
+                              ? 'bg-[#0B4550] text-[#E6FF2B]'
+                              : isSelectedObj
+                                ? 'bg-gray-200 text-[#0B4550]'
+                                : 'text-[#0B4550]'
+                              }`}>
+                              {dateObj.getDate()}
                             </span>
-                            <span className="text-[9px] font-bold tracking-tight opacity-75 truncate">
-                              {s.time} ({s.duration || '60m'})
-                            </span>
-                            {duration > 45 && s.location && (
-                              <span className="text-[9px] font-bold opacity-60 truncate mt-0.5">
-                                📍 {s.location.split(' | Coach: ')[0]}
-                              </span>
-                            )}
                           </div>
                         );
                       })}
                     </div>
-                  );
-                })}
-              </div>
 
-              {/* Mobile view: exactly 1 day column container overlay */}
-              <div className="flex md:hidden flex-1 relative z-10">
-                {(() => {
-                  const daySessions = getSessionsForDay(currentCalendarDate);
-                  return (
-                    <div className="flex-1 relative h-[1020px]">
-                      {(() => {
-                        const isToday = currentTime.toDateString() === currentCalendarDate.toDateString();
-                        const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
-                        const lineTop = currentMins - (6 * 60); // minutes from 6 AM
-                        const isLineVisible = lineTop >= 0 && lineTop <= 1020;
-                        
-                        if (isToday && isLineVisible) {
-                          return (
-                            <div 
-                              className="absolute left-0 right-0 flex items-center z-20 pointer-events-none"
-                              style={{ top: `${lineTop}px` }}
-                            >
-                              <div className="w-2.5 h-2.5 rounded-full bg-[#EA4335] -ml-[5px] shrink-0 shadow-sm z-30"></div>
-                              <div className="flex-1 h-0.5 bg-[#EA4335] shadow-[0_1px_2px_rgba(0,0,0,0.15)] z-20"></div>
-                            </div>
-                          );
-                        }
-                        return null;
-                      })()}
-                      {daySessions.map(s => {
-                        const startMins = parseTimeToMinutes(s.time);
-                        const top = startMins - (6 * 60); // minutes from 6 AM
-                        const duration = parseInt(s.duration, 10) || 60;
-                        const theme = getSessionTheme(s);
-                        
+                    {/* Mobile Column Day Header */}
+                    <div className="flex md:hidden flex-1 text-left py-4 px-4 bg-gray-50/50 justify-between items-center">
+                      <span className="text-base font-black text-[#0B4550]">
+                        {currentCalendarDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
+                      </span>
+                      <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full">
+                        Selected Day View
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Core scrollable weekly grid body */}
+                  <div className="relative flex min-h-[1020px]">
+
+                    {/* Time Labels Column */}
+                    <div className="w-16 shrink-0 border-r border-gray-100 bg-gray-50/20 flex flex-col justify-between py-1.5 relative select-none">
+                      {hours.map(h => {
+                        const displayHour = h === 12 ? '12 PM' : h > 12 ? `${h - 12} PM` : `${h} AM`;
                         return (
                           <div
-                            key={s.id}
-                            style={{ 
-                              top: `${top}px`, 
-                              height: `${duration}px`,
-                              minHeight: '38px' 
-                            }}
-                            className={theme.classes}
-                            onClick={() => {
-                              const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
-                              const sessionDate = new Date(yr, mo - 1, dy);
-                              setSelectedScheduleDate(sessionDate);
-                              setSelectedSession(s);
-                              setActivePage('Schedule');
-                            }}
+                            key={`hour-label-${h}`}
+                            className="h-[60px] text-[10px] font-black text-[#898A8D] pr-3 text-right flex items-start justify-end"
+                            style={{ transform: 'translateY(-6px)' }}
                           >
-                            <span className={`text-[12px] font-black tracking-tight leading-none mb-1 truncate ${theme.isPast ? 'line-through opacity-70' : ''}`}>
-                              {getSessionDisplayTitle(s)}
-                            </span>
-                            <span className="text-[10px] font-bold tracking-tight opacity-75 truncate">
-                              {s.time} ({s.duration || '60m'})
-                            </span>
-                            {duration > 45 && s.location && (
-                              <span className="text-[9px] font-bold opacity-60 truncate mt-0.5">
-                                📍 {s.location.split(' | Coach: ')[0]}
-                              </span>
-                            )}
+                            {displayHour}
                           </div>
                         );
                       })}
                     </div>
-                  );
-                })()}
-              </div>
 
+                    {/* Day columns layers (where hourly rows + absolute sessions sit) */}
+                    <div className="flex-1 flex relative">
+
+                      {/* background horizontal hour row lines (drawn once, overlaying the background) */}
+                      <div className="absolute inset-0 pointer-events-none flex flex-col z-0">
+                        {hours.map(h => (
+                          <div key={`grid-row-${h}`} className="h-[60px] border-b border-gray-100/80 last:border-b-0 w-full"></div>
+                        ))}
+                      </div>
+
+                      {/* Desktop view: 7 separate columns overlay */}
+                      <div className="hidden md:flex flex-1 relative z-10">
+                        {weekDays.map((dateObj, colIdx) => {
+                          const daySessions = getSessionsForDay(dateObj);
+                          return (
+                            <div
+                              key={`col-day-${colIdx}`}
+                              className="flex-1 border-r border-gray-100 last:border-r-0 relative h-[1020px] hover:bg-gray-50/20 transition-colors"
+                            >
+                              {(() => {
+                                const isToday = currentTime.toDateString() === dateObj.toDateString();
+                                const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
+                                const lineTop = currentMins - (6 * 60); // minutes from 6 AM
+                                const isLineVisible = lineTop >= 0 && lineTop <= 1020;
+
+                                if (isToday && isLineVisible) {
+                                  return (
+                                    <div
+                                      className="absolute left-0 right-0 flex items-center z-20 pointer-events-none"
+                                      style={{ top: `${lineTop}px` }}
+                                    >
+                                      <div className="w-2.5 h-2.5 rounded-full bg-[#EA4335] -ml-[5px] shrink-0 shadow-sm z-30"></div>
+                                      <div className="flex-1 h-0.5 bg-[#EA4335] shadow-[0_1px_2px_rgba(0,0,0,0.15)] z-20"></div>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              {daySessions.map(s => {
+                                const startMins = parseTimeToMinutes(s.time);
+                                const top = startMins - (6 * 60); // minutes from 6 AM
+                                const duration = parseInt(s.duration, 10) || 60;
+                                const theme = getSessionTheme(s);
+
+                                return (
+                                  <div
+                                    key={s.id}
+                                    style={{
+                                      top: `${top}px`,
+                                      height: `${duration}px`,
+                                      minHeight: '38px'
+                                    }}
+                                    className={theme.classes}
+                                    onClick={() => {
+                                      const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
+                                      const sessionDate = new Date(yr, mo - 1, dy);
+                                      setSelectedScheduleDate(sessionDate);
+                                      setSelectedSession(s);
+                                      setActivePage('Schedule');
+                                    }}
+                                  >
+                                    <span className={`text-[12px] font-black tracking-tight leading-none mb-1 truncate ${theme.isPast ? 'line-through opacity-70' : ''}`}>
+                                      {getSessionDisplayTitle(s)}
+                                    </span>
+                                    <span className="text-[9px] font-bold tracking-tight opacity-75 truncate">
+                                      {s.time} ({s.duration || '60m'})
+                                    </span>
+                                    {duration > 45 && s.location && (
+                                      <span className="text-[9px] font-bold opacity-60 truncate mt-0.5">
+                                        📍 {s.location.split(' | Coach: ')[0]}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })}
+                      </div>
+
+                      {/* Mobile view: exactly 1 day column container overlay */}
+                      <div className="flex md:hidden flex-1 relative z-10">
+                        {(() => {
+                          const daySessions = getSessionsForDay(currentCalendarDate);
+                          return (
+                            <div className="flex-1 relative h-[1020px]">
+                              {(() => {
+                                const isToday = currentTime.toDateString() === currentCalendarDate.toDateString();
+                                const currentMins = currentTime.getHours() * 60 + currentTime.getMinutes();
+                                const lineTop = currentMins - (6 * 60); // minutes from 6 AM
+                                const isLineVisible = lineTop >= 0 && lineTop <= 1020;
+
+                                if (isToday && isLineVisible) {
+                                  return (
+                                    <div
+                                      className="absolute left-0 right-0 flex items-center z-20 pointer-events-none"
+                                      style={{ top: `${lineTop}px` }}
+                                    >
+                                      <div className="w-2.5 h-2.5 rounded-full bg-[#EA4335] -ml-[5px] shrink-0 shadow-sm z-30"></div>
+                                      <div className="flex-1 h-0.5 bg-[#EA4335] shadow-[0_1px_2px_rgba(0,0,0,0.15)] z-20"></div>
+                                    </div>
+                                  );
+                                }
+                                return null;
+                              })()}
+                              {daySessions.map(s => {
+                                const startMins = parseTimeToMinutes(s.time);
+                                const top = startMins - (6 * 60); // minutes from 6 AM
+                                const duration = parseInt(s.duration, 10) || 60;
+                                const theme = getSessionTheme(s);
+
+                                return (
+                                  <div
+                                    key={s.id}
+                                    style={{
+                                      top: `${top}px`,
+                                      height: `${duration}px`,
+                                      minHeight: '38px'
+                                    }}
+                                    className={theme.classes}
+                                    onClick={() => {
+                                      const [yr, mo, dy] = s.date.split('-').map(num => parseInt(num, 10));
+                                      const sessionDate = new Date(yr, mo - 1, dy);
+                                      setSelectedScheduleDate(sessionDate);
+                                      setSelectedSession(s);
+                                      setActivePage('Schedule');
+                                    }}
+                                  >
+                                    <span className={`text-[12px] font-black tracking-tight leading-none mb-1 truncate ${theme.isPast ? 'line-through opacity-70' : ''}`}>
+                                      {getSessionDisplayTitle(s)}
+                                    </span>
+                                    <span className="text-[10px] font-bold tracking-tight opacity-75 truncate">
+                                      {s.time} ({s.duration || '60m'})
+                                    </span>
+                                    {duration > 45 && s.location && (
+                                      <span className="text-[9px] font-bold opacity-60 truncate mt-0.5">
+                                        📍 {s.location.split(' | Coach: ')[0]}
+                                      </span>
+                                    )}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          );
+                        })()}
+                      </div>
+
+                    </div>
+
+                  </div>
+
+                </div>
+
+              </div>
             </div>
-
-          </div>
-
-        </div>
-
-      </div>
-    </div>
-  );
-})()}
+          );
+        })()}
 
         {/* VIEW: SCHEDULE (NOW LIVE!) */}
         {activePage === 'Schedule' && (
-           <div className="animate-in fade-in duration-500 flex flex-col h-full">
+          <div className="animate-in fade-in duration-500 flex flex-col h-full">
             {/* MOBILE SCHEDULE CONTROLS */}
             <div className="md:hidden flex flex-col gap-4 mb-6">
               <div className="flex items-center justify-between">
@@ -6690,7 +6774,7 @@ export default function Dashboard({ session }) {
                   </h2>
                 </div>
                 <div className="flex gap-2">
-                  <button 
+                  <button
                     onClick={() => setSelectedScheduleDate(new Date())}
                     className="px-3 py-1.5 bg-[#F9F7F2] text-[#0B4550] border border-gray-150 rounded-xl font-black text-xs uppercase tracking-widest shadow-sm active:scale-95 transition-all"
                   >
@@ -6708,16 +6792,15 @@ export default function Dashboard({ session }) {
                   const isDayActive = selectedScheduleDate.toDateString() === dayObj.toDateString();
                   const dayNum = dayObj.getDate();
                   const dayName = dayObj.toLocaleDateString('en-US', { weekday: 'short' });
-                  
+
                   return (
-                    <button 
-                      key={dayObj.toISOString()} 
+                    <button
+                      key={dayObj.toISOString()}
                       onClick={() => setSelectedScheduleDate(dayObj)}
-                      className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-16 rounded-[1.25rem] transition-all border ${
-                        isDayActive 
-                          ? 'bg-[#0B4550] border-[#0B4550] text-[#E6FF2B] shadow-lg scale-105' 
-                          : 'bg-white border-gray-100 text-[#898A8D] hover:text-[#0B4550]'
-                      }`}
+                      className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-16 rounded-[1.25rem] transition-all border ${isDayActive
+                        ? 'bg-[#0B4550] border-[#0B4550] text-[#E6FF2B] shadow-lg scale-105'
+                        : 'bg-white border-gray-100 text-[#898A8D] hover:text-[#0B4550]'
+                        }`}
                     >
                       <span className="text-[10px] font-black uppercase tracking-widest mb-0.5">{dayName}</span>
                       <span className="text-lg font-black leading-none">{dayNum}</span>
@@ -6730,9 +6813,9 @@ export default function Dashboard({ session }) {
             {/* DESKTOP SCHEDULE CONTROLS */}
             <div className="hidden md:flex flex-row justify-between items-center mb-8 bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center gap-4 md:gap-6 px-4">
-                <ChevronLeft 
-                  size={28} 
-                  className="text-[#898A8D] cursor-pointer hover:text-[#0B4550] transition-colors" 
+                <ChevronLeft
+                  size={28}
+                  className="text-[#898A8D] cursor-pointer hover:text-[#0B4550] transition-colors"
                   onClick={() => {
                     const newDate = new Date(selectedScheduleDate);
                     newDate.setDate(newDate.getDate() - 7);
@@ -6742,16 +6825,16 @@ export default function Dashboard({ session }) {
                 <h2 className="text-2xl font-medium text-[#0B4550] w-56 text-center">
                   {selectedScheduleDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
                 </h2>
-                <ChevronRight 
-                  size={28} 
-                  className="text-[#898A8D] cursor-pointer hover:text-[#0B4550] transition-colors" 
+                <ChevronRight
+                  size={28}
+                  className="text-[#898A8D] cursor-pointer hover:text-[#0B4550] transition-colors"
                   onClick={() => {
                     const newDate = new Date(selectedScheduleDate);
                     newDate.setDate(newDate.getDate() + 7);
                     setSelectedScheduleDate(newDate);
                   }}
                 />
-                <button 
+                <button
                   onClick={() => setSelectedScheduleDate(new Date())}
                   className="px-4 py-2 bg-[#F9F7F2] text-[#0B4550] hover:bg-gray-200 rounded-xl font-bold text-sm transition-all shadow-sm"
                 >
@@ -6763,10 +6846,10 @@ export default function Dashboard({ session }) {
                   const isDayActive = selectedScheduleDate.toDateString() === dayObj.toDateString();
                   const dayNum = dayObj.getDate();
                   const dayName = dayObj.toLocaleDateString('en-US', { weekday: 'short' });
-                  
+
                   return (
-                    <button 
-                      key={dayObj.toISOString()} 
+                    <button
+                      key={dayObj.toISOString()}
                       onClick={() => setSelectedScheduleDate(dayObj)}
                       className="outline-none"
                     >
@@ -6794,8 +6877,8 @@ export default function Dashboard({ session }) {
                       const [yr, mo, dy] = session.date.split('-').map(num => parseInt(num, 10));
                       const sDate = new Date(yr, mo - 1, dy);
                       return sDate.getDate() === selectedScheduleDate.getDate() &&
-                             sDate.getMonth() === selectedScheduleDate.getMonth() &&
-                             sDate.getFullYear() === selectedScheduleDate.getFullYear();
+                        sDate.getMonth() === selectedScheduleDate.getMonth() &&
+                        sDate.getFullYear() === selectedScheduleDate.getFullYear();
                     }).sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
 
                     if (daySessions.length === 0) {
@@ -6820,7 +6903,7 @@ export default function Dashboard({ session }) {
 
                       return (
                         <div key={session.id} onClick={() => { setSelectedSession(session); if (isMobile) setShowMobileRosterDrawer(true); }}>
-                          
+
                           {/* MOBILE SESSION CARD */}
                           <div className={`md:hidden flex gap-4 items-center group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-60' : ''}`}>
                             <div className="w-16 text-right shrink-0">
@@ -6839,7 +6922,7 @@ export default function Dashboard({ session }) {
                                 </div>
                                 <h3 className={`text-lg font-black leading-tight ${isSelected ? 'text-white' : is1on1 ? 'text-[#0B4550]' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-60' : ''}`}>{getSessionDisplayTitle(session)}</h3>
                                 <div className={`flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest ${isSelected ? 'text-white/70' : 'text-[#898A8D]'}`}>
-                                  <MapPin size={12} className="shrink-0" /> 
+                                  <MapPin size={12} className="shrink-0" />
                                   <span className="truncate">{displayLocation} {displayCoach && `• ${displayCoach}`}</span>
                                 </div>
                               </div>
@@ -6860,7 +6943,7 @@ export default function Dashboard({ session }) {
                                   </span>
                                   <h3 className={`text-2xl font-medium mb-1 ${is1on1 ? 'text-white' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-60' : ''}`}>{getSessionDisplayTitle(session)}</h3>
                                   <div className={`flex items-center gap-2 text-lg font-medium ${is1on1 ? 'text-white/70' : 'text-[#898A8D]'}`}>
-                                    <MapPin size={18} className="shrink-0" /> 
+                                    <MapPin size={18} className="shrink-0" />
                                     <span className="break-words">{displayLocation} {displayCoach && `• Coach: ${displayCoach}`} • {formatDbDate(session.date)}</span>
                                   </div>
                                 </div>
@@ -6905,7 +6988,7 @@ export default function Dashboard({ session }) {
                       <>
                         {/* Tabs Header */}
                         <div className="flex border-b border-gray-100 mb-6 gap-6">
-                          <button 
+                          <button
                             type="button"
                             onClick={() => setSessionDetailTab('roster')}
                             className={`pb-3 text-lg font-bold transition-all relative ${sessionDetailTab === 'roster' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
@@ -6913,7 +6996,7 @@ export default function Dashboard({ session }) {
                             Roster
                             {sessionDetailTab === 'roster' && <span className="absolute bottom-0 left-0 right-0 h-0.5 bg-[#0B4550] rounded-full"></span>}
                           </button>
-                          <button 
+                          <button
                             type="button"
                             onClick={() => setSessionDetailTab('workout')}
                             className={`pb-3 text-lg font-bold transition-all relative ${sessionDetailTab === 'workout' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}
@@ -6934,7 +7017,7 @@ export default function Dashboard({ session }) {
                             <div className="mb-6 p-4 bg-[#F9F7F2] rounded-2xl border border-gray-100 relative">
                               <p className="text-xs font-bold text-[#898A8D] uppercase tracking-wider mb-2">Book / Assign Students</p>
                               <div className="relative">
-                                <button 
+                                <button
                                   type="button"
                                   onClick={() => {
                                     setShowStudentDropdown(!showStudentDropdown);
@@ -6943,8 +7026,8 @@ export default function Dashboard({ session }) {
                                   className="w-full bg-white border border-gray-200 rounded-xl px-4 py-3 text-sm text-[#0B4550] font-bold flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 outline-none focus:border-[#0B4550] shadow-sm hover:bg-gray-50 transition-colors"
                                 >
                                   <span>
-                                    {selectedStudentIds.length === 0 
-                                      ? 'Select students to book...' 
+                                    {selectedStudentIds.length === 0
+                                      ? 'Select students to book...'
                                       : `${selectedStudentIds.length} student(s) selected`}
                                   </span>
                                   <ChevronDown size={18} className={`transition-transform duration-200 ${showStudentDropdown ? 'rotate-180' : ''}`} />
@@ -6954,14 +7037,23 @@ export default function Dashboard({ session }) {
                                   <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200 max-h-80 flex flex-col">
                                     {/* SEARCH BAR */}
                                     <div className="relative mb-3 shrink-0">
-                                      <input 
-                                        type="text" 
-                                        placeholder="Search clients..." 
+                                      <input
+                                        type="text"
+                                        placeholder="Search clients..."
                                         value={searchStudentQuery}
                                         onChange={(e) => setSearchStudentQuery(e.target.value)}
-                                        className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2.5 pl-9 pr-4 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                                        className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2.5 pl-9 pr-8 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
                                       />
                                       <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+                                      {searchStudentQuery && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setSearchStudentQuery('')}
+                                          className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0B4550] transition-colors"
+                                        >
+                                          <X size={16} />
+                                        </button>
+                                      )}
                                     </div>
 
                                     {/* CLIENTS CHECKBOX LIST */}
@@ -6980,17 +7072,17 @@ export default function Dashboard({ session }) {
                                           const isAlreadyRostered = selectedSession.attendees?.some(a => a.client_id === c.id);
 
                                           return (
-                                            <label 
-                                              key={c.id} 
+                                            <label
+                                              key={c.id}
                                               className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-[#F9F7F2]'}`}
                                             >
-                                              <input 
+                                              <input
                                                 type="checkbox"
                                                 disabled={isAlreadyRostered}
                                                 checked={isAlreadyRostered || isSelected}
                                                 onChange={() => {
                                                   if (isAlreadyRostered) return;
-                                                  setSelectedStudentIds(prev => 
+                                                  setSelectedStudentIds(prev =>
                                                     prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
                                                   );
                                                 }}
@@ -6999,8 +7091,8 @@ export default function Dashboard({ session }) {
                                               <div className="flex-1 min-w-0">
                                                 <p className="text-sm font-bold text-[#0B4550] truncate">{c.name}</p>
                                                 <p className="text-[11px] text-[#898A8D] font-medium">
-                                                  {c.unlimited 
-                                                    ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}` 
+                                                  {c.unlimited
+                                                    ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}`
                                                     : `${c.remaining_package || 0} sessions left`}
                                                 </p>
                                               </div>
@@ -7015,7 +7107,7 @@ export default function Dashboard({ session }) {
 
                                     {/* SUBMIT BATCH BUTTON */}
                                     <div className="border-t border-gray-100 pt-3 mt-3 flex gap-2 shrink-0">
-                                      <button 
+                                      <button
                                         type="button"
                                         onClick={() => {
                                           setSelectedStudentIds([]);
@@ -7025,7 +7117,7 @@ export default function Dashboard({ session }) {
                                       >
                                         Cancel
                                       </button>
-                                      <button 
+                                      <button
                                         type="button"
                                         disabled={selectedStudentIds.length === 0}
                                         onClick={handleAssignMultipleClients}
@@ -7041,7 +7133,7 @@ export default function Dashboard({ session }) {
 
                             {selectedSession.attendees.length === 0 ? (
                               <div className="text-center py-6 md:py-10 bg-[#F9F7F2] rounded-2xl border border-gray-100">
-                                 <p className="text-lg font-medium text-[#898A8D]">No bookings yet.</p>
+                                <p className="text-lg font-medium text-[#898A8D]">No bookings yet.</p>
                               </div>
                             ) : (
                               <>
@@ -7062,14 +7154,14 @@ export default function Dashboard({ session }) {
                                         <CheckSquare size={24} />
                                       </button>
                                       {/* MOVE CLIENT */}
-                                      <button 
+                                      <button
                                         onClick={() => {
                                           setMovingAttendee(attendee);
                                           setMoveTargetDate(selectedSession.date);
                                           setMoveTargetSessionId('');
                                           setShowMoveModal(true);
-                                        }} 
-                                        className="p-3 rounded-xl bg-white text-gray-300 hover:text-blue-500 hover:bg-blue-50 hover:border-blue-200 transition-colors shadow-sm border border-gray-200" 
+                                        }}
+                                        className="p-3 rounded-xl bg-white text-gray-300 hover:text-blue-500 hover:bg-blue-50 hover:border-blue-200 transition-colors shadow-sm border border-gray-200"
                                         title="Move / Reschedule client"
                                       >
                                         <ArrowRight size={24} />
@@ -7081,8 +7173,8 @@ export default function Dashboard({ session }) {
                                     </div>
                                   ))}
                                 </div>
-                                <button 
-                                  onClick={handleOpenAttendanceSummaryModal} 
+                                <button
+                                  onClick={handleOpenAttendanceSummaryModal}
                                   className="w-full py-4 rounded-2xl bg-[#10B981] hover:bg-[#059669] text-white font-extrabold transition-all flex items-center justify-center gap-2 shadow-md mb-6 hover:shadow-lg active:scale-95 duration-200"
                                   title="Review and Finalize Attendance and Credits"
                                 >
@@ -7097,8 +7189,8 @@ export default function Dashboard({ session }) {
                             <div className="flex flex-col gap-4 bg-[#F9F7F2] p-5 rounded-2xl border border-gray-100">
                               <div className="flex flex-col gap-1.5">
                                 <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Workout Title</label>
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={sessionWorkoutTitle}
                                   onChange={(e) => setSessionWorkoutTitle(e.target.value)}
                                   className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors"
@@ -7107,8 +7199,8 @@ export default function Dashboard({ session }) {
                               </div>
                               <div className="flex flex-col gap-1.5">
                                 <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Date</label>
-                                <input 
-                                  type="text" 
+                                <input
+                                  type="text"
                                   value={sessionWorkoutDate}
                                   onChange={(e) => setSessionWorkoutDate(e.target.value)}
                                   className="w-full bg-white border border-gray-200 rounded-xl px-4 py-2.5 text-sm font-bold text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors"
@@ -7117,7 +7209,7 @@ export default function Dashboard({ session }) {
                               </div>
                               <div className="flex flex-col gap-1.5">
                                 <label className="text-[10px] font-black text-[#898A8D] uppercase tracking-wider">Workout Notes</label>
-                                <textarea 
+                                <textarea
                                   value={sessionWorkoutContent}
                                   onChange={(e) => setSessionWorkoutContent(e.target.value)}
                                   className="w-full h-40 bg-white border border-gray-200 rounded-xl p-4 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors resize-none"
@@ -7129,15 +7221,15 @@ export default function Dashboard({ session }) {
                             <div className="flex flex-col gap-2.5 mt-2">
                               {sessionWorkoutSyncMsg && (
                                 <span className="text-emerald-500 font-bold text-xs flex items-center gap-1">
-                                  <Check size={14}/> {sessionWorkoutSyncMsg}
+                                  <Check size={14} /> {sessionWorkoutSyncMsg}
                                 </span>
                               )}
-                              <button 
+                              <button
                                 onClick={handleSyncSessionWorkout}
                                 disabled={isSyncingSessionWorkout}
                                 className="w-full bg-[#0B4550] text-[#E6FF2B] py-3.5 rounded-xl font-bold text-sm hover:scale-[1.01] transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
                               >
-                                {isSyncingSessionWorkout ? <RotateCw className="animate-spin" size={16}/> : <Save size={16}/>}
+                                {isSyncingSessionWorkout ? <RotateCw className="animate-spin" size={16} /> : <Save size={16} />}
                                 Sync with Attended Clients
                               </button>
                               <p className="text-[10px] text-gray-400 font-medium text-center leading-normal">
@@ -7154,8 +7246,8 @@ export default function Dashboard({ session }) {
                     )}
 
                     {/* EDIT EVENT */}
-                    <button 
-                      onClick={handleOpenEditEvent} 
+                    <button
+                      onClick={handleOpenEditEvent}
                       className="w-full mt-6 py-3 rounded-2xl bg-[#0B4550] text-[#E6FF2B] font-bold hover:bg-[#0B4550]/90 transition-all flex items-center justify-center gap-2 shadow-sm"
                       title="Edit Event Details"
                     >
@@ -7163,8 +7255,8 @@ export default function Dashboard({ session }) {
                     </button>
 
                     {/* CANCEL & DELETE EVENT */}
-                    <button 
-                      onClick={() => handleDeleteSession(selectedSession.id)} 
+                    <button
+                      onClick={() => handleDeleteSession(selectedSession.id)}
                       className="w-full mt-3 py-3 rounded-2xl border border-red-200 text-red-500 font-bold hover:bg-red-50 hover:border-red-500 transition-colors flex items-center justify-center gap-2"
                       title="Cancel & Delete Event"
                     >
@@ -7192,8 +7284,8 @@ export default function Dashboard({ session }) {
                   </button>
                 </div>
 
-                <select 
-                  value={packageSortBy} 
+                <select
+                  value={packageSortBy}
                   onChange={(e) => setPackageSortBy(e.target.value)}
                   className="bg-white border border-gray-100 text-[#0B4550] px-4 py-3 rounded-xl font-medium text-base outline-none shadow-sm cursor-pointer"
                 >
@@ -7258,7 +7350,7 @@ export default function Dashboard({ session }) {
                 {sortedPackages.map(pkg => (
                   <div key={pkg.id} className="bg-white rounded-[2rem] p-5 md:p-8 border border-gray-100 shadow-sm relative overflow-hidden group hover:border-[#0B4550] transition-colors flex flex-col">
                     {pkg.type === 'Unlimited' && <div className="absolute top-0 right-0 bg-[#E6FF2B] text-[#0B4550] text-[10px] font-black uppercase tracking-widest px-4 py-1.5 rounded-bl-xl shadow-sm">Unlimited</div>}
-                    
+
                     <h3 className="text-2xl font-extrabold text-[#0B4550] mb-2 pr-10">{pkg.name}</h3>
                     <div className="flex items-baseline gap-1 mb-6">
                       <span className="text-sm font-bold text-[#898A8D]">RM</span>
@@ -7267,11 +7359,11 @@ export default function Dashboard({ session }) {
 
                     <div className="space-y-3 mb-8 flex-1">
                       <div className="flex items-center gap-3 text-sm font-bold text-[#898A8D]">
-                        <div className="w-8 h-8 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] shrink-0"><Package size={16}/></div>
+                        <div className="w-8 h-8 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] shrink-0"><Package size={16} /></div>
                         {pkg.type === 'Unlimited' ? 'Unlimited Sessions' : `${pkg.session_count} Sessions`}
                       </div>
                       <div className="flex items-center gap-3 text-sm font-bold text-[#898A8D]">
-                        <div className="w-8 h-8 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] shrink-0"><Clock size={16}/></div>
+                        <div className="w-8 h-8 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] shrink-0"><Clock size={16} /></div>
                         Valid for {pkg.validity_days} days
                       </div>
                     </div>
@@ -7295,7 +7387,7 @@ export default function Dashboard({ session }) {
               </div>
               <h3 className="text-3xl font-black text-[#0B4550] mb-2">Analytics Access Locked</h3>
               <p className="text-[#898A8D] font-medium mb-8 max-w-sm text-base leading-relaxed">Performance analytics and trends require a secure owner verification.</p>
-              <button 
+              <button
                 onClick={() => {
                   setPendingPageAction('Analytics');
                   setSecurityPinInput('');
@@ -7309,109 +7401,109 @@ export default function Dashboard({ session }) {
             </div>
           ) : (
             <div className="animate-in fade-in duration-500">
-            <div className="flex justify-end items-center mb-8">
-              <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100">
-                {['1M', '3M', '6M', '1Y', 'All Time'].map((tab) => (
-                  <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>{tab}</button>
-                ))}
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-               <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md">
-                 <h3 className="text-white/80 font-medium text-lg mb-2">Net Revenue Growth</h3>
-                 <div className="flex items-end gap-3">
-                   <h2 className="text-3xl md:text-5xl font-medium text-white">{analyticsData.revenueGrowthStr}</h2>
-                   {analyticsData.revenueGrowthPositive ? (
-                     <TrendingUp size={24} className="text-[#E6FF2B] mb-2" />
-                   ) : (
-                     <TrendingDown size={24} className="text-red-400 mb-2" />
-                   )}
-                 </div>
-               </div>
-               <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
-                 <h3 className="text-[#898A8D] font-medium text-lg mb-2">Client Retention Rate</h3>
-                 <h2 className="text-3xl md:text-5xl font-medium text-[#0B4550]">{analyticsData.retentionRate}%</h2>
-               </div>
-               <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
-                 <h3 className="text-[#898A8D] font-medium text-lg mb-2">Avg. Session Attendance</h3>
-                 <h2 className="text-3xl md:text-5xl font-medium text-[#0B4550]">{analyticsData.attendanceRate}%</h2>
-               </div>
-            </div>
-            
-            {/* Revenue Overview Chart inside Analytics */}
-            <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mb-8 flex flex-col">
-              <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
-                <div>
-                  <h3 className="font-medium text-2xl text-[#0B4550]">Revenue Overview</h3>
-                  <p className="text-sm text-[#898A8D] mt-1">Monthly breakdown of gross revenue generated</p>
+              <div className="flex justify-end items-center mb-8">
+                <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100">
+                  {['1M', '3M', '6M', '1Y', 'All Time'].map((tab) => (
+                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>{tab}</button>
+                  ))}
                 </div>
               </div>
-              
-              {/* PREMIUM DYNAMIC BAR CHART */}
-              <div className="overflow-x-auto no-scrollbar w-full">
-                <div className="relative h-64 min-w-[600px] md:min-w-0 mt-10 group">
-                  
-                  {/* Y-AXIS LABELS & GRID LINES */}
-                  <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                    {[1, 0.75, 0.5, 0.25, 0].map((perc) => (
-                      <div key={perc} className="w-full h-0 border-t border-gray-50 flex items-center relative">
-                        <span className="absolute -left-2 text-[15px] font-bold text-gray-500 tabular-nums">
-                          {perc === 0 ? '0' : (maxChartAmount * perc >= 1000 ? (maxChartAmount * perc / 1000).toFixed(1) + 'k' : (maxChartAmount * perc))}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
 
-                  {/* THE BARS CONTAINER */}
-                  <div className="relative flex items-end justify-between gap-2 h-full w-full pt-4 pl-10 pr-2">
-                    {chartData.map((data) => {
-                      const heightPercentage = (data.amount / maxChartAmount) * 100;
-                      const isCurrentMonth = data.month === currentMonth;
-
-                      return (
-                        <div key={data.label} className="flex-1 flex flex-col justify-end items-center group/bar h-full relative">
-                          {/* TOOLTIP ON HOVER */}
-                          <div className="opacity-0 group-hover/bar:opacity-100 transition-all duration-200 bg-[#0B4550] text-white text-[10px] px-2 py-1 rounded absolute mb-2 z-30 pointer-events-none whitespace-nowrap bottom-full shadow-lg">
-                            RM {data.amount.toLocaleString()}
-                          </div>
-                          
-                          {/* THE BAR */}
-                          <div 
-                            className={`w-full max-w-[5.5rem] rounded-t-md transition-all duration-1000 ease-out relative z-10
-                              ${isCurrentMonth ? 'bg-[#E6FF2B] shadow-[0_0_15px_rgba(230,255,43,0.3)]' : 'bg-[#0B4550]/10 group-hover/bar:bg-[#0B4550]/20'}`}
-                            style={{ height: `${Math.max(heightPercentage, 4)}%` }}
-                          >
-                            {!isCurrentMonth && data.amount > 0 && (
-                              <div className="absolute inset-0 bg-[#0B4550] rounded-t-md"></div>
-                            )}
-                          </div>
-                          
-                          {/* MONTH LABEL */}
-                          <div className={`text-[15px] mt-4 transition-colors ${isCurrentMonth ? 'font-black text-[#0B4550]' : 'font-medium text-gray-400 group-hover/bar:text-gray-600'}`}>
-                            {data.label}
-                          </div>
-                        </div>
-                      );
-                    })}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
+                <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md">
+                  <h3 className="text-white/80 font-medium text-lg mb-2">Net Revenue Growth</h3>
+                  <div className="flex items-end gap-3">
+                    <h2 className="text-3xl md:text-5xl font-medium text-white">{analyticsData.revenueGrowthStr}</h2>
+                    {analyticsData.revenueGrowthPositive ? (
+                      <TrendingUp size={24} className="text-[#E6FF2B] mb-2" />
+                    ) : (
+                      <TrendingDown size={24} className="text-red-400 mb-2" />
+                    )}
                   </div>
                 </div>
+                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
+                  <h3 className="text-[#898A8D] font-medium text-lg mb-2">Client Retention Rate</h3>
+                  <h2 className="text-3xl md:text-5xl font-medium text-[#0B4550]">{analyticsData.retentionRate}%</h2>
+                </div>
+                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
+                  <h3 className="text-[#898A8D] font-medium text-lg mb-2">Avg. Session Attendance</h3>
+                  <h2 className="text-3xl md:text-5xl font-medium text-[#0B4550]">{analyticsData.attendanceRate}%</h2>
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
-              <div className="lg:col-span-2 bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
-                <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-6">
+              {/* Revenue Overview Chart inside Analytics */}
+              <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mb-8 flex flex-col">
+                <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
                   <div>
-                    <h3 className="font-medium text-2xl text-[#0B4550]">Revenue & Client Growth</h3>
-                    <p className="text-sm text-[#898A8D] mt-1">Comparing 6-month historical trends</p>
-                  </div>
-                  <div className="flex gap-4 text-xs font-bold">
-                    <span className="flex items-center gap-1.5 text-[#0B4550]"><span className="w-3 h-3 rounded-full bg-[#0B4550] inline-block"></span> Revenue</span>
-                    <span className="flex items-center gap-1.5 text-[#898A8D]"><span className="w-3 h-3 rounded-full bg-[#E6FF2B] inline-block"></span> Active Clients</span>
+                    <h3 className="font-medium text-2xl text-[#0B4550]">Revenue Overview</h3>
+                    <p className="text-sm text-[#898A8D] mt-1">Monthly breakdown of gross revenue generated</p>
                   </div>
                 </div>
-                <div className="h-64 w-full border-b-2 border-l-2 border-gray-100 relative flex items-end justify-between px-4 pb-0 pt-10">
+
+                {/* PREMIUM DYNAMIC BAR CHART */}
+                <div className="overflow-x-auto no-scrollbar w-full">
+                  <div className="relative h-64 min-w-[600px] md:min-w-0 mt-10 group">
+
+                    {/* Y-AXIS LABELS & GRID LINES */}
+                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
+                      {[1, 0.75, 0.5, 0.25, 0].map((perc) => (
+                        <div key={perc} className="w-full h-0 border-t border-gray-50 flex items-center relative">
+                          <span className="absolute -left-2 text-[15px] font-bold text-gray-500 tabular-nums">
+                            {perc === 0 ? '0' : (maxChartAmount * perc >= 1000 ? (maxChartAmount * perc / 1000).toFixed(1) + 'k' : (maxChartAmount * perc))}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* THE BARS CONTAINER */}
+                    <div className="relative flex items-end justify-between gap-2 h-full w-full pt-4 pl-10 pr-2">
+                      {chartData.map((data) => {
+                        const heightPercentage = (data.amount / maxChartAmount) * 100;
+                        const isCurrentMonth = data.month === currentMonth;
+
+                        return (
+                          <div key={data.label} className="flex-1 flex flex-col justify-end items-center group/bar h-full relative">
+                            {/* TOOLTIP ON HOVER */}
+                            <div className="opacity-0 group-hover/bar:opacity-100 transition-all duration-200 bg-[#0B4550] text-white text-[10px] px-2 py-1 rounded absolute mb-2 z-30 pointer-events-none whitespace-nowrap bottom-full shadow-lg">
+                              RM {data.amount.toLocaleString()}
+                            </div>
+
+                            {/* THE BAR */}
+                            <div
+                              className={`w-full max-w-[5.5rem] rounded-t-md transition-all duration-1000 ease-out relative z-10
+                              ${isCurrentMonth ? 'bg-[#E6FF2B] shadow-[0_0_15px_rgba(230,255,43,0.3)]' : 'bg-[#0B4550]/10 group-hover/bar:bg-[#0B4550]/20'}`}
+                              style={{ height: `${Math.max(heightPercentage, 4)}%` }}
+                            >
+                              {!isCurrentMonth && data.amount > 0 && (
+                                <div className="absolute inset-0 bg-[#0B4550] rounded-t-md"></div>
+                              )}
+                            </div>
+
+                            {/* MONTH LABEL */}
+                            <div className={`text-[15px] mt-4 transition-colors ${isCurrentMonth ? 'font-black text-[#0B4550]' : 'font-medium text-gray-400 group-hover/bar:text-gray-600'}`}>
+                              {data.label}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
+                <div className="lg:col-span-2 bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
+                  <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-6">
+                    <div>
+                      <h3 className="font-medium text-2xl text-[#0B4550]">Revenue & Client Growth</h3>
+                      <p className="text-sm text-[#898A8D] mt-1">Comparing 6-month historical trends</p>
+                    </div>
+                    <div className="flex gap-4 text-xs font-bold">
+                      <span className="flex items-center gap-1.5 text-[#0B4550]"><span className="w-3 h-3 rounded-full bg-[#0B4550] inline-block"></span> Revenue</span>
+                      <span className="flex items-center gap-1.5 text-[#898A8D]"><span className="w-3 h-3 rounded-full bg-[#E6FF2B] inline-block"></span> Active Clients</span>
+                    </div>
+                  </div>
+                  <div className="h-64 w-full border-b-2 border-l-2 border-gray-100 relative flex items-end justify-between px-4 pb-0 pt-10">
                     <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 500 240">
                       {svgPathRevenue && <path d={svgPathRevenue} fill="none" stroke="#0B4550" strokeWidth="5" strokeLinecap="round" className="transition-all duration-500" />}
                       {svgPathClients && <path d={svgPathClients} fill="none" stroke="#E6FF2B" strokeWidth="5" strokeLinecap="round" className="transition-all duration-500" />}
@@ -7421,106 +7513,106 @@ export default function Dashboard({ session }) {
                         <span key={idx} className="w-16 text-center">{m.label}</span>
                       ))}
                     </div>
+                  </div>
                 </div>
-              </div>
-              <div className="lg:col-span-1 bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col">
-                <h3 className="font-medium text-2xl text-[#0B4550] mb-6">Top Packages</h3>
-                <div className="flex-1 flex flex-col justify-center space-y-6">
-                  {analyticsData.topPackages.map((pkg, idx) => {
-                    const colors = ['bg-[#0B4550]', 'bg-[#898A8D]', 'bg-[#E6FF2B]'];
-                    return (
-                      <div key={pkg.name}>
-                        <div className="flex justify-between text-base font-medium mb-2">
-                          <span className="text-[#0B4550] truncate max-w-[180px]" title={pkg.name}>{pkg.name}</span>
-                          <span className="text-[#898A8D]">{pkg.percentage}%</span>
+                <div className="lg:col-span-1 bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col">
+                  <h3 className="font-medium text-2xl text-[#0B4550] mb-6">Top Packages</h3>
+                  <div className="flex-1 flex flex-col justify-center space-y-6">
+                    {analyticsData.topPackages.map((pkg, idx) => {
+                      const colors = ['bg-[#0B4550]', 'bg-[#898A8D]', 'bg-[#E6FF2B]'];
+                      return (
+                        <div key={pkg.name}>
+                          <div className="flex justify-between text-base font-medium mb-2">
+                            <span className="text-[#0B4550] truncate max-w-[180px]" title={pkg.name}>{pkg.name}</span>
+                            <span className="text-[#898A8D]">{pkg.percentage}%</span>
+                          </div>
+                          <div className="w-full bg-gray-100 rounded-full h-4">
+                            <div className={`${colors[idx % colors.length]} h-4 rounded-full`} style={{ width: `${pkg.percentage}%` }}></div>
+                          </div>
                         </div>
-                        <div className="w-full bg-gray-100 rounded-full h-4">
-                          <div className={`${colors[idx % colors.length]} h-4 rounded-full`} style={{ width: `${pkg.percentage}%` }}></div>
-                        </div>
-                      </div>
-                    );
-                  })}
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Client Revenue Contribution & SVG Pie Chart */}
-            <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mt-8 flex flex-col">
-              <div>
-                <h3 className="font-medium text-2xl text-[#0B4550]">Client Revenue Contribution</h3>
-                <p className="text-sm text-[#898A8D] mt-1">Share of total revenue generated per client (sum of positive transactions)</p>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 items-center">
-                {/* Left: SVG Donut Chart */}
-                <div className="lg:col-span-1 flex flex-col items-center justify-center p-4">
-                  {analyticsData.pieChartData && analyticsData.pieChartData.length > 0 ? (
-                    <div className="relative w-52 h-52 flex items-center justify-center">
-                      <svg width="100%" height="100%" viewBox="0 0 120 120" className="transform rotate-[-90deg]">
-                        {(() => {
-                          const radius = 40;
-                          const circumference = 2 * Math.PI * radius; // ~251.327
-                          let cumulativeOffset = 0;
-                          return analyticsData.pieChartData.map((slice, idx) => {
-                            const percentage = parseFloat(slice.percentage) || 0;
-                            const strokeLength = (percentage / 100) * circumference;
-                            const strokeOffset = cumulativeOffset;
-                            cumulativeOffset += strokeLength;
-
-                            return (
-                              <circle
-                                key={idx}
-                                cx="60"
-                                cy="60"
-                                r={radius}
-                                fill="transparent"
-                                stroke={slice.color}
-                                strokeWidth="14"
-                                strokeDasharray={`${strokeLength} ${circumference}`}
-                                strokeDashoffset={-strokeOffset}
-                                className="transition-all duration-300 hover:stroke-[16px] cursor-pointer"
-                                title={`${slice.name}: ${slice.percentage}%`}
-                              />
-                            );
-                          });
-                        })()}
-                      </svg>
-                      <div className="absolute flex flex-col items-center justify-center">
-                        <span className="text-[10px] uppercase font-bold text-[#898A8D] tracking-wider">Total Revenue</span>
-                        <span className="text-xl font-black text-[#0B4550]">RM {analyticsData.totalPositiveRevenue.toLocaleString()}</span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="text-center text-gray-400 py-12">No data available</div>
-                  )}
+              {/* Client Revenue Contribution & SVG Pie Chart */}
+              <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mt-8 flex flex-col">
+                <div>
+                  <h3 className="font-medium text-2xl text-[#0B4550]">Client Revenue Contribution</h3>
+                  <p className="text-sm text-[#898A8D] mt-1">Share of total revenue generated per client (sum of positive transactions)</p>
                 </div>
 
-                {/* Right: Clients contribution breakdown list */}
-                <div className="lg:col-span-2 flex flex-col gap-3">
-                  <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-2 no-scrollbar">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 items-center">
+                  {/* Left: SVG Donut Chart */}
+                  <div className="lg:col-span-1 flex flex-col items-center justify-center p-4">
                     {analyticsData.pieChartData && analyticsData.pieChartData.length > 0 ? (
-                      analyticsData.pieChartData.map((slice, idx) => (
-                        <div key={idx} className="flex justify-between items-center p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                          <div className="flex items-center gap-3">
-                            <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }}></span>
-                            <span className="text-base font-semibold text-[#0B4550]">{slice.name}</span>
-                          </div>
-                          <div className="flex items-center gap-4 text-right">
-                            <span className="text-sm font-bold text-[#898A8D]">{slice.percentage}%</span>
-                            <span className="text-base font-black text-[#0B4550]">RM {slice.amount.toLocaleString()}</span>
-                          </div>
+                      <div className="relative w-52 h-52 flex items-center justify-center">
+                        <svg width="100%" height="100%" viewBox="0 0 120 120" className="transform rotate-[-90deg]">
+                          {(() => {
+                            const radius = 40;
+                            const circumference = 2 * Math.PI * radius; // ~251.327
+                            let cumulativeOffset = 0;
+                            return analyticsData.pieChartData.map((slice, idx) => {
+                              const percentage = parseFloat(slice.percentage) || 0;
+                              const strokeLength = (percentage / 100) * circumference;
+                              const strokeOffset = cumulativeOffset;
+                              cumulativeOffset += strokeLength;
+
+                              return (
+                                <circle
+                                  key={idx}
+                                  cx="60"
+                                  cy="60"
+                                  r={radius}
+                                  fill="transparent"
+                                  stroke={slice.color}
+                                  strokeWidth="14"
+                                  strokeDasharray={`${strokeLength} ${circumference}`}
+                                  strokeDashoffset={-strokeOffset}
+                                  className="transition-all duration-300 hover:stroke-[16px] cursor-pointer"
+                                  title={`${slice.name}: ${slice.percentage}%`}
+                                />
+                              );
+                            });
+                          })()}
+                        </svg>
+                        <div className="absolute flex flex-col items-center justify-center">
+                          <span className="text-[10px] uppercase font-bold text-[#898A8D] tracking-wider">Total Revenue</span>
+                          <span className="text-xl font-black text-[#0B4550]">RM {analyticsData.totalPositiveRevenue.toLocaleString()}</span>
                         </div>
-                      ))
+                      </div>
                     ) : (
-                      <div className="text-center text-gray-400 py-8 font-medium">No client transactions found.</div>
+                      <div className="text-center text-gray-400 py-12">No data available</div>
                     )}
+                  </div>
+
+                  {/* Right: Clients contribution breakdown list */}
+                  <div className="lg:col-span-2 flex flex-col gap-3">
+                    <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-2 no-scrollbar">
+                      {analyticsData.pieChartData && analyticsData.pieChartData.length > 0 ? (
+                        analyticsData.pieChartData.map((slice, idx) => (
+                          <div key={idx} className="flex justify-between items-center p-3 rounded-2xl bg-gray-50 border border-gray-100">
+                            <div className="flex items-center gap-3">
+                              <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }}></span>
+                              <span className="text-base font-semibold text-[#0B4550]">{slice.name}</span>
+                            </div>
+                            <div className="flex items-center gap-4 text-right">
+                              <span className="text-sm font-bold text-[#898A8D]">{slice.percentage}%</span>
+                              <span className="text-base font-black text-[#0B4550]">RM {slice.amount.toLocaleString()}</span>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-gray-400 py-8 font-medium">No client transactions found.</div>
+                      )}
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-          </div>
-        )
-      )}
+          )
+        )}
 
         {/* VIEW: SETTINGS */}
         {activePage === 'Settings' && (
@@ -7530,7 +7622,7 @@ export default function Dashboard({ session }) {
                 <Check size={22} className="stroke-[3px]" /> {settingsMessage}
               </div>
             )}
-            
+
             <form onSubmit={handleSaveSettings} className="space-y-8">
               {/* BRANDING SECTION */}
               <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
@@ -7541,21 +7633,21 @@ export default function Dashboard({ session }) {
                   <div className="space-y-6">
                     <div>
                       <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Full Name</label>
-                      <input type="text" value={settingsForm.full_name} onChange={(e) => setSettingsForm({...settingsForm, full_name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="Your Name" />
+                      <input type="text" value={settingsForm.full_name} onChange={(e) => setSettingsForm({ ...settingsForm, full_name: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="Your Name" />
                     </div>
                     <div>
                       <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Gym / Business Name</label>
-                      <input type="text" value={settingsForm.company_name} onChange={(e) => setSettingsForm({...settingsForm, company_name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Backyard Performance" />
+                      <input type="text" value={settingsForm.company_name} onChange={(e) => setSettingsForm({ ...settingsForm, company_name: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Backyard Performance" />
                     </div>
                   </div>
-                  
+
                   {/* LOGO IMAGE FILE UPLOADER */}
                   <div className="flex flex-col justify-center items-center p-4 md:p-6 border-2 border-dashed border-gray-200 rounded-2xl bg-gray-50/50 hover:bg-gray-50 transition-colors">
                     {settingsForm.company_logo ? (
                       <div className="text-center space-y-4">
                         <div className="relative group w-32 h-32 bg-white rounded-2xl shadow-md border border-gray-100 flex items-center justify-center p-3">
                           <img src={settingsForm.company_logo} alt="Custom Logo" className="max-w-full max-h-full object-contain rounded-lg" />
-                          <button type="button" onClick={() => setSettingsForm({...settingsForm, company_logo: ''})} className="absolute -top-3 -right-3 w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-full flex items-center justify-center shadow-sm transition-all focus:outline-none"><X size={16} /></button>
+                          <button type="button" onClick={() => setSettingsForm({ ...settingsForm, company_logo: '' })} className="absolute -top-3 -right-3 w-8 h-8 bg-red-100 hover:bg-red-200 text-red-600 rounded-full flex items-center justify-center shadow-sm transition-all focus:outline-none"><X size={16} /></button>
                         </div>
                         <p className="text-xs font-bold text-[#898A8D]">Gym Logo Active</p>
                       </div>
@@ -7582,16 +7674,16 @@ export default function Dashboard({ session }) {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                     <div>
                       <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Gym Billing Email Address</label>
-                      <input type="email" value={settingsForm.company_email} onChange={(e) => setSettingsForm({...settingsForm, company_email: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="billing@yourgym.com" />
+                      <input type="email" value={settingsForm.company_email} onChange={(e) => setSettingsForm({ ...settingsForm, company_email: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="billing@yourgym.com" />
                     </div>
                     <div>
                       <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Gym Contact Phone Number</label>
-                      <input type="tel" value={settingsForm.company_phone} onChange={(e) => setSettingsForm({...settingsForm, company_phone: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="014-2279216" />
+                      <input type="tel" value={settingsForm.company_phone} onChange={(e) => setSettingsForm({ ...settingsForm, company_phone: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="014-2279216" />
                     </div>
                   </div>
                   <div>
                     <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Gym Business Physical Address</label>
-                    <textarea rows="3" value={settingsForm.company_address} onChange={(e) => setSettingsForm({...settingsForm, company_address: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] resize-none" placeholder="Room 9, 6-1-1, Jalan Jalil Perkasa 14, Kuala Lumpur 57000" />
+                    <textarea rows="3" value={settingsForm.company_address} onChange={(e) => setSettingsForm({ ...settingsForm, company_address: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] resize-none" placeholder="Room 9, 6-1-1, Jalan Jalil Perkasa 14, Kuala Lumpur 57000" />
                   </div>
                 </div>
               </div>
@@ -7749,15 +7841,15 @@ export default function Dashboard({ session }) {
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                   <div>
                     <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Bank Name</label>
-                    <input type="text" value={settingsForm.bank_name} onChange={(e) => setSettingsForm({...settingsForm, bank_name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Maybank" />
+                    <input type="text" value={settingsForm.bank_name} onChange={(e) => setSettingsForm({ ...settingsForm, bank_name: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Maybank" />
                   </div>
                   <div>
                     <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Account Name</label>
-                    <input type="text" value={settingsForm.bank_account_name} onChange={(e) => setSettingsForm({...settingsForm, bank_account_name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Backyard Coaching" />
+                    <input type="text" value={settingsForm.bank_account_name} onChange={(e) => setSettingsForm({ ...settingsForm, bank_account_name: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Backyard Coaching" />
                   </div>
                   <div>
                     <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Account Number</label>
-                    <input type="text" value={settingsForm.bank_account_number} onChange={(e) => setSettingsForm({...settingsForm, bank_account_number: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. 564892482390" />
+                    <input type="text" value={settingsForm.bank_account_number} onChange={(e) => setSettingsForm({ ...settingsForm, bank_account_number: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. 564892482390" />
                   </div>
                 </div>
               </div>
@@ -7771,31 +7863,31 @@ export default function Dashboard({ session }) {
           </div>
         )}
 
-{/* CREATE / EDIT PACKAGE MODAL */}
-{isPackageModalOpen && (
+        {/* CREATE / EDIT PACKAGE MODAL */}
+        {isPackageModalOpen && (
           <div className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[150] flex justify-center items-center p-4">
             <div className="bg-white rounded-[2.5rem] p-5 md:p-8 w-full max-w-md shadow-2xl relative animate-in zoom-in-95 duration-200">
-              <button onClick={() => setIsPackageModalOpen(false)} className="absolute top-6 right-6 w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-colors"><X size={18}/></button>
-              
+              <button onClick={() => setIsPackageModalOpen(false)} className="absolute top-6 right-6 w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-colors"><X size={18} /></button>
+
               <h2 className="text-2xl font-extrabold text-[#0B4550] mb-6">{editingPackage ? 'Edit Package' : 'Create New Package'}</h2>
-              
+
               <div className="space-y-4 mb-8">
-                <div><label className="text-xs font-bold text-[#898A8D] uppercase">Package Name</label><input type="text" value={packageForm.name} onChange={e => setPackageForm({...packageForm, name: e.target.value})} placeholder="e.g. 10 Class Pack" className="w-full bg-[#F9F7F2] rounded-xl p-3 text-[#0B4550] font-bold outline-none border border-transparent focus:border-[#E6FF2B]" /></div>
-                
+                <div><label className="text-xs font-bold text-[#898A8D] uppercase">Package Name</label><input type="text" value={packageForm.name} onChange={e => setPackageForm({ ...packageForm, name: e.target.value })} placeholder="e.g. 10 Class Pack" className="w-full bg-[#F9F7F2] rounded-xl p-3 text-[#0B4550] font-bold outline-none border border-transparent focus:border-[#E6FF2B]" /></div>
+
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-bold text-[#898A8D] uppercase">Type</label>
-                    <select value={packageForm.type} onChange={e => setPackageForm({...packageForm, type: e.target.value})} className="w-full bg-[#F9F7F2] rounded-xl p-3 text-[#0B4550] font-bold outline-none">
+                    <select value={packageForm.type} onChange={e => setPackageForm({ ...packageForm, type: e.target.value })} className="w-full bg-[#F9F7F2] rounded-xl p-3 text-[#0B4550] font-bold outline-none">
                       <option value="Session Pack">Session Pack</option>
                       <option value="Unlimited">Unlimited</option>
                     </select>
                   </div>
-                  <div><label className="text-xs font-bold text-[#898A8D] uppercase">Price (RM)</label><input type="number" value={packageForm.price} onChange={e => setPackageForm({...packageForm, price: e.target.value})} className="w-full bg-[#F9F7F2] rounded-xl p-3 text-[#0B4550] font-bold outline-none border border-transparent focus:border-[#E6FF2B]" /></div>
+                  <div><label className="text-xs font-bold text-[#898A8D] uppercase">Price (RM)</label><input type="number" value={packageForm.price} onChange={e => setPackageForm({ ...packageForm, price: e.target.value })} className="w-full bg-[#F9F7F2] rounded-xl p-3 text-[#0B4550] font-bold outline-none border border-transparent focus:border-[#E6FF2B]" /></div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div><label className="text-xs font-bold text-[#898A8D] uppercase">Sessions Included</label><input type="number" disabled={packageForm.type === 'Unlimited'} value={packageForm.type === 'Unlimited' ? 0 : packageForm.session_count} onChange={e => setPackageForm({...packageForm, session_count: e.target.value})} className="w-full bg-[#F9F7F2] rounded-xl p-3 text-[#0B4550] font-bold outline-none border border-transparent focus:border-[#E6FF2B] disabled:opacity-50" /></div>
-                  <div><label className="text-xs font-bold text-[#898A8D] uppercase">Validity (Days)</label><input type="number" value={packageForm.validity_days} onChange={e => setPackageForm({...packageForm, validity_days: e.target.value})} className="w-full bg-[#F9F7F2] rounded-xl p-3 text-[#0B4550] font-bold outline-none border border-transparent focus:border-[#E6FF2B]" /></div>
+                  <div><label className="text-xs font-bold text-[#898A8D] uppercase">Sessions Included</label><input type="number" disabled={packageForm.type === 'Unlimited'} value={packageForm.type === 'Unlimited' ? 0 : packageForm.session_count} onChange={e => setPackageForm({ ...packageForm, session_count: e.target.value })} className="w-full bg-[#F9F7F2] rounded-xl p-3 text-[#0B4550] font-bold outline-none border border-transparent focus:border-[#E6FF2B] disabled:opacity-50" /></div>
+                  <div><label className="text-xs font-bold text-[#898A8D] uppercase">Validity (Days)</label><input type="number" value={packageForm.validity_days} onChange={e => setPackageForm({ ...packageForm, validity_days: e.target.value })} className="w-full bg-[#F9F7F2] rounded-xl p-3 text-[#0B4550] font-bold outline-none border border-transparent focus:border-[#E6FF2B]" /></div>
                 </div>
               </div>
 
@@ -7813,35 +7905,36 @@ export default function Dashboard({ session }) {
           </div>
         )}
 
-      {/* FULL-SCREEN PREMIUM INVOICE PRINT MODAL */}
-      {isInvoiceModalOpen && selectedInvoiceTransaction && (
-        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-[200] flex justify-center items-start p-4 md:p-8 overflow-y-auto no-scrollbar print:p-0 print:bg-white print:static">
-          <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-12 w-full max-w-4xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 print:shadow-none print:p-0 print:static print:rounded-none">
-            
-            {/* Action Bar (hidden when printing) */}
-            <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8 border-b border-gray-100 pb-6 print:hidden">
-              <h3 className="text-2xl font-bold text-[#0B4550]">Invoice Preview</h3>
-              <div className="flex items-center gap-3">
-                <button 
-                  onClick={() => window.print()}
-                  className="bg-[#0B4550] text-[#E6FF2B] px-4 md:px-6 py-3 rounded-xl font-bold text-base flex items-center gap-2 hover:scale-105 transition-all shadow-md"
-                >
-                  <Download size={18} /> Print / Save PDF
-                </button>
-                <button 
-                  onClick={() => {
-                    setIsInvoiceModalOpen(false);
-                    setSelectedInvoiceTransaction(null);
-                  }}
-                  className="w-12 h-12 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
-                >
-                  <X size={20} />
-                </button>
-              </div>
-            </div>
+        {/* FULL-SCREEN PREMIUM INVOICE PRINT MODAL */}
+        {isInvoiceModalOpen && selectedInvoiceTransaction && (
+          <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-[200] flex justify-center items-start p-4 md:p-8 overflow-y-auto no-scrollbar print:p-0 print:bg-white print:static">
+            <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-12 w-full max-w-4xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 print:shadow-none print:p-0 print:static print:rounded-none">
 
-            {/* PRINT-ONLY CSS */}
-            <style dangerouslySetInnerHTML={{__html: `
+              {/* Action Bar (hidden when printing) */}
+              <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8 border-b border-gray-100 pb-6 print:hidden">
+                <h3 className="text-2xl font-bold text-[#0B4550]">Invoice Preview</h3>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => window.print()}
+                    className="bg-[#0B4550] text-[#E6FF2B] px-4 md:px-6 py-3 rounded-xl font-bold text-base flex items-center gap-2 hover:scale-105 transition-all shadow-md"
+                  >
+                    <Download size={18} /> Print / Save PDF
+                  </button>
+                  <button
+                    onClick={() => {
+                      setIsInvoiceModalOpen(false);
+                      setSelectedInvoiceTransaction(null);
+                    }}
+                    className="w-12 h-12 bg-gray-100 text-gray-500 rounded-full flex items-center justify-center hover:bg-gray-200 transition-colors"
+                  >
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+
+              {/* PRINT-ONLY CSS */}
+              <style dangerouslySetInnerHTML={{
+                __html: `
               @media print {
                 body * {
                   visibility: hidden;
@@ -7865,130 +7958,130 @@ export default function Dashboard({ session }) {
               }
             `}} />
 
-            {/* PRINTABLE INVOICE AREA */}
-            <div id="printable-invoice-area" className="bg-white text-gray-800 font-sans leading-relaxed">
-              
-              {/* TOP HEADER */}
-              <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-12">
-                <div className="space-y-4">
-                  {/* LOGO */}
-                  <div className="h-16 flex items-center">
-                    <img 
-                      src={companyLogo || newLogo} 
-                      alt={companyName} 
-                      className="max-h-16 w-auto object-contain" 
-                    />
-                  </div>
-                  <div className="text-sm font-semibold text-gray-500">
-                    <p className="text-lg font-bold text-[#0B4550]">{companyName}</p>
-                    <p className="whitespace-pre-line mt-1">{trainerProfile?.company_address || 'Address not configured'}</p>
-                    <p className="mt-1">Phone: {trainerProfile?.company_phone || 'N/A'}</p>
-                    <p>Email: {trainerProfile?.company_email || 'N/A'}</p>
-                  </div>
-                </div>
+              {/* PRINTABLE INVOICE AREA */}
+              <div id="printable-invoice-area" className="bg-white text-gray-800 font-sans leading-relaxed">
 
-                <div className="text-right">
-                  <h1 className="text-3xl md:text-4xl font-extrabold text-[#0B4550] tracking-tight uppercase mb-4">Invoice</h1>
-                  <div className="space-y-1 text-sm font-semibold text-gray-600">
-                    <p>Invoice No: <span className="text-[#0B4550] font-bold">{selectedInvoiceTransaction.invoiceNumber}</span></p>
-                    <p>Date: {new Date(selectedInvoiceTransaction.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
-                    <p>Payment Term: Due on Receipt</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* CLIENT BILL TO */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 border-t border-b border-gray-100 py-5 md:py-8 mb-10">
-                <div>
-                  <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Bill To</h4>
-                  <div className="text-sm font-semibold text-gray-700">
-                    <p className="text-base font-extrabold text-[#0B4550]">{clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.name || selectedInvoiceTransaction.client_name}</p>
-                    <p className="mt-1 whitespace-pre-line">{clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.address || 'Address not configured'}</p>
-                    <p className="mt-1">Email: {clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.email || 'N/A'}</p>
-                    <p>Phone: {clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.phone || 'N/A'}</p>
-                  </div>
-                </div>
-                
-                <div className="flex flex-col justify-end items-end text-right">
-                  <div className="bg-[#F9F7F2]/50 border border-gray-100 rounded-2xl p-5 w-full max-w-[280px]">
-                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Amount Due</span>
-                    <span className="text-2xl md:text-3xl font-black text-[#0B4550]">RM 0.00</span>
-                    <span className="text-xs text-gray-500 font-semibold block mt-1">Paid in full via {selectedInvoiceTransaction.payment_method || 'Cash'}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* DETAILS TABLE */}
-              <table className="w-full text-left border-collapse mb-10">
-                <thead>
-                  <tr className="border-b-2 border-gray-200 text-xs font-bold text-gray-400 uppercase tracking-wider">
-                    <th className="py-3 pl-2">Item & Description</th>
-                    <th className="py-3 text-right">Qty</th>
-                    <th className="py-3 text-right">Unit Price (RM)</th>
-                    <th className="py-3 text-right pr-2">Amount (RM)</th>
-                  </tr>
-                </thead>
-                <tbody className="text-sm font-semibold text-gray-700">
-                  <tr className="border-b border-gray-100">
-                    <td className="py-5 pl-2">
-                      <p className="font-extrabold text-base text-[#0B4550]">{selectedInvoiceTransaction.description || 'Package Purchase'}</p>
-                      <p className="text-xs text-gray-400 mt-0.5">Physical Training & Coaching Session Pack</p>
-                    </td>
-                    <td className="py-5 text-right">1</td>
-                    <td className="py-5 text-right">{Number(selectedInvoiceTransaction.amount).toFixed(2)}</td>
-                    <td className="py-5 text-right pr-2 font-bold text-gray-900">{Number(selectedInvoiceTransaction.amount).toFixed(2)}</td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* TOTALS SUMMARY */}
-              <div className="flex justify-end mb-12">
-                <div className="w-full max-w-sm space-y-3 font-semibold text-gray-600 text-sm">
-                  <div className="flex justify-between">
-                    <span>Subtotal</span>
-                    <span>RM {Number(selectedInvoiceTransaction.amount).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Tax (0%)</span>
-                    <span>RM 0.00</span>
-                  </div>
-                  <div className="flex justify-between border-t border-gray-100 pt-3 text-base text-[#0B4550] font-extrabold">
-                    <span>Total Paid</span>
-                    <span>RM {Number(selectedInvoiceTransaction.amount).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between text-xs text-emerald-600 font-extrabold">
-                    <span>Balance Due</span>
-                    <span>RM 0.00</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* PAYMENT BANK DETAILS & FOOTER */}
-              <div className="border-t border-gray-100 pt-8 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 text-xs font-semibold text-gray-500">
-                <div className="space-y-2">
-                  <h5 className="font-bold text-[#0B4550] uppercase tracking-wider text-xs">Payment Information</h5>
-                  <p>Thank you for choosing {companyName}. For record purposes, this payment was processed in full.</p>
-                  {trainerProfile?.bank_account_number && (
-                    <div className="bg-[#F9F7F2]/60 rounded-xl p-3 border border-gray-50 text-gray-600 space-y-0.5">
-                      <p className="font-bold text-[#0B4550]">Bank Remittance Instructions:</p>
-                      <p>Bank: <span className="font-bold">{trainerProfile.bank_name}</span></p>
-                      <p>Account Name: <span className="font-bold">{trainerProfile.bank_account_name}</span></p>
-                      <p>Account Number: <span className="font-bold">{trainerProfile.bank_account_number}</span></p>
+                {/* TOP HEADER */}
+                <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-12">
+                  <div className="space-y-4">
+                    {/* LOGO */}
+                    <div className="h-16 flex items-center">
+                      <img
+                        src={companyLogo || newLogo}
+                        alt={companyName}
+                        className="max-h-16 w-auto object-contain"
+                      />
                     </div>
-                  )}
-                </div>
-                
-                <div className="flex flex-col justify-end md:items-end md:text-right space-y-1">
-                  <h5 className="font-bold text-[#0B4550] uppercase tracking-wider text-xs mb-1">Terms & Conditions</h5>
-                  <p>All packages are non-refundable and subject to coach policies.</p>
-                  <p>System Generated Invoice — No physical signature required.</p>
-                </div>
-              </div>
+                    <div className="text-sm font-semibold text-gray-500">
+                      <p className="text-lg font-bold text-[#0B4550]">{companyName}</p>
+                      <p className="whitespace-pre-line mt-1">{trainerProfile?.company_address || 'Address not configured'}</p>
+                      <p className="mt-1">Phone: {trainerProfile?.company_phone || 'N/A'}</p>
+                      <p>Email: {trainerProfile?.company_email || 'N/A'}</p>
+                    </div>
+                  </div>
 
+                  <div className="text-right">
+                    <h1 className="text-3xl md:text-4xl font-extrabold text-[#0B4550] tracking-tight uppercase mb-4">Invoice</h1>
+                    <div className="space-y-1 text-sm font-semibold text-gray-600">
+                      <p>Invoice No: <span className="text-[#0B4550] font-bold">{selectedInvoiceTransaction.invoiceNumber}</span></p>
+                      <p>Date: {new Date(selectedInvoiceTransaction.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })}</p>
+                      <p>Payment Term: Due on Receipt</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CLIENT BILL TO */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 border-t border-b border-gray-100 py-5 md:py-8 mb-10">
+                  <div>
+                    <h4 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Bill To</h4>
+                    <div className="text-sm font-semibold text-gray-700">
+                      <p className="text-base font-extrabold text-[#0B4550]">{clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.name || selectedInvoiceTransaction.client_name}</p>
+                      <p className="mt-1 whitespace-pre-line">{clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.address || 'Address not configured'}</p>
+                      <p className="mt-1">Email: {clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.email || 'N/A'}</p>
+                      <p>Phone: {clients.find(c => c.id === selectedInvoiceTransaction.client_name)?.phone || 'N/A'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col justify-end items-end text-right">
+                    <div className="bg-[#F9F7F2]/50 border border-gray-100 rounded-2xl p-5 w-full max-w-[280px]">
+                      <span className="text-xs font-bold text-gray-400 uppercase tracking-widest block mb-1">Amount Due</span>
+                      <span className="text-2xl md:text-3xl font-black text-[#0B4550]">RM 0.00</span>
+                      <span className="text-xs text-gray-500 font-semibold block mt-1">Paid in full via {selectedInvoiceTransaction.payment_method || 'Cash'}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* DETAILS TABLE */}
+                <table className="w-full text-left border-collapse mb-10">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200 text-xs font-bold text-gray-400 uppercase tracking-wider">
+                      <th className="py-3 pl-2">Item & Description</th>
+                      <th className="py-3 text-right">Qty</th>
+                      <th className="py-3 text-right">Unit Price (RM)</th>
+                      <th className="py-3 text-right pr-2">Amount (RM)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="text-sm font-semibold text-gray-700">
+                    <tr className="border-b border-gray-100">
+                      <td className="py-5 pl-2">
+                        <p className="font-extrabold text-base text-[#0B4550]">{selectedInvoiceTransaction.description || 'Package Purchase'}</p>
+                        <p className="text-xs text-gray-400 mt-0.5">Physical Training & Coaching Session Pack</p>
+                      </td>
+                      <td className="py-5 text-right">1</td>
+                      <td className="py-5 text-right">{Number(selectedInvoiceTransaction.amount).toFixed(2)}</td>
+                      <td className="py-5 text-right pr-2 font-bold text-gray-900">{Number(selectedInvoiceTransaction.amount).toFixed(2)}</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                {/* TOTALS SUMMARY */}
+                <div className="flex justify-end mb-12">
+                  <div className="w-full max-w-sm space-y-3 font-semibold text-gray-600 text-sm">
+                    <div className="flex justify-between">
+                      <span>Subtotal</span>
+                      <span>RM {Number(selectedInvoiceTransaction.amount).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span>Tax (0%)</span>
+                      <span>RM 0.00</span>
+                    </div>
+                    <div className="flex justify-between border-t border-gray-100 pt-3 text-base text-[#0B4550] font-extrabold">
+                      <span>Total Paid</span>
+                      <span>RM {Number(selectedInvoiceTransaction.amount).toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-emerald-600 font-extrabold">
+                      <span>Balance Due</span>
+                      <span>RM 0.00</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* PAYMENT BANK DETAILS & FOOTER */}
+                <div className="border-t border-gray-100 pt-8 grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 text-xs font-semibold text-gray-500">
+                  <div className="space-y-2">
+                    <h5 className="font-bold text-[#0B4550] uppercase tracking-wider text-xs">Payment Information</h5>
+                    <p>Thank you for choosing {companyName}. For record purposes, this payment was processed in full.</p>
+                    {trainerProfile?.bank_account_number && (
+                      <div className="bg-[#F9F7F2]/60 rounded-xl p-3 border border-gray-50 text-gray-600 space-y-0.5">
+                        <p className="font-bold text-[#0B4550]">Bank Remittance Instructions:</p>
+                        <p>Bank: <span className="font-bold">{trainerProfile.bank_name}</span></p>
+                        <p>Account Name: <span className="font-bold">{trainerProfile.bank_account_name}</span></p>
+                        <p>Account Number: <span className="font-bold">{trainerProfile.bank_account_number}</span></p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex flex-col justify-end md:items-end md:text-right space-y-1">
+                    <h5 className="font-bold text-[#0B4550] uppercase tracking-wider text-xs mb-1">Terms & Conditions</h5>
+                    <p>All packages are non-refundable and subject to coach policies.</p>
+                    <p>System Generated Invoice — No physical signature required.</p>
+                  </div>
+                </div>
+
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
         {/* VIEW: CLASS MODE */}
         {activePage === 'ClassMode' && (
@@ -7999,15 +8092,24 @@ export default function Dashboard({ session }) {
               <div className="flex items-center gap-4">
                 <div className="relative">
                   <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-[#898A8D]" size={20} />
-                  <input 
-                    type="text" 
-                    placeholder="Search your name..." 
+                  <input
+                    type="text"
+                    placeholder="Search your name..."
                     value={classSearchQuery}
                     onChange={(e) => setClassSearchQuery(e.target.value)}
-                    className="w-72 pl-12 pr-4 py-3 bg-[#F9F7F2] border-none rounded-full text-lg font-medium focus:outline-none focus:ring-2 focus:ring-[#E6FF2B] text-[#0B4550] placeholder-[#898A8D]"
+                    className="w-72 pl-12 pr-10 py-3 bg-[#F9F7F2] border-none rounded-full text-lg font-medium focus:outline-none focus:ring-2 focus:ring-[#E6FF2B] text-[#0B4550] placeholder-[#898A8D]"
                   />
+                  {classSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setClassSearchQuery('')}
+                      className="absolute right-3.5 top-1/2 -translate-y-1/2 text-[#898A8D] hover:text-[#0B4550] transition-colors"
+                    >
+                      <X size={18} />
+                    </button>
+                  )}
                 </div>
-                <button 
+                <button
                   onClick={() => setShowExitPinModal(true)}
                   className="w-12 h-12 flex items-center justify-center rounded-full bg-red-50 text-red-500 hover:bg-red-500 hover:text-white transition-colors"
                 >
@@ -8026,44 +8128,44 @@ export default function Dashboard({ session }) {
                     return (c.name || '').toLowerCase().includes(classSearchQuery.toLowerCase());
                   })
                   .map(client => (
-                  <button 
-                    key={client.id}
-                    onClick={() => {
-                      setSelectedClassClient(client);
-                      // Pre-select first class today if available
-                      const todayDate = new Date();
-                      const todayClasses = sessions.filter(session => {
-                        if (session.type === 'Blocked') return false;
-                        const sessDate = new Date(session.start_time);
-                        return sessDate.getDate() === todayDate.getDate() &&
-                               sessDate.getMonth() === todayDate.getMonth() &&
-                               sessDate.getFullYear() === todayDate.getFullYear();
-                      });
-                      const sortedTodayClasses = [...todayClasses].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-                      setSelectedClassSession(sortedTodayClasses.length > 0 ? sortedTodayClasses[0] : null);
-                      setShowCheckInModal(true);
-                    }}
-                    className="bg-white p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-md border border-gray-100 hover:border-[#0B4550] transition-all flex flex-col items-center gap-3 active:scale-95 group"
-                  >
-                    <div className="w-16 h-16 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-2xl font-bold group-hover:scale-110 transition-transform">
-                      {getInitials(client.name)}
-                    </div>
-                    <div className="flex flex-col items-center">
-                      <span className="font-bold text-lg text-[#0B4550] text-center line-clamp-1 leading-tight">{client.name}</span>
-                      {client.unlimited ? (
-                        <div className="flex flex-col items-center mt-1.5 space-y-0.5">
-                          <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider text-[10px]">Unlimited</span>
-                          <span className="text-[11px] font-medium text-[#898A8D]">{getExpiryText(client)}</span>
-                        </div>
-                      ) : (
-                        <div className="flex flex-col items-center mt-1.5 space-y-0.5">
-                          <span className="text-xs font-extrabold text-[#0B4550]">{client.remaining_package || 0} Sessions Left</span>
-                          <span className="text-[11px] font-medium text-[#898A8D]">{getExpiryText(client)}</span>
-                        </div>
-                      )}
-                    </div>
-                  </button>
-                ))}
+                    <button
+                      key={client.id}
+                      onClick={() => {
+                        setSelectedClassClient(client);
+                        // Pre-select first class today if available
+                        const todayDate = new Date();
+                        const todayClasses = sessions.filter(session => {
+                          if (session.type === 'Blocked') return false;
+                          const sessDate = new Date(session.start_time);
+                          return sessDate.getDate() === todayDate.getDate() &&
+                            sessDate.getMonth() === todayDate.getMonth() &&
+                            sessDate.getFullYear() === todayDate.getFullYear();
+                        });
+                        const sortedTodayClasses = [...todayClasses].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+                        setSelectedClassSession(sortedTodayClasses.length > 0 ? sortedTodayClasses[0] : null);
+                        setShowCheckInModal(true);
+                      }}
+                      className="bg-white p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-md border border-gray-100 hover:border-[#0B4550] transition-all flex flex-col items-center gap-3 active:scale-95 group"
+                    >
+                      <div className="w-16 h-16 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-2xl font-bold group-hover:scale-110 transition-transform">
+                        {getInitials(client.name)}
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="font-bold text-lg text-[#0B4550] text-center line-clamp-1 leading-tight">{client.name}</span>
+                        {client.unlimited ? (
+                          <div className="flex flex-col items-center mt-1.5 space-y-0.5">
+                            <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider text-[10px]">Unlimited</span>
+                            <span className="text-[11px] font-medium text-[#898A8D]">{getExpiryText(client)}</span>
+                          </div>
+                        ) : (
+                          <div className="flex flex-col items-center mt-1.5 space-y-0.5">
+                            <span className="text-xs font-extrabold text-[#0B4550]">{client.remaining_package || 0} Sessions Left</span>
+                            <span className="text-[11px] font-medium text-[#898A8D]">{getExpiryText(client)}</span>
+                          </div>
+                        )}
+                      </div>
+                    </button>
+                  ))}
               </div>
             </div>
 
@@ -8074,8 +8176,8 @@ export default function Dashboard({ session }) {
                 if (session.type === 'Blocked') return false;
                 const sessDate = new Date(session.start_time);
                 return sessDate.getDate() === todayDate.getDate() &&
-                       sessDate.getMonth() === todayDate.getMonth() &&
-                       sessDate.getFullYear() === todayDate.getFullYear();
+                  sessDate.getMonth() === todayDate.getMonth() &&
+                  sessDate.getFullYear() === todayDate.getFullYear();
               });
               const sortedTodayClasses = [...todayClasses].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
@@ -8087,7 +8189,7 @@ export default function Dashboard({ session }) {
                     </div>
                     <h2 className="text-2xl md:text-3xl font-black text-[#0B4550] mb-1">Check In?</h2>
                     <p className="text-xl text-[#898A8D] mb-4 font-medium">{selectedClassClient.name}</p>
-                    
+
                     <div className="bg-[#F9F7F2] rounded-2xl p-3 mb-5 border border-gray-100 flex flex-col items-center gap-1 w-full text-xs">
                       {selectedClassClient.unlimited ? (
                         <>
@@ -8117,11 +8219,10 @@ export default function Dashboard({ session }) {
                                 key={session.id}
                                 type="button"
                                 onClick={() => setSelectedClassSession(session)}
-                                className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all active:scale-[0.99] ${
-                                  isSelected
-                                    ? 'bg-[#0B4550] border-[#0B4550] text-[#E6FF2B] shadow-md'
-                                    : 'bg-[#F9F7F2] border-gray-100 text-[#0B4550] hover:bg-gray-100'
-                                }`}
+                                className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all active:scale-[0.99] ${isSelected
+                                  ? 'bg-[#0B4550] border-[#0B4550] text-[#E6FF2B] shadow-md'
+                                  : 'bg-[#F9F7F2] border-gray-100 text-[#0B4550] hover:bg-gray-100'
+                                  }`}
                               >
                                 <div className="flex-1 min-w-0 pr-2">
                                   <span className="font-extrabold text-sm block truncate leading-tight">
@@ -8137,16 +8238,15 @@ export default function Dashboard({ session }) {
                               </button>
                             );
                           })}
-                          
+
                           {/* Option for General Check-in */}
                           <button
                             type="button"
                             onClick={() => setSelectedClassSession(null)}
-                            className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all active:scale-[0.99] ${
-                              selectedClassSession === null
-                                ? 'bg-[#0B4550] border-[#0B4550] text-[#E6FF2B] shadow-md'
-                                : 'bg-[#F9F7F2] border-gray-100 text-[#0B4550] hover:bg-gray-100'
-                            }`}
+                            className={`w-full p-3 rounded-2xl border text-left flex items-center justify-between transition-all active:scale-[0.99] ${selectedClassSession === null
+                              ? 'bg-[#0B4550] border-[#0B4550] text-[#E6FF2B] shadow-md'
+                              : 'bg-[#F9F7F2] border-gray-100 text-[#0B4550] hover:bg-gray-100'
+                              }`}
                           >
                             <div className="flex-1 min-w-0">
                               <span className="font-extrabold text-sm block leading-tight">
@@ -8166,15 +8266,15 @@ export default function Dashboard({ session }) {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="flex gap-4">
-                      <button 
+                      <button
                         onClick={() => setShowCheckInModal(false)}
                         className="flex-1 py-4 rounded-xl font-bold text-[#898A8D] bg-[#F9F7F2] hover:bg-gray-200 transition-colors"
                       >
                         Cancel
                       </button>
-                      <button 
+                      <button
                         onClick={handleConfirmClassCheckIn}
                         className="flex-1 py-4 rounded-xl font-bold text-[#E6FF2B] bg-[#0B4550] hover:scale-105 transition-transform"
                       >
@@ -8192,9 +8292,9 @@ export default function Dashboard({ session }) {
                 <div className="w-32 h-32 bg-[#E6FF2B] rounded-full flex items-center justify-center mb-8 shadow-[0_0_50px_rgba(230,255,43,0.3)]">
                   <Check size={64} className="text-[#0B4550]" />
                 </div>
-                
+
                 <h1 className="text-3xl md:text-4xl md:text-5xl font-black text-white mb-6 leading-tight">
-                  Thank you!<br/>Have a great workout session today,<br/>
+                  Thank you!<br />Have a great workout session today,<br />
                   <span className="text-[#E6FF2B]">{undoTargetClient.name}</span>!
                 </h1>
 
@@ -8218,13 +8318,13 @@ export default function Dashboard({ session }) {
                 </div>
 
                 <div className="flex gap-4 w-full max-w-md">
-                  <button 
+                  <button
                     onClick={() => setShowUndoPinModal(true)}
                     className="flex-1 py-4 rounded-xl font-bold text-white bg-white/10 hover:bg-white/20 border border-white/20 transition-colors"
                   >
                     Undo Mistake
                   </button>
-                  <button 
+                  <button
                     onClick={() => setShowSuccessModal(false)}
                     className="flex-1 py-4 rounded-xl font-bold text-[#0B4550] bg-[#E6FF2B] hover:scale-105 transition-transform"
                   >
@@ -8239,10 +8339,9 @@ export default function Dashboard({ session }) {
         {/* PIN MODAL FOR EXIT - PREMIUM DIALPAD */}
         {showExitPinModal && (
           <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[100] flex items-center justify-center p-4">
-            <div 
-              className={`bg-white rounded-[2.5rem] p-6 md:p-8 w-full max-w-sm text-center shadow-2xl relative border border-gray-100 flex flex-col items-center transition-all ${
-                exitPinError ? 'animate-pin-shake border-2 border-red-500' : ''
-              }`}
+            <div
+              className={`bg-white rounded-[2.5rem] p-6 md:p-8 w-full max-w-sm text-center shadow-2xl relative border border-gray-100 flex flex-col items-center transition-all ${exitPinError ? 'animate-pin-shake border-2 border-red-500' : ''
+                }`}
             >
               {/* Invisible input that captures desktop keyboard entry */}
               <input
@@ -8259,7 +8358,7 @@ export default function Dashboard({ session }) {
               <div className="w-16 h-16 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center mb-4">
                 <Lock size={32} />
               </div>
-              
+
               <h3 className="text-2xl font-black text-[#0B4550] mb-2">Exit Class Mode</h3>
               <p className="text-[#898A8D] mb-6 font-medium text-sm">
                 Enter Gym Owner PIN to return to Dashboard
@@ -8270,13 +8369,12 @@ export default function Dashboard({ session }) {
                 {[0, 1, 2, 3].map((idx) => {
                   const isFilled = pinInput.length > idx;
                   return (
-                    <div 
+                    <div
                       key={idx}
-                      className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
-                        isFilled 
-                          ? 'bg-[#0B4550] border-[#0B4550] scale-110 shadow-md' 
-                          : 'border-gray-300 bg-transparent'
-                      }`}
+                      className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${isFilled
+                        ? 'bg-[#0B4550] border-[#0B4550] scale-110 shadow-md'
+                        : 'border-gray-300 bg-transparent'
+                        }`}
                     />
                   );
                 })}
@@ -8313,7 +8411,7 @@ export default function Dashboard({ session }) {
                 </button>
               </div>
 
-              <button 
+              <button
                 onClick={() => {
                   setShowExitPinModal(false);
                   setPinInput('');
@@ -8340,10 +8438,9 @@ export default function Dashboard({ session }) {
                 animation: pin-shake 0.3s ease-in-out;
               }
             `}</style>
-            <div 
-              className={`bg-white rounded-[2.5rem] p-6 md:p-8 w-full max-w-sm text-center shadow-2xl relative border border-gray-100 flex flex-col items-center transition-all ${
-                securityPinError ? 'animate-pin-shake border-2 border-red-500' : ''
-              }`}
+            <div
+              className={`bg-white rounded-[2.5rem] p-6 md:p-8 w-full max-w-sm text-center shadow-2xl relative border border-gray-100 flex flex-col items-center transition-all ${securityPinError ? 'animate-pin-shake border-2 border-red-500' : ''
+                }`}
             >
               {/* Invisible input that captures desktop keyboard entry */}
               <input
@@ -8360,11 +8457,11 @@ export default function Dashboard({ session }) {
               <div className="w-16 h-16 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center mb-4">
                 <Lock size={32} />
               </div>
-              
+
               <h3 className="text-2xl font-black text-[#0B4550] mb-2">Security Verification</h3>
               <p className="text-[#898A8D] mb-6 font-medium text-sm">
-                {pendingPageAction === 'RevealRevenue' 
-                  ? 'Enter Owner PIN to reveal dashboard revenue' 
+                {pendingPageAction === 'RevealRevenue'
+                  ? 'Enter Owner PIN to reveal dashboard revenue'
                   : 'Enter Owner PIN to unlock Revenue section'}
               </p>
 
@@ -8373,13 +8470,12 @@ export default function Dashboard({ session }) {
                 {[0, 1, 2, 3].map((idx) => {
                   const isFilled = securityPinInput.length > idx;
                   return (
-                    <div 
+                    <div
                       key={idx}
-                      className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${
-                        isFilled 
-                          ? 'bg-[#0B4550] border-[#0B4550] scale-110 shadow-md' 
-                          : 'border-gray-300 bg-transparent'
-                      }`}
+                      className={`w-4 h-4 rounded-full border-2 transition-all duration-200 ${isFilled
+                        ? 'bg-[#0B4550] border-[#0B4550] scale-110 shadow-md'
+                        : 'border-gray-300 bg-transparent'
+                        }`}
                     />
                   );
                 })}
@@ -8416,7 +8512,7 @@ export default function Dashboard({ session }) {
                 </button>
               </div>
 
-              <button 
+              <button
                 onClick={() => {
                   setShowSecurityPinModal(false);
                   setSecurityPinInput('');
@@ -8439,8 +8535,8 @@ export default function Dashboard({ session }) {
               </div>
               <h3 className="text-2xl font-black text-[#0B4550] mb-2">Undo Check-in</h3>
               <p className="text-[#898A8D] mb-6 font-medium text-sm">Enter Gym Owner PIN to reverse this check-in</p>
-              <input 
-                type="password" 
+              <input
+                type="password"
                 maxLength={4}
                 autoFocus
                 value={pinInput}
@@ -8458,92 +8554,92 @@ export default function Dashboard({ session }) {
 
       </main>
 
-{/* HISTORICAL DATA MODAL */}
-{showBacklogModal && (
-  <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-    <div className="bg-white rounded-3xl p-5 md:p-8 w-full max-w-md shadow-2xl">
-      <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
-        <h3 className="text-2xl font-bold text-[#0B4550]">Add Historical Sale</h3>
-        <button onClick={() => setShowBacklogModal(false)} className="text-gray-400"><X size={24} /></button>
-      </div>
+      {/* HISTORICAL DATA MODAL */}
+      {showBacklogModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-5 md:p-8 w-full max-w-md shadow-2xl">
+            <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
+              <h3 className="text-2xl font-bold text-[#0B4550]">Add Historical Sale</h3>
+              <button onClick={() => setShowBacklogModal(false)} className="text-gray-400"><X size={24} /></button>
+            </div>
 
-      <form onSubmit={async (e) => {
-  e.preventDefault();
-  const formData = new FormData(e.target);
-  const payload = {
-    clientId: formData.get('clientId'), // Now we are getting the ID again!
-    amount: backlogSelectedPrice, 
-    packageName: formData.get('packageName'),
-    date: formData.get('date')
-  };
-  await handleAddBacklog(payload);
-}} className="space-y-4">
-  
-  {/* 1. SELECT CLIENT (The missing piece!) */}
-  <div>
-    <label className="block text-sm font-bold text-gray-700 mb-1">Select Client</label>
-    <select 
-      name="clientId" 
-      required 
-      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E6FF2B]"
-    >
-      <option value="">Choose a client...</option>
-      {clients.map(c => (
-        <option key={c.id} value={c.id}>{c.name}</option>
-      ))}
-    </select>
-  </div>
+            <form onSubmit={async (e) => {
+              e.preventDefault();
+              const formData = new FormData(e.target);
+              const payload = {
+                clientId: formData.get('clientId'), // Now we are getting the ID again!
+                amount: backlogSelectedPrice,
+                packageName: formData.get('packageName'),
+                date: formData.get('date')
+              };
+              await handleAddBacklog(payload);
+            }} className="space-y-4">
 
-  {/* 2. SELECT PACKAGE */}
-  <div>
-    <label className="block text-sm font-bold text-gray-700 mb-1">Select Package</label>
-    <select 
-      name="packageName" 
-      required 
-      onChange={handlePackageSelection}
-      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E6FF2B]"
-    >
-      <option value="">Choose a package...</option>
-      {packages.map((pkg) => (
-        <option key={pkg.id} value={pkg.name}>{pkg.name}</option>
-      ))}
-      <option value="Custom">Custom / Other</option>
-    </select>
-  </div>
+              {/* 1. SELECT CLIENT (The missing piece!) */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Select Client</label>
+                <select
+                  name="clientId"
+                  required
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E6FF2B]"
+                >
+                  <option value="">Choose a client...</option>
+                  {clients.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
 
-  {/* 3. AMOUNT */}
-  <div>
-    <label className="block text-sm font-bold text-gray-700 mb-1">Amount (RM)</label>
-    <input 
-      name="amount" 
-      type="number" 
-      step="0.01" 
-      required 
-      value={backlogSelectedPrice}
-      onChange={(e) => setBacklogSelectedPrice(e.target.value)}
-      className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E6FF2B]" 
-    />
-  </div>
+              {/* 2. SELECT PACKAGE */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Select Package</label>
+                <select
+                  name="packageName"
+                  required
+                  onChange={handlePackageSelection}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E6FF2B]"
+                >
+                  <option value="">Choose a package...</option>
+                  {packages.map((pkg) => (
+                    <option key={pkg.id} value={pkg.name}>{pkg.name}</option>
+                  ))}
+                  <option value="Custom">Custom / Other</option>
+                </select>
+              </div>
 
-  {/* 4. DATE */}
-  <div>
-    <label className="block text-sm font-bold text-gray-700 mb-1">Transaction Date</label>
-    <input name="date" type="date" required className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E6FF2B]" />
-  </div>
+              {/* 3. AMOUNT */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Amount (RM)</label>
+                <input
+                  name="amount"
+                  type="number"
+                  step="0.01"
+                  required
+                  value={backlogSelectedPrice}
+                  onChange={(e) => setBacklogSelectedPrice(e.target.value)}
+                  className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E6FF2B]"
+                />
+              </div>
 
-  <button type="submit" className="w-full bg-[#E6FF2B] text-[#0B4550] font-bold py-4 rounded-xl mt-4 hover:opacity-90 transition-all shadow-lg">
-    Sync to History
-  </button>
-</form>
-    </div>
-  </div>
-)}
+              {/* 4. DATE */}
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1">Transaction Date</label>
+                <input name="date" type="date" required className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-[#E6FF2B]" />
+              </div>
+
+              <button type="submit" className="w-full bg-[#E6FF2B] text-[#0B4550] font-bold py-4 rounded-xl mt-4 hover:opacity-90 transition-all shadow-lg">
+                Sync to History
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* MODAL OVERLAY: MEGA ADD CLIENT FORM */}
       {showAddModal && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-5 md:py-8 overflow-hidden">
           <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full max-w-4xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[95vh] overflow-y-auto">
-            
+
             <button onClick={() => setShowAddModal(false)} className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full">
               <X size={24} />
             </button>
@@ -8554,7 +8650,7 @@ export default function Dashboard({ session }) {
                 <p className="text-[#898A8D] font-medium text-lg">Add client details or bulk import your roster.</p>
               </div>
               <div className="flex gap-2">
-                <button 
+                <button
                   onClick={handleDownloadCSVTemplate}
                   type="button"
                   className="bg-transparent border border-[#0B4550] text-[#0B4550] px-5 py-2.5 rounded-xl font-medium text-base flex items-center gap-2 hover:bg-[#0B4550] hover:text-[#E6FF2B] transition-all shadow-sm"
@@ -8568,8 +8664,8 @@ export default function Dashboard({ session }) {
                   ref={fileInputRef}
                   onChange={handleImportCSV}
                 />
-                <button 
-                  onClick={() => fileInputRef.current?.click()} 
+                <button
+                  onClick={() => fileInputRef.current?.click()}
                   type="button"
                   className="bg-[#F9F7F2] border border-gray-200 text-[#0B4550] px-5 py-2.5 rounded-xl font-medium text-base flex items-center gap-2 hover:bg-gray-100 transition-all shadow-sm"
                 >
@@ -8577,40 +8673,40 @@ export default function Dashboard({ session }) {
                 </button>
               </div>
             </div>
-            
+
             <form onSubmit={handleAddClient} className="space-y-6">
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Full Name</label>
-                  <input type="text" required value={newClientData.name} onChange={(e) => setNewClientData({...newClientData, name: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. John Doe" />
+                  <input type="text" required value={newClientData.name} onChange={(e) => setNewClientData({ ...newClientData, name: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. John Doe" />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Date of Birth</label>
-                  <input type="date" value={newClientData.dob} onChange={(e) => setNewClientData({...newClientData, dob: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
+                  <input type="date" value={newClientData.dob} onChange={(e) => setNewClientData({ ...newClientData, dob: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
                 </div>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Email</label>
-                  <input type="email" value={newClientData.email} onChange={(e) => setNewClientData({...newClientData, email: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="john@example.com" />
+                  <input type="email" value={newClientData.email} onChange={(e) => setNewClientData({ ...newClientData, email: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="john@example.com" />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Phone</label>
-                  <input type="text" value={newClientData.phone} onChange={(e) => setNewClientData({...newClientData, phone: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="+1 (555) 000-0000" />
+                  <input type="text" value={newClientData.phone} onChange={(e) => setNewClientData({ ...newClientData, phone: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="+1 (555) 000-0000" />
                 </div>
               </div>
-              
+
               <div>
                 <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Billing Address (for Invoices)</label>
-                <input type="text" value={newClientData.address} onChange={(e) => setNewClientData({...newClientData, address: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. 123 Main St, Apartment 4B, Kuala Lumpur" />
+                <input type="text" value={newClientData.address} onChange={(e) => setNewClientData({ ...newClientData, address: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. 123 Main St, Apartment 4B, Kuala Lumpur" />
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6 pt-4 border-t border-gray-100">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 pt-4 border-t border-gray-100">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Client Type</label>
-                  <select value={newClientData.client_type} onChange={(e) => setNewClientData({...newClientData, client_type: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select value={newClientData.client_type} onChange={(e) => setNewClientData({ ...newClientData, client_type: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="Group">Group Class</option>
                     <option value="PT">Personal Training</option>
                     <option value="Group & PT">Group + PT</option>
@@ -8618,7 +8714,7 @@ export default function Dashboard({ session }) {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Member Status</label>
-                  <select value={newClientData.member_status} onChange={(e) => setNewClientData({...newClientData, member_status: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select value={newClientData.member_status} onChange={(e) => setNewClientData({ ...newClientData, member_status: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="Member">Member</option>
                     <option value="Non-Member">Non-Member / Drop-in</option>
                     <option value="Trial">Trial Prospect</option>
@@ -8626,18 +8722,41 @@ export default function Dashboard({ session }) {
                   </select>
                 </div>
                 <div>
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Subscription Type</label>
+                  <select
+                    value={newClientData.unlimited ? 'Unlimited' : 'Standard'}
+                    onChange={(e) => {
+                      const isUnlimited = e.target.value === 'Unlimited';
+                      setNewClientData({
+                        ...newClientData,
+                        unlimited: isUnlimited,
+                        initial_package: isUnlimited ? '' : newClientData.initial_package || '',
+                        remaining_package: isUnlimited ? '' : newClientData.remaining_package || ''
+                      });
+                    }}
+                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer"
+                  >
+                    <option value="Standard">Standard</option>
+                    <option value="Unlimited">Unlimited (Time-Based)</option>
+                  </select>
+                </div>
+                <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Package Type</label>
-                  <select value={newClientData.package} onChange={(e) => {
-                    const selectedName = e.target.value;
-                    const pkg = packagesList.find(p => p.name === selectedName);
-                    setNewClientData({
-                      ...newClientData,
-                      package: selectedName,
-                      initial_package: pkg ? pkg.session_count : '',
-                      remaining_package: pkg ? pkg.session_count : '',
-                      unlimited: pkg ? pkg.type === 'Unlimited' : false
-                    });
-                  }} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select
+                    value={newClientData.package}
+                    onChange={(e) => {
+                      const selectedName = e.target.value;
+                      const pkg = packagesList.find(p => p.name === selectedName);
+                      setNewClientData({
+                        ...newClientData,
+                        package: selectedName,
+                        initial_package: pkg ? (pkg.type === 'Unlimited' ? '' : pkg.session_count) : '',
+                        remaining_package: pkg ? (pkg.type === 'Unlimited' ? '' : pkg.session_count) : '',
+                        unlimited: pkg ? pkg.type === 'Unlimited' : false
+                      });
+                    }}
+                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer"
+                  >
                     <option value="">No Package Selected</option>
                     {packagesList.map(pkg => (
                       <option key={pkg.id} value={pkg.name}>{pkg.name}</option>
@@ -8649,38 +8768,43 @@ export default function Dashboard({ session }) {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Initial Pkg</label>
-                  <input type="number" min="0" value={newClientData.initial_package} onChange={(e) => setNewClientData({...newClientData, initial_package: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. 10" />
+                  <input
+                    type="number"
+                    min="0"
+                    disabled={newClientData.unlimited}
+                    value={newClientData.unlimited ? '' : newClientData.initial_package}
+                    onChange={(e) => setNewClientData({ ...newClientData, initial_package: e.target.value })}
+                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50"
+                    placeholder={newClientData.unlimited ? 'Unlimited' : 'e.g. 10'}
+                  />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Remaining</label>
-                  <input type="number" min="0" value={newClientData.remaining_package} onChange={(e) => setNewClientData({...newClientData, remaining_package: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. 10" />
+                  <input
+                    type="number"
+                    min="0"
+                    disabled={newClientData.unlimited}
+                    value={newClientData.unlimited ? '' : newClientData.remaining_package}
+                    onChange={(e) => setNewClientData({ ...newClientData, remaining_package: e.target.value })}
+                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50"
+                    placeholder={newClientData.unlimited ? 'Unlimited' : 'e.g. 10'}
+                  />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Date Paid</label>
-                  <input type="date" value={newClientData.date_paid} onChange={(e) => setNewClientData({...newClientData, date_paid: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-3 font-medium text-base text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
+                  <input type="date" value={newClientData.date_paid} onChange={(e) => setNewClientData({ ...newClientData, date_paid: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-3 font-medium text-base text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Expiry Date</label>
-                  <input type="date" value={newClientData.expiry_date} onChange={(e) => setNewClientData({...newClientData, expiry_date: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-3 font-medium text-base text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
+                  <input type="date" value={newClientData.expiry_date} onChange={(e) => setNewClientData({ ...newClientData, expiry_date: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-3 font-medium text-base text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
                 </div>
-              </div>
-
-              <div className="pt-2 flex items-center gap-3">
-                <input 
-                  type="checkbox" 
-                  id="unlimited"
-                  checked={newClientData.unlimited}
-                  onChange={(e) => setNewClientData({...newClientData, unlimited: e.target.checked})}
-                  className="w-6 h-6 text-[#0B4550] bg-[#F9F7F2] border-gray-200 rounded focus:ring-[#E6FF2B]" 
-                />
-                <label htmlFor="unlimited" className="text-[#0B4550] font-medium text-lg cursor-pointer">Unlimited (Time-Based Package)</label>
               </div>
 
               <button type="submit" disabled={isAddingClient} className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-medium text-xl hover:bg-[#0B4550]/90 transition-all shadow-md mt-4 flex justify-center">
                 {isAddingClient ? <RotateCw className="animate-spin" size={28} /> : 'Save Client Profile'}
               </button>
             </form>
-            
+
           </div>
         </div>
       )}
@@ -8689,12 +8813,12 @@ export default function Dashboard({ session }) {
       {showMoveModal && movingAttendee && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-5 md:py-8 overflow-hidden">
           <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full max-w-md shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
-            <button 
+            <button
               onClick={() => {
                 setShowMoveModal(false);
                 setMovingAttendee(null);
                 setMoveTargetSessionId('');
-              }} 
+              }}
               className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full"
             >
               <X size={24} />
@@ -8708,15 +8832,15 @@ export default function Dashboard({ session }) {
             <form onSubmit={handleMoveClientSubmit} className="space-y-6">
               <div>
                 <label className="text-[#898A8D] font-medium text-xs uppercase tracking-widest mb-2 block">Select Target Date</label>
-                <input 
-                  type="date" 
-                  required 
-                  value={moveTargetDate} 
+                <input
+                  type="date"
+                  required
+                  value={moveTargetDate}
                   onChange={(e) => {
                     setMoveTargetDate(e.target.value);
                     setMoveTargetSessionId('');
-                  }} 
-                  className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" 
+                  }}
+                  className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]"
                 />
               </div>
 
@@ -8736,10 +8860,10 @@ export default function Dashboard({ session }) {
                   }
 
                   return (
-                    <select 
-                      required 
-                      value={moveTargetSessionId} 
-                      onChange={(e) => setMoveTargetSessionId(e.target.value)} 
+                    <select
+                      required
+                      value={moveTargetSessionId}
+                      onChange={(e) => setMoveTargetSessionId(e.target.value)}
                       className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-5 font-medium text-base text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer"
                     >
                       <option value="">-- Select Target Session --</option>
@@ -8754,19 +8878,19 @@ export default function Dashboard({ session }) {
               </div>
 
               <div className="flex gap-4 pt-4">
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   onClick={() => {
                     setShowMoveModal(false);
                     setMovingAttendee(null);
                     setMoveTargetSessionId('');
-                  }} 
+                  }}
                   className="flex-1 py-4 rounded-2xl text-base font-bold text-gray-500 hover:bg-gray-100 transition-colors border border-gray-200"
                 >
                   Cancel
                 </button>
-                <button 
-                  type="submit" 
+                <button
+                  type="submit"
                   disabled={!moveTargetSessionId}
                   className="flex-1 bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-bold text-base hover:bg-[#0B4550]/90 transition-all shadow-md disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -8788,15 +8912,15 @@ export default function Dashboard({ session }) {
 
             <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550] mb-2">New Event</h2>
             <p className="text-[#898A8D] font-medium text-lg mb-8">Schedule a class or block time off.</p>
-            
+
             <form onSubmit={handleAddEvent} className="space-y-6">
-              
+
               <div>
                 <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Event Title / Class</label>
                 {newEventData.type === 'Blocked' ? (
-                  <input type="text" required value={newEventData.title} onChange={(e) => setNewEventData({...newEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Blocked Time" />
+                  <input type="text" required value={newEventData.title} onChange={(e) => setNewEventData({ ...newEventData, title: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Blocked Time" />
                 ) : (
-                  <select required value={newEventData.title} onChange={(e) => setNewEventData({...newEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select required value={newEventData.title} onChange={(e) => setNewEventData({ ...newEventData, title: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="">-- Select Class Offered --</option>
                     {scheduleSettings.classes.map(cls => (
                       <option key={cls.name} value={cls.name}>{cls.name} ({cls.credits} {cls.credits === 1 ? 'credit' : 'credits'})</option>
@@ -8804,17 +8928,17 @@ export default function Dashboard({ session }) {
                   </select>
                 )}
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Date</label>
-                  <input type="date" required value={newEventData.date} onChange={(e) => setNewEventData({...newEventData, date: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
+                  <input type="date" required value={newEventData.date} onChange={(e) => setNewEventData({ ...newEventData, date: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Start Time</label>
                   <div className="flex gap-2">
-                    <select 
-                      value={parseTimeToParts(newEventData.time || '09:00 AM').hour} 
+                    <select
+                      value={parseTimeToParts(newEventData.time || '09:00 AM').hour}
                       onChange={(e) => handleNewEventTimeChange('hour', e.target.value)}
                       className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
                     >
@@ -8822,8 +8946,8 @@ export default function Dashboard({ session }) {
                         <option key={h} value={h}>{h}</option>
                       ))}
                     </select>
-                    <select 
-                      value={parseTimeToParts(newEventData.time || '09:00 AM').minute} 
+                    <select
+                      value={parseTimeToParts(newEventData.time || '09:00 AM').minute}
                       onChange={(e) => handleNewEventTimeChange('minute', e.target.value)}
                       className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
                     >
@@ -8831,8 +8955,8 @@ export default function Dashboard({ session }) {
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
-                    <select 
-                      value={parseTimeToParts(newEventData.time || '09:00 AM').ampm} 
+                    <select
+                      value={parseTimeToParts(newEventData.time || '09:00 AM').ampm}
                       onChange={(e) => handleNewEventTimeChange('ampm', e.target.value)}
                       className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
                     >
@@ -8846,7 +8970,7 @@ export default function Dashboard({ session }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Duration</label>
-                  <select required value={newEventData.duration} onChange={(e) => setNewEventData({...newEventData, duration: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select required value={newEventData.duration} onChange={(e) => setNewEventData({ ...newEventData, duration: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="30 min">30 min</option>
                     <option value="45 min">45 min</option>
                     <option value="60 min">60 min</option>
@@ -8856,7 +8980,7 @@ export default function Dashboard({ session }) {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Type</label>
-                  <select required value={newEventData.type} onChange={(e) => setNewEventData({...newEventData, type: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select required value={newEventData.type} onChange={(e) => setNewEventData({ ...newEventData, type: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="Group Class">Group Class</option>
                     <option value="1-on-1">1-on-1 Session</option>
                     <option value="Blocked">Blocked / Busy</option>
@@ -8867,7 +8991,7 @@ export default function Dashboard({ session }) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Location</label>
-                  <select value={newEventData.location} onChange={(e) => setNewEventData({...newEventData, location: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select value={newEventData.location} onChange={(e) => setNewEventData({ ...newEventData, location: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="">-- Select Location --</option>
                     {scheduleSettings.locations.map(loc => (
                       <option key={loc} value={loc}>{loc}</option>
@@ -8876,7 +9000,7 @@ export default function Dashboard({ session }) {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Assign Coach</label>
-                  <select value={newEventData.coach} onChange={(e) => setNewEventData({...newEventData, coach: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select value={newEventData.coach} onChange={(e) => setNewEventData({ ...newEventData, coach: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="">-- Select Coach --</option>
                     {scheduleSettings.coaches.map(co => (
                       <option key={co} value={co}>{co}</option>
@@ -8885,7 +9009,7 @@ export default function Dashboard({ session }) {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Max Capacity</label>
-                  <input type="number" min="1" disabled={newEventData.type === '1-on-1' || newEventData.type === 'Blocked'} value={newEventData.type === '1-on-1' ? 1 : newEventData.capacity} onChange={(e) => setNewEventData({...newEventData, capacity: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50" />
+                  <input type="number" min="1" disabled={newEventData.type === '1-on-1' || newEventData.type === 'Blocked'} value={newEventData.type === '1-on-1' ? 1 : newEventData.capacity} onChange={(e) => setNewEventData({ ...newEventData, capacity: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50" />
                 </div>
               </div>
 
@@ -8899,11 +9023,11 @@ export default function Dashboard({ session }) {
 
                   const weeksCount = parseInt(newEventData.recurrenceCount) || 1;
                   const safeWeeks = Math.min(6, Math.max(1, weeksCount));
-                  
+
                   let count = 1; // Base class
                   let currentDate = new Date(baseDate);
                   const totalDaysToScan = safeWeeks * 7;
-                  
+
                   for (let i = 1; i <= totalDaysToScan; i++) {
                     currentDate.setDate(currentDate.getDate() + 1);
                     if (selectedDays.includes(currentDate.getDay())) {
@@ -8918,9 +9042,9 @@ export default function Dashboard({ session }) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                       <div>
                         <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Repeat Event</label>
-                        <select 
-                          value={newEventData.recurrence || 'none'} 
-                          onChange={(e) => setNewEventData({...newEventData, recurrence: e.target.value})} 
+                        <select
+                          value={newEventData.recurrence || 'none'}
+                          onChange={(e) => setNewEventData({ ...newEventData, recurrence: e.target.value })}
                           className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer"
                         >
                           <option value="none">One-time Event</option>
@@ -8934,13 +9058,13 @@ export default function Dashboard({ session }) {
                         <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">
                           {newEventData.recurrence === 'none' ? 'No Repeats' : newEventData.recurrence === 'custom' ? 'Number of Weeks' : 'Number of Repeats'}
                         </label>
-                        <input 
-                          type="number" 
-                          min="1" 
+                        <input
+                          type="number"
+                          min="1"
                           max={newEventData.recurrence === 'custom' ? 6 : 20}
                           disabled={newEventData.recurrence === 'none'}
-                          value={newEventData.recurrence === 'none' ? '' : newEventData.recurrenceCount} 
-                          onChange={(e) => setNewEventData({...newEventData, recurrenceCount: e.target.value})} 
+                          value={newEventData.recurrence === 'none' ? '' : newEventData.recurrenceCount}
+                          onChange={(e) => setNewEventData({ ...newEventData, recurrenceCount: e.target.value })}
                           className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50"
                           placeholder={newEventData.recurrence === 'custom' ? "e.g. 4 weeks" : "e.g. 4 repeats"}
                         />
@@ -8966,9 +9090,9 @@ export default function Dashboard({ session }) {
                                 onClick={() => {
                                   const days = newEventData.recurrenceDays ? [...newEventData.recurrenceDays] : [];
                                   if (days.includes(index)) {
-                                    setNewEventData({...newEventData, recurrenceDays: days.filter(d => d !== index)});
+                                    setNewEventData({ ...newEventData, recurrenceDays: days.filter(d => d !== index) });
                                   } else {
-                                    setNewEventData({...newEventData, recurrenceDays: [...days, index]});
+                                    setNewEventData({ ...newEventData, recurrenceDays: [...days, index] });
                                   }
                                 }}
                                 className={`py-2 rounded-xl font-bold text-xs transition-all border text-center ${isSelected ? 'bg-[#0B4550] text-[#E6FF2B] border-[#0B4550] shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
@@ -8989,7 +9113,7 @@ export default function Dashboard({ session }) {
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">
                     Assign Clients to Class
                   </label>
-                  <button 
+                  <button
                     type="button"
                     onClick={() => {
                       setShowEventClientsDropdown(!showEventClientsDropdown);
@@ -8998,8 +9122,8 @@ export default function Dashboard({ session }) {
                     className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl px-5 py-3 text-lg text-[#0B4550] font-medium flex justify-between items-center outline-none focus:border-[#E6FF2B] cursor-pointer"
                   >
                     <span className="truncate">
-                      {eventAssignedClients.length === 0 
-                        ? 'Select clients to book...' 
+                      {eventAssignedClients.length === 0
+                        ? 'Select clients to book...'
                         : `${eventAssignedClients.length} client(s) selected`}
                     </span>
                     <ChevronDown size={18} className={`transition-transform duration-200 ${showEventClientsDropdown ? 'rotate-180' : ''}`} />
@@ -9009,14 +9133,23 @@ export default function Dashboard({ session }) {
                     <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200 max-h-80 flex flex-col">
                       {/* SEARCH BAR */}
                       <div className="relative mb-3 shrink-0">
-                        <input 
-                          type="text" 
-                          placeholder="Search clients..." 
+                        <input
+                          type="text"
+                          placeholder="Search clients..."
                           value={searchEventClientsQuery}
                           onChange={(e) => setSearchEventClientsQuery(e.target.value)}
-                          className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2.5 pl-9 pr-4 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                          className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2.5 pl-9 pr-8 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
                         />
                         <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+                        {searchEventClientsQuery && (
+                          <button
+                            type="button"
+                            onClick={() => setSearchEventClientsQuery('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0B4550] transition-colors"
+                          >
+                            <X size={16} />
+                          </button>
+                        )}
                       </div>
 
                       {/* CLIENTS CHECKBOX LIST */}
@@ -9034,15 +9167,15 @@ export default function Dashboard({ session }) {
                             const isSelected = eventAssignedClients.includes(c.id);
 
                             return (
-                              <label 
-                                key={c.id} 
+                              <label
+                                key={c.id}
                                 className="flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer hover:bg-[#F9F7F2]"
                               >
-                                <input 
+                                <input
                                   type="checkbox"
                                   checked={isSelected}
                                   onChange={() => {
-                                    setEventAssignedClients(prev => 
+                                    setEventAssignedClients(prev =>
                                       prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
                                     );
                                   }}
@@ -9082,15 +9215,15 @@ export default function Dashboard({ session }) {
 
             <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550] mb-2">Edit Event</h2>
             <p className="text-[#898A8D] font-medium text-lg mb-8">Update class details or time blocks.</p>
-            
+
             <form onSubmit={handleUpdateEvent} className="space-y-6">
-              
+
               <div>
                 <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Event Title / Class</label>
                 {editEventData.type === 'Blocked' ? (
-                  <input type="text" required value={editEventData.title} onChange={(e) => setEditEventData({...editEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Blocked Time" />
+                  <input type="text" required value={editEventData.title} onChange={(e) => setEditEventData({ ...editEventData, title: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Blocked Time" />
                 ) : (
-                  <select required value={editEventData.title} onChange={(e) => setEditEventData({...editEventData, title: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select required value={editEventData.title} onChange={(e) => setEditEventData({ ...editEventData, title: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="">-- Select Class Offered --</option>
                     {scheduleSettings.classes.map(cls => (
                       <option key={cls.name} value={cls.name}>{cls.name} ({cls.credits} {cls.credits === 1 ? 'credit' : 'credits'})</option>
@@ -9098,17 +9231,17 @@ export default function Dashboard({ session }) {
                   </select>
                 )}
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Date</label>
-                  <input type="date" required value={editEventData.date} onChange={(e) => setEditEventData({...editEventData, date: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
+                  <input type="date" required value={editEventData.date} onChange={(e) => setEditEventData({ ...editEventData, date: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Start Time</label>
                   <div className="flex gap-2">
-                    <select 
-                      value={parseTimeToParts(editEventData.time || '09:00 AM').hour} 
+                    <select
+                      value={parseTimeToParts(editEventData.time || '09:00 AM').hour}
                       onChange={(e) => handleEditEventTimeChange('hour', e.target.value)}
                       className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
                     >
@@ -9116,8 +9249,8 @@ export default function Dashboard({ session }) {
                         <option key={h} value={h}>{h}</option>
                       ))}
                     </select>
-                    <select 
-                      value={parseTimeToParts(editEventData.time || '09:00 AM').minute} 
+                    <select
+                      value={parseTimeToParts(editEventData.time || '09:00 AM').minute}
                       onChange={(e) => handleEditEventTimeChange('minute', e.target.value)}
                       className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
                     >
@@ -9125,8 +9258,8 @@ export default function Dashboard({ session }) {
                         <option key={m} value={m}>{m}</option>
                       ))}
                     </select>
-                    <select 
-                      value={parseTimeToParts(editEventData.time || '09:00 AM').ampm} 
+                    <select
+                      value={parseTimeToParts(editEventData.time || '09:00 AM').ampm}
                       onChange={(e) => handleEditEventTimeChange('ampm', e.target.value)}
                       className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
                     >
@@ -9140,7 +9273,7 @@ export default function Dashboard({ session }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Duration</label>
-                  <select required value={editEventData.duration} onChange={(e) => setEditEventData({...editEventData, duration: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select required value={editEventData.duration} onChange={(e) => setEditEventData({ ...editEventData, duration: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="30 min">30 min</option>
                     <option value="45 min">45 min</option>
                     <option value="60 min">60 min</option>
@@ -9150,7 +9283,7 @@ export default function Dashboard({ session }) {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Type</label>
-                  <select required value={editEventData.type} onChange={(e) => setEditEventData({...editEventData, type: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select required value={editEventData.type} onChange={(e) => setEditEventData({ ...editEventData, type: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="Group Class">Group Class</option>
                     <option value="1-on-1">1-on-1 Session</option>
                     <option value="Blocked">Blocked / Busy</option>
@@ -9161,7 +9294,7 @@ export default function Dashboard({ session }) {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Location</label>
-                  <select value={editEventData.location} onChange={(e) => setEditEventData({...editEventData, location: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select value={editEventData.location} onChange={(e) => setEditEventData({ ...editEventData, location: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="">-- Select Location --</option>
                     {scheduleSettings.locations.map(loc => (
                       <option key={loc} value={loc}>{loc}</option>
@@ -9170,7 +9303,7 @@ export default function Dashboard({ session }) {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Assign Coach</label>
-                  <select value={editEventData.coach} onChange={(e) => setEditEventData({...editEventData, coach: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                  <select value={editEventData.coach} onChange={(e) => setEditEventData({ ...editEventData, coach: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
                     <option value="">-- Select Coach --</option>
                     {scheduleSettings.coaches.map(co => (
                       <option key={co} value={co}>{co}</option>
@@ -9179,7 +9312,7 @@ export default function Dashboard({ session }) {
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Max Capacity</label>
-                  <input type="number" min="1" disabled={editEventData.type === '1-on-1' || editEventData.type === 'Blocked'} value={editEventData.type === '1-on-1' ? 1 : editEventData.capacity} onChange={(e) => setEditEventData({...editEventData, capacity: e.target.value})} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50" />
+                  <input type="number" min="1" disabled={editEventData.type === '1-on-1' || editEventData.type === 'Blocked'} value={editEventData.type === '1-on-1' ? 1 : editEventData.capacity} onChange={(e) => setEditEventData({ ...editEventData, capacity: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50" />
                 </div>
               </div>
 
@@ -9195,8 +9328,8 @@ export default function Dashboard({ session }) {
       {showAttendanceSummaryModal && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-5 md:py-8 overflow-hidden">
           <div className="bg-white rounded-[2.5rem] p-5 md:p-8 w-full max-w-4xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] flex flex-col">
-            <button 
-              onClick={() => setShowAttendanceSummaryModal(false)} 
+            <button
+              onClick={() => setShowAttendanceSummaryModal(false)}
               className="absolute top-6 right-6 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full"
             >
               <X size={20} />
@@ -9367,8 +9500,8 @@ export default function Dashboard({ session }) {
       {showGoogleSyncModal && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-5 md:py-8 overflow-hidden">
           <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full max-w-lg shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
-            <button 
-              onClick={() => setShowGoogleSyncModal(false)} 
+            <button
+              onClick={() => setShowGoogleSyncModal(false)}
               className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full"
             >
               <X size={24} />
@@ -9399,7 +9532,7 @@ export default function Dashboard({ session }) {
                   )}
                 </div>
                 <p className="text-sm text-[#898A8D] mb-4">Authorize TrackPoint to push and synchronize your schedule events directly into your Google Calendar instantly.</p>
-                
+
                 {isGcalExpired && (
                   <div className="mb-4 bg-amber-50 border border-amber-100 rounded-xl p-3 text-[11px] text-amber-800 leading-relaxed font-medium">
                     <strong>⚠️ Connection Expired:</strong> Your secure browser session token has expired. Click the button below to instantly re-authenticate and restore live syncing!
@@ -9409,13 +9542,12 @@ export default function Dashboard({ session }) {
                 <button
                   onClick={handleLinkGoogleCalendar}
                   disabled={isLinkingGoogle}
-                  className={`w-full py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${
-                    isGcalConnected 
-                      ? 'bg-red-50 text-red-600 border border-red-100 hover:bg-red-100/50' 
-                      : isGcalExpired
+                  className={`w-full py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 ${isGcalConnected
+                    ? 'bg-red-50 text-red-600 border border-red-100 hover:bg-red-100/50'
+                    : isGcalExpired
                       ? 'bg-amber-500 text-white hover:bg-amber-600 shadow-md animate-bounce'
                       : 'bg-[#0B4550] text-white hover:bg-opacity-90'
-                  }`}
+                    }`}
                 >
                   {isLinkingGoogle ? (
                     <>
@@ -9441,16 +9573,16 @@ export default function Dashboard({ session }) {
               <div className="bg-[#F9F7F2] rounded-3xl p-4 md:p-6 border border-gray-100">
                 <h3 className="text-lg font-bold text-[#0B4550] mb-2">Option B: Live iCal Feed Link</h3>
                 <p className="text-sm text-[#898A8D] mb-4">Compatible with Google Calendar, Apple Calendar, Outlook, and others. Subscribes your device to a live-updated schedule feed.</p>
-                
+
                 <div className="flex gap-2 mb-4 bg-white border border-gray-200 rounded-xl p-1.5 items-center">
-                  <input 
-                    type="text" 
-                    readOnly 
-                    value={`${window.location.origin}/api/feeds/schedule.ics?trainer_id=${userId}`} 
+                  <input
+                    type="text"
+                    readOnly
+                    value={`${window.location.origin}/api/feeds/schedule.ics?trainer_id=${userId}`}
                     className="flex-1 bg-transparent px-3 text-xs font-mono text-gray-500 overflow-x-auto outline-none"
                   />
-                  <button 
-                    onClick={handleCopyFeedLink} 
+                  <button
+                    onClick={handleCopyFeedLink}
                     className={`px-4 py-2 text-xs font-bold rounded-lg transition-colors whitespace-nowrap ${copiedFeedLink ? 'bg-emerald-100 text-emerald-700' : 'bg-[#E6FF2B] text-[#0B4550] hover:brightness-95'}`}
                   >
                     {copiedFeedLink ? 'Copied!' : 'Copy Feed Link'}
@@ -9481,16 +9613,16 @@ export default function Dashboard({ session }) {
             </button>
             <h2 className="text-2xl md:text-3xl font-bold text-[#0B4550] mb-2">Renew Package</h2>
             <p className="text-[#898A8D] font-medium mb-8">Set the details for this renewal/purchase.</p>
-            
+
             <div className="space-y-6">
               <div>
                 <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Select Package</label>
-                <select 
-                  value={renewForm.packageId} 
+                <select
+                  value={renewForm.packageId}
                   onChange={(e) => {
                     const pkg = packagesList.find(p => p.id === e.target.value);
                     setRenewForm({
-                      ...renewForm, 
+                      ...renewForm,
                       packageId: e.target.value,
                       amount: pkg?.price || 0,
                       sessions: pkg?.session_count || 0
@@ -9507,19 +9639,19 @@ export default function Dashboard({ session }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Renewal Date</label>
-                  <input 
-                    type="date" 
-                    value={renewForm.renewalDate} 
-                    onChange={(e) => setRenewForm({...renewForm, renewalDate: e.target.value})}
+                  <input
+                    type="date"
+                    value={renewForm.renewalDate}
+                    onChange={(e) => setRenewForm({ ...renewForm, renewalDate: e.target.value })}
                     className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-bold text-[#0B4550] outline-none"
                   />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Expiry Date (Optional)</label>
-                  <input 
-                    type="date" 
-                    value={renewForm.expiryDate} 
-                    onChange={(e) => setRenewForm({...renewForm, expiryDate: e.target.value})}
+                  <input
+                    type="date"
+                    value={renewForm.expiryDate}
+                    onChange={(e) => setRenewForm({ ...renewForm, expiryDate: e.target.value })}
                     className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-bold text-[#0B4550] outline-none"
                     placeholder="Auto-calculated if blank"
                   />
@@ -9529,25 +9661,25 @@ export default function Dashboard({ session }) {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Amount Paid (RM)</label>
-                  <input 
-                    type="number" 
-                    value={renewForm.amount} 
-                    onChange={(e) => setRenewForm({...renewForm, amount: e.target.value})}
+                  <input
+                    type="number"
+                    value={renewForm.amount}
+                    onChange={(e) => setRenewForm({ ...renewForm, amount: e.target.value })}
                     className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-bold text-[#0B4550] outline-none"
                   />
                 </div>
                 <div>
                   <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Credits Added</label>
-                  <input 
-                    type="number" 
-                    value={renewForm.sessions} 
-                    onChange={(e) => setRenewForm({...renewForm, sessions: e.target.value})}
+                  <input
+                    type="number"
+                    value={renewForm.sessions}
+                    onChange={(e) => setRenewForm({ ...renewForm, sessions: e.target.value })}
                     className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-bold text-[#0B4550] outline-none"
                   />
                 </div>
               </div>
 
-              <button 
+              <button
                 onClick={processRenewal}
                 className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-bold text-xl hover:scale-[1.01] transition-all shadow-lg mt-4"
               >
@@ -9567,7 +9699,7 @@ export default function Dashboard({ session }) {
             </button>
             <h2 className="text-2xl md:text-3xl font-bold text-[#0B4550] mb-2">{isBulkMode ? 'Bulk History Entry' : (editingLedgerItem ? 'Edit Ledger Entry' : 'New Ledger Entry')}</h2>
             <p className="text-[#898A8D] font-medium mb-8">{isBulkMode ? `Importing multiple records for ${selectedClient?.name}.` : (editingLedgerItem ? 'Update the details for this record.' : `Add a manual record for ${selectedClient?.name}.`)}</p>
-            
+
             <div className="space-y-6">
               {!editingLedgerItem && (
                 <div className="flex bg-[#F9F7F2] p-1 rounded-2xl mb-2">
@@ -9580,14 +9712,14 @@ export default function Dashboard({ session }) {
                 <div className="space-y-4">
                   {/* IMPORT ACTIONS BAR */}
                   <div className="flex gap-2 mb-4 bg-[#F9F7F2] p-2 rounded-2xl border border-gray-100">
-                    <button 
+                    <button
                       onClick={handleDownloadHistoryTemplate}
                       className="flex-1 flex flex-col items-center justify-center py-2 bg-white rounded-xl hover:bg-gray-50 transition-all border border-transparent hover:border-[#E6FF2B]"
                     >
                       <Download size={16} className="text-[#0B4550] mb-1" />
                       <span className="text-[10px] font-bold text-[#898A8D] uppercase">Template</span>
                     </button>
-                    <button 
+                    <button
                       onClick={() => historyFileInputRef.current?.click()}
                       className="flex-1 flex flex-col items-center justify-center py-2 bg-white rounded-xl hover:bg-gray-50 transition-all border border-transparent hover:border-[#E6FF2B]"
                     >
@@ -9599,7 +9731,7 @@ export default function Dashboard({ session }) {
 
                   {/* PASTE AREA */}
                   <div className="relative group">
-                    <textarea 
+                    <textarea
                       placeholder="Paste from Excel/Sheets here... (Date, Time, Type, Desc, Amount, Price)"
                       className="w-full bg-[#F9F7F2] border-2 border-dashed border-gray-200 rounded-2xl p-3 text-xs font-medium text-[#0B4550] outline-none focus:border-[#E6FF2B] transition-all h-20 resize-none"
                       onChange={handlePasteHistory}
@@ -9608,118 +9740,118 @@ export default function Dashboard({ session }) {
                   </div>
 
                   <div className="space-y-4 max-h-[300px] overflow-y-auto pr-2 no-scrollbar">
-                  {bulkEntries.map((entry, index) => (
-                    <div key={entry.id} className="p-4 bg-[#F9F7F2] rounded-2xl relative space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                      <div className="flex gap-2">
-                        <select 
-                          value={entry.type} 
+                    {bulkEntries.map((entry, index) => (
+                      <div key={entry.id} className="p-4 bg-[#F9F7F2] rounded-2xl relative space-y-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                        <div className="flex gap-2">
+                          <select
+                            value={entry.type}
+                            onChange={(e) => {
+                              const newEntries = [...bulkEntries];
+                              newEntries[index].type = e.target.value;
+                              setBulkEntries(newEntries);
+                            }}
+                            className="flex-1 bg-white border border-gray-100 rounded-xl py-2 px-3 text-xs font-bold text-[#0B4550] outline-none"
+                          >
+                            <option value="purchase">Purchase</option>
+                            <option value="usage">Usage</option>
+                            <option value="note">Note</option>
+                          </select>
+                          <input
+                            type="date"
+                            value={entry.date}
+                            onChange={(e) => {
+                              const newEntries = [...bulkEntries];
+                              newEntries[index].date = e.target.value;
+                              setBulkEntries(newEntries);
+                            }}
+                            className="flex-1 bg-white border border-gray-100 rounded-xl py-2 px-3 text-[10px] font-bold text-[#0B4550] outline-none"
+                          />
+                          <input
+                            type="time"
+                            value={entry.time}
+                            onChange={(e) => {
+                              const newEntries = [...bulkEntries];
+                              newEntries[index].time = e.target.value;
+                              setBulkEntries(newEntries);
+                            }}
+                            className="flex-1 bg-white border border-gray-100 rounded-xl py-2 px-3 text-[10px] font-bold text-[#0B4550] outline-none"
+                          />
+                          {bulkEntries.length > 1 && (
+                            <button onClick={() => setBulkEntries(bulkEntries.filter(e => e.id !== entry.id))} className="text-red-300 hover:text-red-500"><X size={16} /></button>
+                          )}
+                        </div>
+                        <input
+                          type="text"
+                          placeholder="Description..."
+                          value={entry.title}
                           onChange={(e) => {
                             const newEntries = [...bulkEntries];
-                            newEntries[index].type = e.target.value;
+                            newEntries[index].title = e.target.value;
                             setBulkEntries(newEntries);
                           }}
-                          className="flex-1 bg-white border border-gray-100 rounded-xl py-2 px-3 text-xs font-bold text-[#0B4550] outline-none"
-                        >
-                          <option value="purchase">Purchase</option>
-                          <option value="usage">Usage</option>
-                          <option value="note">Note</option>
-                        </select>
-                        <input 
-                          type="date" 
-                          value={entry.date} 
-                          onChange={(e) => {
-                            const newEntries = [...bulkEntries];
-                            newEntries[index].date = e.target.value;
-                            setBulkEntries(newEntries);
-                          }}
-                          className="flex-1 bg-white border border-gray-100 rounded-xl py-2 px-3 text-[10px] font-bold text-[#0B4550] outline-none"
+                          className="w-full bg-white border border-gray-100 rounded-xl py-2 px-3 text-sm font-medium text-[#0B4550] outline-none"
                         />
-                        <input 
-                          type="time" 
-                          value={entry.time} 
-                          onChange={(e) => {
-                            const newEntries = [...bulkEntries];
-                            newEntries[index].time = e.target.value;
-                            setBulkEntries(newEntries);
-                          }}
-                          className="flex-1 bg-white border border-gray-100 rounded-xl py-2 px-3 text-[10px] font-bold text-[#0B4550] outline-none"
-                        />
-                        {bulkEntries.length > 1 && (
-                          <button onClick={() => setBulkEntries(bulkEntries.filter(e => e.id !== entry.id))} className="text-red-300 hover:text-red-500"><X size={16}/></button>
-                        )}
+                        <div className="flex gap-3">
+                          {entry.type === 'purchase' && (
+                            <div className="flex-1">
+                              <label className="text-[10px] font-bold text-[#898A8D] uppercase ml-1">Price (RM)</label>
+                              <input
+                                type="number"
+                                value={entry.price}
+                                onChange={(e) => {
+                                  const newEntries = [...bulkEntries];
+                                  newEntries[index].price = e.target.value;
+                                  setBulkEntries(newEntries);
+                                }}
+                                className="w-full bg-white border border-gray-100 rounded-xl py-2 px-3 text-xs font-bold text-[#0B4550] outline-none"
+                              />
+                            </div>
+                          )}
+                          {entry.type !== 'note' && (
+                            <div className="flex-1">
+                              <label className="text-[10px] font-bold text-[#898A8D] uppercase ml-1">{entry.type === 'purchase' ? 'Add Credits' : 'Use Credits'}</label>
+                              <input
+                                type="number"
+                                value={entry.amount}
+                                onChange={(e) => {
+                                  const newEntries = [...bulkEntries];
+                                  newEntries[index].amount = e.target.value;
+                                  setBulkEntries(newEntries);
+                                }}
+                                className="w-full bg-white border border-gray-100 rounded-xl py-2 px-3 text-xs font-bold text-[#0B4550] outline-none"
+                              />
+                            </div>
+                          )}
+                        </div>
                       </div>
-                      <input 
-                        type="text" 
-                        placeholder="Description..." 
-                        value={entry.title}
-                        onChange={(e) => {
-                          const newEntries = [...bulkEntries];
-                          newEntries[index].title = e.target.value;
-                          setBulkEntries(newEntries);
-                        }}
-                        className="w-full bg-white border border-gray-100 rounded-xl py-2 px-3 text-sm font-medium text-[#0B4550] outline-none"
-                      />
-                      <div className="flex gap-3">
-                        {entry.type === 'purchase' && (
-                          <div className="flex-1">
-                            <label className="text-[10px] font-bold text-[#898A8D] uppercase ml-1">Price (RM)</label>
-                            <input 
-                              type="number" 
-                              value={entry.price}
-                              onChange={(e) => {
-                                const newEntries = [...bulkEntries];
-                                newEntries[index].price = e.target.value;
-                                setBulkEntries(newEntries);
-                              }}
-                              className="w-full bg-white border border-gray-100 rounded-xl py-2 px-3 text-xs font-bold text-[#0B4550] outline-none"
-                            />
-                          </div>
-                        )}
-                        {entry.type !== 'note' && (
-                          <div className="flex-1">
-                            <label className="text-[10px] font-bold text-[#898A8D] uppercase ml-1">{entry.type === 'purchase' ? 'Add Credits' : 'Use Credits'}</label>
-                            <input 
-                              type="number" 
-                              value={entry.amount}
-                              onChange={(e) => {
-                                const newEntries = [...bulkEntries];
-                                newEntries[index].amount = e.target.value;
-                                setBulkEntries(newEntries);
-                              }}
-                              className="w-full bg-white border border-gray-100 rounded-xl py-2 px-3 text-xs font-bold text-[#0B4550] outline-none"
-                            />
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  ))}
-                  <button 
-                    onClick={() => setBulkEntries([...bulkEntries, { id: Date.now(), type: 'usage', title: '', amount: 1, date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), price: 0 }])}
-                    className="w-full py-3 border-2 border-dashed border-gray-100 rounded-2xl text-[#898A8D] font-bold text-sm hover:border-[#0B4550] hover:text-[#0B4550] transition-all flex items-center justify-center gap-2"
-                  >
-                    <Plus size={16} /> Add Another Row
-                  </button>
+                    ))}
+                    <button
+                      onClick={() => setBulkEntries([...bulkEntries, { id: Date.now(), type: 'usage', title: '', amount: 1, date: new Date().toISOString().split('T')[0], time: new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }), price: 0 }])}
+                      className="w-full py-3 border-2 border-dashed border-gray-100 rounded-2xl text-[#898A8D] font-bold text-sm hover:border-[#0B4550] hover:text-[#0B4550] transition-all flex items-center justify-center gap-2"
+                    >
+                      <Plus size={16} /> Add Another Row
+                    </button>
+                  </div>
                 </div>
-              </div>
               ) : (
                 <div className="space-y-6">
                   <div>
                     <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Entry Type</label>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                      <button 
-                        onClick={() => setLedgerForm({...ledgerForm, type: 'purchase', amount: 0})}
+                      <button
+                        onClick={() => setLedgerForm({ ...ledgerForm, type: 'purchase', amount: 0 })}
                         className={`py-3 rounded-xl font-bold border-2 transition-all text-xs ${ledgerForm.type === 'purchase' ? 'bg-[#0B4550] text-white border-[#0B4550]' : 'bg-white text-[#898A8D] border-gray-100 hover:border-[#0B4550]'}`}
                       >
                         Purchase
                       </button>
-                      <button 
-                        onClick={() => setLedgerForm({...ledgerForm, type: 'usage', amount: 1})}
+                      <button
+                        onClick={() => setLedgerForm({ ...ledgerForm, type: 'usage', amount: 1 })}
                         className={`py-3 rounded-xl font-bold border-2 transition-all text-xs ${ledgerForm.type === 'usage' ? 'bg-[#0B4550] text-white border-[#0B4550]' : 'bg-white text-[#898A8D] border-gray-100 hover:border-[#0B4550]'}`}
                       >
                         Usage
                       </button>
-                      <button 
-                        onClick={() => setLedgerForm({...ledgerForm, type: 'note', amount: 0})}
+                      <button
+                        onClick={() => setLedgerForm({ ...ledgerForm, type: 'note', amount: 0 })}
                         className={`py-3 rounded-xl font-bold border-2 transition-all text-xs ${ledgerForm.type === 'note' ? 'bg-[#0B4550] text-white border-[#0B4550]' : 'bg-white text-[#898A8D] border-gray-100 hover:border-[#0B4550]'}`}
                       >
                         Note
@@ -9731,12 +9863,12 @@ export default function Dashboard({ session }) {
                     <div className="animate-in fade-in slide-in-from-top-2 duration-200 space-y-4">
                       <div>
                         <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Select Package</label>
-                        <select 
-                          value={ledgerForm.packageId} 
+                        <select
+                          value={ledgerForm.packageId}
                           onChange={(e) => {
                             const pkg = packagesList.find(p => p.id === e.target.value);
                             setLedgerForm({
-                              ...ledgerForm, 
+                              ...ledgerForm,
                               packageId: e.target.value,
                               price: pkg?.price || 0,
                               amount: pkg?.session_count || 0,
@@ -9754,19 +9886,19 @@ export default function Dashboard({ session }) {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <div>
                           <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Price (RM)</label>
-                          <input 
-                            type="number" 
-                            value={ledgerForm.price} 
-                            onChange={(e) => setLedgerForm({...ledgerForm, price: e.target.value})}
+                          <input
+                            type="number"
+                            value={ledgerForm.price}
+                            onChange={(e) => setLedgerForm({ ...ledgerForm, price: e.target.value })}
                             className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-bold text-[#0B4550] outline-none"
                           />
                         </div>
                         <div>
                           <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Sessions Added</label>
-                          <input 
-                            type="number" 
-                            value={ledgerForm.amount} 
-                            onChange={(e) => setLedgerForm({...ledgerForm, amount: e.target.value})}
+                          <input
+                            type="number"
+                            value={ledgerForm.amount}
+                            onChange={(e) => setLedgerForm({ ...ledgerForm, amount: e.target.value })}
                             className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-bold text-[#0B4550] outline-none"
                           />
                         </div>
@@ -9776,10 +9908,10 @@ export default function Dashboard({ session }) {
 
                   <div>
                     <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Description / Note</label>
-                    <input 
-                      type="text" 
-                      value={ledgerForm.title} 
-                      onChange={(e) => setLedgerForm({...ledgerForm, title: e.target.value})}
+                    <input
+                      type="text"
+                      value={ledgerForm.title}
+                      onChange={(e) => setLedgerForm({ ...ledgerForm, title: e.target.value })}
                       className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-bold text-[#0B4550] outline-none"
                       placeholder={ledgerForm.type === 'usage' ? 'e.g. Manual Session Deduction' : ledgerForm.type === 'purchase' ? 'e.g. Bought 10 Class Pack' : 'e.g. Injury Update or Client Goal'}
                     />
@@ -9789,19 +9921,19 @@ export default function Dashboard({ session }) {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
                         <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Date</label>
-                        <input 
-                          type="date" 
-                          value={ledgerForm.date} 
-                          onChange={(e) => setLedgerForm({...ledgerForm, date: e.target.value})}
+                        <input
+                          type="date"
+                          value={ledgerForm.date}
+                          onChange={(e) => setLedgerForm({ ...ledgerForm, date: e.target.value })}
                           className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-bold text-[#0B4550] outline-none"
                         />
                       </div>
                       <div>
                         <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Time</label>
-                        <input 
-                          type="time" 
-                          value={ledgerForm.time} 
-                          onChange={(e) => setLedgerForm({...ledgerForm, time: e.target.value})}
+                        <input
+                          type="time"
+                          value={ledgerForm.time}
+                          onChange={(e) => setLedgerForm({ ...ledgerForm, time: e.target.value })}
                           className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-bold text-[#0B4550] outline-none"
                         />
                       </div>
@@ -9809,10 +9941,10 @@ export default function Dashboard({ session }) {
                     {ledgerForm.type === 'usage' && (
                       <div>
                         <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Credits to Deduct</label>
-                        <input 
-                          type="number" 
-                          value={ledgerForm.amount} 
-                          onChange={(e) => setLedgerForm({...ledgerForm, amount: e.target.value})}
+                        <input
+                          type="number"
+                          value={ledgerForm.amount}
+                          onChange={(e) => setLedgerForm({ ...ledgerForm, amount: e.target.value })}
                           className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-4 font-bold text-[#0B4550] outline-none"
                         />
                       </div>
@@ -9821,7 +9953,7 @@ export default function Dashboard({ session }) {
                 </div>
               )}
 
-              <button 
+              <button
                 onClick={isBulkMode ? handleBulkLedgerEntry : handleManualLedgerEntry}
                 className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-bold text-xl hover:scale-[1.01] transition-all shadow-lg mt-4"
               >
@@ -9836,8 +9968,8 @@ export default function Dashboard({ session }) {
       {showSessionNoteModal && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 overflow-y-auto">
           <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full max-w-lg shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 my-auto">
-            <button 
-              onClick={() => { setShowSessionNoteModal(false); setEditingSessionNoteBookingId(null); }} 
+            <button
+              onClick={() => { setShowSessionNoteModal(false); setEditingSessionNoteBookingId(null); }}
               className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] bg-gray-100 p-2 rounded-full transition-colors"
             >
               <X size={24} />
@@ -9848,12 +9980,12 @@ export default function Dashboard({ session }) {
               <span className="text-[#898A8D] font-extrabold block text-xs uppercase tracking-wider mb-1">Class / Session:</span>
               <span className="font-bold text-sm text-[#0B4550]">{editingSessionNoteTitle}</span>
             </div>
-            
+
             <div className="space-y-6">
               <div>
                 <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Workout Note Details</label>
-                <textarea 
-                  value={sessionNoteText} 
+                <textarea
+                  value={sessionNoteText}
                   onChange={(e) => setSessionNoteText(e.target.value)}
                   className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl p-5 font-medium text-sm text-[#0B4550] outline-none focus:border-[#0B4550] focus:bg-white transition-all h-36 resize-none"
                   placeholder="e.g. Completed all sets. Lower back was tight today, focused on lighter technique. Energetic and highly motivated!"
@@ -9861,18 +9993,18 @@ export default function Dashboard({ session }) {
               </div>
 
               <div className="flex gap-3">
-                <button 
+                <button
                   onClick={() => { setShowSessionNoteModal(false); setEditingSessionNoteBookingId(null); }}
                   className="flex-1 bg-gray-100 text-[#0B4550] py-4 rounded-2xl font-bold text-base hover:bg-gray-200 transition-all"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   onClick={handleSaveSessionNote}
                   disabled={isSavingSessionNote}
                   className="flex-1 bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-bold text-base hover:scale-[1.01] transition-all shadow-lg flex items-center justify-center gap-2"
                 >
-                  {isSavingSessionNote ? <RotateCw className="animate-spin" size={18}/> : <Save size={18}/>}
+                  {isSavingSessionNote ? <RotateCw className="animate-spin" size={18} /> : <Save size={18} />}
                   Save Note
                 </button>
               </div>
@@ -9882,7 +10014,7 @@ export default function Dashboard({ session }) {
       )}
 
       {/* --- AI COPILOT FLOATING BUTTON --- */}
-      <button 
+      <button
         onClick={() => setShowAICopilot(true)}
         className="fixed bottom-36 md:bottom-8 right-8 w-16 h-16 bg-[#0B4550] text-[#E6FF2B] rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-40 group border-4 border-white"
       >
@@ -9890,24 +10022,24 @@ export default function Dashboard({ session }) {
       </button>
 
       {/* --- AI COPILOT DRAWER --- */}
-      
+
       {/* --- MORE FEATURES BOTTOM MENU SHEET --- */}
       {showMoreMenu && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-[100] flex items-end justify-center lg:hidden" onClick={() => setShowMoreMenu(false)}>
           <div className="bg-white rounded-t-[2.5rem] w-full p-8 shadow-2xl relative animate-in slide-in-from-bottom duration-300" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
             <h3 className="font-bold text-xl text-[#0B4550] mb-6 px-2">More Features</h3>
-            
+
             <div className="grid grid-cols-3 gap-6">
-              <button 
+              <button
                 onClick={() => { setActivePage('Calendar'); setShowMoreMenu(false); }}
                 className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${activePage === 'Calendar' ? 'bg-[#F9F7F2] text-[#0B4550] font-bold' : 'text-[#898A8D] hover:bg-gray-50'}`}
               >
                 <CalendarSearch size={28} />
                 <span className="text-xs font-semibold">Calendar</span>
               </button>
-              
-              <button 
+
+              <button
                 onClick={() => { handleNavigateToPage('Analytics'); setShowMoreMenu(false); }}
                 className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${activePage === 'Analytics' ? 'bg-[#F9F7F2] text-[#0B4550] font-bold' : 'text-[#898A8D] hover:bg-gray-50'}`}
               >
@@ -9915,7 +10047,7 @@ export default function Dashboard({ session }) {
                 <span className="text-xs font-semibold">Analytics</span>
               </button>
 
-              <button 
+              <button
                 onClick={() => { setActivePage('Packages'); setShowMoreMenu(false); }}
                 className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${activePage === 'Packages' ? 'bg-[#F9F7F2] text-[#0B4550] font-bold' : 'text-[#898A8D] hover:bg-gray-50'}`}
               >
@@ -9923,7 +10055,7 @@ export default function Dashboard({ session }) {
                 <span className="text-xs font-semibold">Packages</span>
               </button>
 
-              <button 
+              <button
                 onClick={() => { setActivePage('ClassMode'); setShowMoreMenu(false); }}
                 className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${activePage === 'ClassMode' ? 'bg-[#F9F7F2] text-[#0B4550] font-bold' : 'text-[#898A8D] hover:bg-gray-50'}`}
               >
@@ -9931,7 +10063,7 @@ export default function Dashboard({ session }) {
                 <span className="text-xs font-semibold">Class Mode</span>
               </button>
 
-              <button 
+              <button
                 onClick={() => { handleNavigateToPage('Attendance'); setShowMoreMenu(false); }}
                 className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${activePage === 'Attendance' ? 'bg-[#F9F7F2] text-[#0B4550] font-bold' : 'text-[#898A8D] hover:bg-gray-50'}`}
               >
@@ -9939,7 +10071,7 @@ export default function Dashboard({ session }) {
                 <span className="text-xs font-semibold">Attendance</span>
               </button>
 
-              <button 
+              <button
                 onClick={() => { setActivePage('Settings'); setShowMoreMenu(false); }}
                 className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${activePage === 'Settings' ? 'bg-[#F9F7F2] text-[#0B4550] font-bold' : 'text-[#898A8D] hover:bg-gray-50'}`}
               >
@@ -9948,7 +10080,7 @@ export default function Dashboard({ session }) {
               </button>
             </div>
 
-            <button 
+            <button
               onClick={() => setShowMoreMenu(false)}
               className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-bold text-base hover:scale-[1.01] transition-all shadow-lg mt-8"
             >
@@ -9982,11 +10114,10 @@ export default function Dashboard({ session }) {
             <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4 no-scrollbar">
               {aiChatHistory.map((msg, i) => (
                 <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[85%] p-4 rounded-2xl font-medium text-sm shadow-sm whitespace-pre-wrap ${
-                    msg.role === 'user' 
-                      ? 'bg-[#0B4550] text-white rounded-tr-none' 
-                      : 'bg-[#F9F7F2] text-[#0B4550] rounded-tl-none border border-gray-100'
-                  }`}>
+                  <div className={`max-w-[85%] p-4 rounded-2xl font-medium text-sm shadow-sm whitespace-pre-wrap ${msg.role === 'user'
+                    ? 'bg-[#0B4550] text-white rounded-tr-none'
+                    : 'bg-[#F9F7F2] text-[#0B4550] rounded-tl-none border border-gray-100'
+                    }`}>
                     {msg.content}
                   </div>
                 </div>
@@ -10022,21 +10153,21 @@ export default function Dashboard({ session }) {
                 ))}
               </div>
 
-              <form 
+              <form
                 onSubmit={(e) => {
                   e.preventDefault();
                   handleSendMessage();
                 }}
                 className="relative"
               >
-                <input 
+                <input
                   type="text"
                   value={aiMessage}
                   onChange={(e) => setAiMessage(e.target.value)}
                   placeholder="Ask about your business..."
                   className="w-full bg-white border border-gray-100 rounded-2xl py-4 pl-5 pr-14 font-medium text-[#0B4550] outline-none shadow-sm focus:border-[#0B4550] transition-all"
                 />
-                <button 
+                <button
                   type="submit"
                   disabled={!aiMessage.trim() || isAiLoading}
                   className="absolute right-2 top-2 bottom-2 w-10 bg-[#0B4550] text-[#E6FF2B] rounded-xl flex items-center justify-center hover:scale-105 disabled:opacity-50 transition-all"
@@ -10069,7 +10200,7 @@ function NavItem({ icon, label, isActive, onClick }) {
 
 function StatCard({ title, value, trend, isPositive, onClick }) {
   return (
-    <div 
+    <div
       onClick={onClick}
       className={`bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 flex flex-col justify-between h-[150px] ${onClick ? 'cursor-pointer hover:shadow-md hover:border-[#E6FF2B] transition-all group' : ''}`}
     >

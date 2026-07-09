@@ -1,9 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
-import { supabase } from './supabaseClient'; 
+import { supabase } from './supabaseClient';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/DashboardPage';
-import ClientDashboard from './pages/ClientDashboard'; 
+import ClientDashboard from './pages/ClientDashboard';
 
 export default function App() {
   const [session, setSession] = useState(null);
@@ -34,16 +34,16 @@ export default function App() {
     <Router>
       <div className="relative min-h-screen w-full">
         <Routes>
-          
+
           {/* 🚦 TRAFFIC CONTROL: If they just type localhost:5173, route them based on auth */}
           <Route path="/" element={session ? <Navigate to="/dashboard" /> : <Navigate to="/login" />} />
-          
+
           {/* 🚪 THE FRONT DOOR: Only accessible if you are NOT logged in */}
           <Route path="/login" element={!session ? <LoginPage /> : <Navigate to="/dashboard" />} />
-          
+
           {/* 🏋️ TRAINER HQ: Only accessible if you ARE logged in */}
           <Route path="/dashboard" element={session ? <Dashboard session={session} /> : <Navigate to="/login" />} />
-          
+
           {/* 📱 CLIENT PORTAL: A public route that uses the unique Client ID in the URL */}
           <Route path="/client/:clientId" element={<ClientDashboard />} />
 

@@ -390,8 +390,8 @@ export default function ClientDashboard() {
             const sortedTrans = [...transData].sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
             let invoiceCounter = 101;
             sortedTrans.forEach(t => {
-              const isPurchase = t.amount > 0 || 
-                t.description?.toLowerCase().includes('renewal') || 
+              const isPurchase = t.amount > 0 ||
+                t.description?.toLowerCase().includes('renewal') ||
                 t.description?.toLowerCase().includes('purchase');
               if (isPurchase) {
                 invoiceNumMap[t.id] = invoiceCounter++;
@@ -405,8 +405,8 @@ export default function ClientDashboard() {
           // Add Transactions
           if (transData) {
             transData.forEach(t => {
-              const isPurchase = t.amount > 0 || 
-                t.description?.toLowerCase().includes('renewal') || 
+              const isPurchase = t.amount > 0 ||
+                t.description?.toLowerCase().includes('renewal') ||
                 t.description?.toLowerCase().includes('purchase');
               combined.push({
                 id: `trans-${t.id}`,
@@ -448,12 +448,12 @@ export default function ClientDashboard() {
 
         const latestWeight = formattedWeights.length > 0 ? formattedWeights[0].weight : (parseFloat(metrics?.current_weight) || 68);
 
-        const isUnlimitedPackage = !!realClient.unlimited || 
+        const isUnlimitedPackage = !!realClient.unlimited ||
           (realClient.package && (
-            realClient.package.toLowerCase().includes('unlimited') || 
-            realClient.package.toLowerCase().includes('membership') || 
-            realClient.package.toLowerCase().includes('monthly') || 
-            realClient.package.toLowerCase().includes('time-based') || 
+            realClient.package.toLowerCase().includes('unlimited') ||
+            realClient.package.toLowerCase().includes('membership') ||
+            realClient.package.toLowerCase().includes('monthly') ||
+            realClient.package.toLowerCase().includes('time-based') ||
             realClient.package.toLowerCase().includes('pass')
           ));
 
@@ -621,11 +621,11 @@ export default function ClientDashboard() {
       const newUsed = clientData.usedSessions + 1;
       await supabase.from('clients').update({ remaining_package: newRemaining, used_sessions: newUsed }).eq('id', clientData.id);
       await supabase.from('client_metrics').update({ used_sessions: newUsed }).eq('client_id', clientData.id);
-      setClientData(prev => ({ 
-        ...prev, 
-        remainingSessions: newRemaining, 
-        remaining_package: newRemaining, 
-        usedSessions: newUsed 
+      setClientData(prev => ({
+        ...prev,
+        remainingSessions: newRemaining,
+        remaining_package: newRemaining,
+        usedSessions: newUsed
       }));
     }
 
@@ -676,11 +676,11 @@ export default function ClientDashboard() {
         await supabase.from('clients').update({ remaining_package: newRemaining, used_sessions: newUsed }).eq('id', clientData.id);
         await supabase.from('client_metrics').update({ used_sessions: newUsed }).eq('client_id', clientData.id);
 
-        setClientData(prev => ({ 
-          ...prev, 
-          remainingSessions: newRemaining, 
-          remaining_package: newRemaining, 
-          usedSessions: newUsed 
+        setClientData(prev => ({
+          ...prev,
+          remainingSessions: newRemaining,
+          remaining_package: newRemaining,
+          usedSessions: newUsed
         }));
       }
 
@@ -734,11 +734,11 @@ export default function ClientDashboard() {
       const newUsed = clientData.usedSessions + 1;
       await supabase.from('clients').update({ remaining_package: newRemaining, used_sessions: newUsed }).eq('id', clientData.id);
       await supabase.from('client_metrics').update({ used_sessions: newUsed }).eq('client_id', clientData.id);
-      setClientData(prev => ({ 
-        ...prev, 
-        remainingSessions: newRemaining, 
+      setClientData(prev => ({
+        ...prev,
+        remainingSessions: newRemaining,
         remaining_package: newRemaining,
-        usedSessions: newUsed 
+        usedSessions: newUsed
       }));
     }
 
@@ -886,9 +886,9 @@ export default function ClientDashboard() {
 
   const saveWeightProgress = async () => {
     // 1. Insert log with the client-selected past/present date
-    const { error: logError } = await supabase.from('weight_logs').insert([{ 
-      client_id: clientData.id, 
-      weight: tempWeight, 
+    const { error: logError } = await supabase.from('weight_logs').insert([{
+      client_id: clientData.id,
+      weight: tempWeight,
       feeling: tempFeeling,
       created_at: new Date(tempDate).toISOString()
     }]);
@@ -912,11 +912,11 @@ export default function ClientDashboard() {
 
     const latestWeight = formattedWeights.length > 0 ? formattedWeights[0].weight : tempWeight;
 
-    setClientData(prev => ({ 
-      ...prev, 
-      currentWeight: latestWeight, 
-      goalWeight: tempGoal, 
-      weightHistory: formattedWeights 
+    setClientData(prev => ({
+      ...prev,
+      currentWeight: latestWeight,
+      goalWeight: tempGoal,
+      weightHistory: formattedWeights
     }));
     setIsWeightModalOpen(false);
   };
@@ -929,7 +929,7 @@ export default function ClientDashboard() {
 
   const finishWorkoutSession = async () => {
     await supabase.from('workouts').insert([{ client_id: clientData.id, duration_seconds: workoutTime, workout_data: generatedWorkout }]);
-    
+
     // Re-fetch workouts to dynamically recalculate and update PRs!
     const { data: workoutsData } = await supabase.from('workouts').select('*').eq('client_id', clientData.id);
     const prMap = {};
@@ -997,7 +997,7 @@ Client Special Requests: ${customPrompt || 'None'}
     try {
       // 🤖 Call the AI Brain with customized user selections
       const { data, error } = await supabase.functions.invoke('generate-workout', {
-        body: { 
+        body: {
           muscles: selectedMuscles,
           equipment: selectedEquip,
           clientName: clientData.name,
@@ -1014,7 +1014,7 @@ Client Special Requests: ${customPrompt || 'None'}
       console.error("AI Generation Failed, using local engine:", err);
       // Robust Fallback: Deeply tailored rule-based generation
       let newWorkout = [];
-      
+
       // 1. Warm-up
       if (includeWarmup) {
         newWorkout.push({
@@ -1069,7 +1069,7 @@ Client Special Requests: ${customPrompt || 'None'}
         let possibleExercises = [];
         selectedEquip.forEach(eq => { if (EXERCISE_DB[muscle] && EXERCISE_DB[muscle][eq]) possibleExercises.push(...EXERCISE_DB[muscle][eq]); });
         if (possibleExercises.length === 0) possibleExercises.push(...(EXERCISE_DB[muscle]["Bodyweight"] || []));
-        
+
         // Filter out by joint protections and manual exclusions
         possibleExercises = possibleExercises.filter(ex => {
           const isExcludedByInjury = excludedForInjuries.includes(ex);
@@ -1078,13 +1078,13 @@ Client Special Requests: ${customPrompt || 'None'}
         });
 
         const shuffled = [...new Set(possibleExercises)].sort(() => 0.5 - Math.random()).slice(0, exercisesPerMuscle);
-        shuffled.forEach(ex => { 
+        shuffled.forEach(ex => {
           if (!newWorkout.some(w => w.name === ex)) {
             const sets = [];
             for (let s = 0; s < setsCount; s++) {
               sets.push({ targetReps: targetRepsStr, completed: false, weight: '' });
             }
-            newWorkout.push({ muscle, name: ex, sets, restDuration: baseRest }); 
+            newWorkout.push({ muscle, name: ex, sets, restDuration: baseRest });
           }
         });
       });
@@ -1100,15 +1100,15 @@ Client Special Requests: ${customPrompt || 'None'}
       }
 
       if (newWorkout.length === 0) {
-        newWorkout.push({ 
-          muscle: "Core", 
-          name: "Plank", 
-          sets: [{ targetReps: "60s", completed: false, weight: '' }], 
-          restDuration: 30 
+        newWorkout.push({
+          muscle: "Core",
+          name: "Plank",
+          sets: [{ targetReps: "60s", completed: false, weight: '' }],
+          restDuration: 30
         });
       }
-      
-      setGeneratedWorkout(newWorkout); 
+
+      setGeneratedWorkout(newWorkout);
       setStep(4);
     } finally {
       setIsGenerating(false);
@@ -1120,7 +1120,7 @@ Client Special Requests: ${customPrompt || 'None'}
     let possible = [];
     selectedEquip.forEach(eq => { if (EXERCISE_DB[targetMuscle] && EXERCISE_DB[targetMuscle][eq]) possible.push(...EXERCISE_DB[targetMuscle][eq]); });
     if (possible.length === 0) possible.push(...(EXERCISE_DB[targetMuscle]["Bodyweight"] || []));
-    
+
     // Filter out by joint protections and manual exclusions
     const injuryExclusions = {
       "Lower Back": ["Barbell Bent-Over Row", "Pendlay Row", "Barbell Back Squat"],
@@ -1163,12 +1163,12 @@ Client Special Requests: ${customPrompt || 'None'}
       sets.push({ targetReps: targetRepsStr, completed: false, weight: '' });
     }
 
-    const updated = [...generatedWorkout]; 
-    updated[index] = { 
-      muscle: targetMuscle, 
-      name: newEx, 
-      sets, 
-      restDuration: baseRest 
+    const updated = [...generatedWorkout];
+    updated[index] = {
+      muscle: targetMuscle,
+      name: newEx,
+      sets,
+      restDuration: baseRest
     };
     setGeneratedWorkout(updated);
   };
@@ -1178,13 +1178,13 @@ Client Special Requests: ${customPrompt || 'None'}
     setGeneratedWorkout(updated);
   };
   const toggleSetComplete = (exIndex, setIndex) => {
-    const updated = [...generatedWorkout]; 
+    const updated = [...generatedWorkout];
     updated[exIndex].sets[setIndex].completed = !updated[exIndex].sets[setIndex].completed;
-    setGeneratedWorkout(updated); 
-    
+    setGeneratedWorkout(updated);
+
     if (updated[exIndex].sets[setIndex].completed) {
       const restSecs = updated[exIndex].restDuration || 60;
-      setRestTime(restSecs); 
+      setRestTime(restSecs);
     } else {
       setRestTime(0);
     }
@@ -1236,7 +1236,7 @@ Client Special Requests: ${customPrompt || 'None'}
       </div>
 
       <main className="flex-1 h-full overflow-y-auto flex flex-col relative z-10 pb-36 md:pb-0">
-        
+
         {/* MOBILE HEADER BAR */}
         <header className="md:hidden flex flex-col gap-4 mb-6 pt-2">
           <div className="flex items-center justify-between bg-white border border-gray-150 rounded-[2rem] p-4 shadow-sm shrink-0">
@@ -1248,7 +1248,7 @@ Client Special Requests: ${customPrompt || 'None'}
               {getInitials(clientData.name)}
             </button>
           </div>
-          
+
           <div className="px-2">
             <h1 className="text-3xl font-black text-[#0B4550] mb-1">
               {activeNav === 'Progress' ? 'Your Progress' :
@@ -1281,674 +1281,672 @@ Client Special Requests: ${customPrompt || 'None'}
 
         {activeNav === 'Home' && (
           <>
-          {/* DESKTOP HOME VIEW */}
-          <div className="hidden md:grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 flex-1 pb-4 animate-in fade-in duration-500">
-            <div className="md:col-span-12 lg:col-span-7 bg-white rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm border border-gray-100 relative overflow-hidden flex flex-col h-auto lg:h-[380px] min-h-[340px]">
-              <div className="flex justify-between items-start z-10 mb-2">
-                <div>
-                  <h3 className="font-bold text-xs text-gray-400 uppercase tracking-widest">Active Package</h3>
-                  <h2 className="font-bold text-3xl text-[#0B4550] tracking-tight">{clientData.packageName}</h2>
+            {/* DESKTOP HOME VIEW */}
+            <div className="hidden md:grid grid-cols-1 md:grid-cols-12 gap-4 md:gap-6 flex-1 pb-4 animate-in fade-in duration-500">
+              <div className="md:col-span-12 lg:col-span-7 bg-white rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm border border-gray-100 relative overflow-hidden flex flex-col h-auto lg:h-[380px] min-h-[340px]">
+                <div className="flex justify-between items-start z-10 mb-2">
+                  <div>
+                    <h3 className="font-bold text-xs text-gray-400 uppercase tracking-widest">Active Package</h3>
+                    <h2 className="font-bold text-3xl text-[#0B4550] tracking-tight">{clientData.packageName}</h2>
+                  </div>
+                  <button onClick={() => setIsTopUpOpen(true)} className="bg-[#F9F7F2] text-[#0B4550] px-4 py-2 rounded-xl font-bold text-sm hover:bg-[#E6FF2B] transition-colors border border-gray-100 shadow-sm flex items-center gap-2 relative z-20"><CreditCard size={16} /> Top Up</button>
                 </div>
-                <button onClick={() => setIsTopUpOpen(true)} className="bg-[#F9F7F2] text-[#0B4550] px-4 py-2 rounded-xl font-bold text-sm hover:bg-[#E6FF2B] transition-colors border border-gray-100 shadow-sm flex items-center gap-2 relative z-20"><CreditCard size={16} /> Top Up</button>
-              </div>
-              
-              <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#E6FF2B] rounded-full filter blur-3xl opacity-40 z-0 animate-pulse"></div>
-              
-              <div className="flex-1 flex flex-col justify-end z-10 pb-2 w-full">
-                {clientData.unlimited ? (
-                  /* TIME-BASED / UNLIMITED LAYOUT */
-                  <div className="space-y-5 w-full">
-                    <div className="flex items-center gap-3">
-                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold uppercase tracking-wider animate-pulse">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-                        Unlimited Access Plan
-                      </span>
+
+                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-64 h-64 bg-[#E6FF2B] rounded-full filter blur-3xl opacity-40 z-0 animate-pulse"></div>
+
+                <div className="flex-1 flex flex-col justify-end z-10 pb-2 w-full">
+                  {clientData.unlimited ? (
+                    /* TIME-BASED / UNLIMITED LAYOUT */
+                    <div className="space-y-5 w-full">
+                      <div className="flex items-center gap-3">
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200 text-xs font-bold uppercase tracking-wider animate-pulse">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
+                          Unlimited Access Plan
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2]/80 backdrop-blur-md rounded-2xl p-5 border border-gray-100">
+                        <div>
+                          <p className="text-xs font-bold text-[#898A8D] uppercase tracking-widest mb-1">Expiration Date</p>
+                          <p className="text-lg font-bold text-[#0B4550]">
+                            {clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs font-bold text-[#898A8D] uppercase tracking-widest mb-1">Time Remaining</p>
+                          <p className="text-lg font-bold text-[#0B4550]">
+                            {(() => {
+                              const days = calculateRemainingDays(clientData.expiry);
+                              if (days === null) return 'Unlimited Days';
+                              if (days < 0) return 'Expired';
+                              if (days === 0) return 'Expires Today';
+                              return `${days} Days Left`;
+                            })()}
+                          </p>
+                        </div>
+                      </div>
                     </div>
-                    
-                    <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2]/80 backdrop-blur-md rounded-2xl p-5 border border-gray-100">
-                      <div>
-                        <p className="text-xs font-bold text-[#898A8D] uppercase tracking-widest mb-1">Expiration Date</p>
-                        <p className="text-lg font-bold text-[#0B4550]">
-                          {clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}
-                        </p>
+                  ) : (
+                    /* SESSION-BASED LAYOUT */
+                    <div className="space-y-4 w-full">
+                      <div className="space-y-3.5">
+                        <LegendItem
+                          color={(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? "bg-red-400" : "bg-[#E6FF2B]"}
+                          label="Remaining Sessions"
+                          value={clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions}
+                        />
+                        <LegendItem
+                          color="bg-[#0B4550]"
+                          label="Completed Sessions"
+                          value={clientData.usedSessions || 0}
+                        />
+
+                        <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden mt-2 relative">
+                          <div
+                            className={`h-full transition-all duration-700 ${(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? 'bg-red-400' : 'bg-[#0B4550]'}`}
+                            style={{ width: `${((clientData.usedSessions || 0) / ((clientData.usedSessions || 0) + (clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions || 1))) * 100}%` }}
+                          ></div>
+                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-xs font-bold text-[#898A8D] uppercase tracking-widest mb-1">Time Remaining</p>
-                        <p className="text-lg font-bold text-[#0B4550]">
-                          {(() => {
-                            const days = calculateRemainingDays(clientData.expiry);
-                            if (days === null) return 'Unlimited Days';
-                            if (days < 0) return 'Expired';
-                            if (days === 0) return 'Expires Today';
-                            return `${days} Days Left`;
-                          })()}
-                        </p>
+
+                      <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2]/80 backdrop-blur-md rounded-2xl p-4 border border-gray-100 mt-2">
+                        <div>
+                          <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-0.5">Package Expiration</p>
+                          <p className="text-sm font-bold text-[#0B4550]">
+                            {clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-0.5">Time Remaining</p>
+                          <p className="text-sm font-bold text-[#0B4550]">
+                            {(() => {
+                              const days = calculateRemainingDays(clientData.expiry);
+                              if (days === null) return 'No Time Limit';
+                              if (days < 0) return 'Expired';
+                              if (days === 0) return 'Expires Today';
+                              return `${days} Days Left`;
+                            })()}
+                          </p>
+                        </div>
                       </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="md:col-span-6 lg:col-span-5 bg-[#0B4550] rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm text-white flex flex-col h-[380px] overflow-hidden">
+                <div className="flex justify-between items-center mb-6 shrink-0">
+                  <div>
+                    <h3 className="font-medium text-2xl">Available Classes</h3>
+                    <p className="text-white/60 text-xs font-medium uppercase tracking-wider mt-0.5">Quick 1-Click Booking</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-[#E6FF2B]">
+                    <Calendar size={20} />
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-white/20 hover:scrollbar-thumb-white/40">
+                  {(() => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const futureSessions = liveSessions.filter(s => s.date >= todayStr && s.type !== '1-on-1' && s.type !== 'Blocked');
+
+                    if (futureSessions.length === 0) {
+                      return (
+                        <div className="flex flex-col items-center justify-center py-12 text-center text-white/50">
+                          <Calendar size={32} className="mb-2 opacity-30" />
+                          <p className="text-sm font-medium">No classes scheduled yet.</p>
+                        </div>
+                      );
+                    }
+
+                    return futureSessions.map(session => {
+                      const isFull = session.attendees?.length >= session.capacity;
+                      return (
+                        <div key={session.id} className="bg-white/10 hover:bg-white/15 border border-white/10 rounded-2xl p-4 transition-all flex justify-between items-center gap-4 relative group">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1.5 flex-wrap">
+                              <span className="inline-block px-2.5 py-0.5 rounded-md bg-[#E6FF2B] text-[#0B4550] text-[9px] font-bold uppercase tracking-wider">
+                                {formatDbDate(session.date)}
+                              </span>
+                              <span className="text-[10px] font-bold text-white/80">
+                                {session.time}
+                              </span>
+                            </div>
+                            <h4 className="text-base font-bold text-white leading-snug truncate mb-1">
+                              {session.title}
+                            </h4>
+                            <p className="text-xs text-white/70 flex items-center gap-1 font-medium">
+                              <User size={12} className="text-[#E6FF2B]" /> {session.coach || session.trainer || 'Coach Keith'}
+                            </p>
+                          </div>
+
+                          <div className="text-right shrink-0">
+                            <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1.5">
+                              {session.attendees?.length || 0} / {session.capacity} Slots
+                            </p>
+                            {session.isBookedByMe ? (
+                              <div className="flex flex-col items-end gap-1">
+                                <span className="text-xs font-bold text-[#E6FF2B] bg-white/20 py-1.5 px-3.5 rounded-xl border border-white/10 flex items-center gap-1">
+                                  Booked ✓
+                                </span>
+                                <button
+                                  onClick={() => handleQuickCancel(session)}
+                                  className="text-[10px] font-bold text-red-300 hover:text-red-400 hover:underline transition-colors mt-0.5 mr-1 animate-in fade-in"
+                                >
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : isFull ? (
+                              <span className="inline-block text-xs font-bold text-white/40 bg-white/5 py-1.5 px-3.5 rounded-xl border border-transparent">
+                                Full
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleQuickBook(session)}
+                                className="bg-[#E6FF2B] hover:bg-white text-[#0B4550] py-2 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:scale-[1.05]"
+                              >
+                                Book Spot
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              <div className="md:col-span-6 lg:col-span-5 flex flex-col gap-4 md:gap-6">
+                <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 flex-1 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-medium text-2xl text-[#0B4550] mb-1">{generatedWorkout ? "Today's Plan" : "Workout Builder"}</h3>
+                    <p className="text-[#898A8D] font-medium text-sm mb-4">{generatedWorkout ? "Ready to crush it?" : "Generate your session"}</p>
+                    <div className="flex gap-2">
+                      <button onClick={() => { if (generatedWorkout) setIsTrackerOpen(true); else { setStep(1); setIsBuilderOpen(true); } }} className="flex items-center gap-2 text-[#0B4550] font-medium bg-[#E6FF2B] px-5 py-2.5 rounded-full hover:scale-105 transition-all text-sm z-20 relative">{generatedWorkout ? "Start Workout" : "Start Building"} <Plus size={16} /></button>
+                      {generatedWorkout && <button onClick={() => { setGeneratedWorkout(null); setStep(1); setIsBuilderOpen(true); }} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-red-50 hover:text-red-500 text-[#0B4550] transition-all z-20 relative"><RefreshCw size={16} /></button>}
                     </div>
                   </div>
-                ) : (
-                  /* SESSION-BASED LAYOUT */
-                  <div className="space-y-4 w-full">
-                    <div className="space-y-3.5">
-                      <LegendItem
-                        color={(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? "bg-red-400" : "bg-[#E6FF2B]"}
-                        label="Remaining Sessions"
-                        value={clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions}
-                      />
-                      <LegendItem
-                        color="bg-[#0B4550]"
-                        label="Completed Sessions"
-                        value={clientData.usedSessions || 0}
-                      />
-                      
-                      <div className="w-full h-3 bg-gray-100 rounded-full overflow-hidden mt-2 relative">
+                  <Zap size={40} className={generatedWorkout ? "text-[#E6FF2B]" : "text-[#F9F7F2]"} />
+                </div>
+
+                <div className="bg-white rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm border border-gray-100 flex-1 flex flex-col justify-center relative group cursor-pointer hover:border-[#0B4550] transition-all" onClick={openWeightModal}>
+                  <div className="flex justify-between items-end mb-4">
+                    <div><h3 className="font-medium text-xl text-[#0B4550]">Weight Tracker</h3><p className="text-[#898A8D] font-medium text-xs uppercase tracking-widest">{weightProgress.toFixed(0)}% to Goal</p></div>
+                    <div className="text-right">
+                      <span className="font-medium text-3xl text-[#0B4550] block">{clientData.currentWeight} kg</span>
+                      {clientData.startWeight > clientData.currentWeight && <span className="text-xs font-medium text-emerald-500">-{(clientData.startWeight - clientData.currentWeight).toFixed(1)} kg so far!</span>}
+                    </div>
+                  </div>
+                  <div className="relative pt-2">
+                    <div className="w-full h-3 bg-[#F9F7F2] rounded-full overflow-hidden"><div className="h-full bg-[#0B4550] transition-all duration-1000" style={{ width: `${weightProgress}%` }}></div></div>
+                  </div>
+                  <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-[#F9F7F2] p-2 rounded-xl text-[#0B4550]"><Plus size={18} /></div></div>
+                </div>
+              </div>
+
+              <div className="md:col-span-12 lg:col-span-7 bg-[#0B4550] rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm border border-[#0B4550] flex flex-col text-white relative overflow-hidden h-auto lg:h-[380px] min-h-[340px]">
+                <div className="absolute -right-4 -bottom-4 opacity-10"><Calendar size={160} /></div>
+
+                <div className="relative z-10 flex flex-col h-full">
+                  <div className="flex justify-between items-center mb-6 shrink-0">
+                    <div>
+                      <h3 className="font-bold text-xs uppercase tracking-widest text-white/50 mb-0.5">My Schedule</h3>
+                      <h2 className="text-2xl font-medium text-white">Booked Classes</h2>
+                    </div>
+                    <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
+                      {upcomingBookings.length} {upcomingBookings.length === 1 ? 'Class' : 'Classes'} Booked
+                    </span>
+                  </div>
+
+                  {upcomingBookings.length === 0 ? (
+                    <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
+                      <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-[#E6FF2B] mb-4">
+                        <CalendarCheck size={28} />
+                      </div>
+                      <h4 className="font-medium text-base text-white mb-1">No Upcoming Bookings</h4>
+                      <p className="text-white/60 text-xs max-w-xs leading-relaxed">
+                        Use the Available Classes hub or click "Book Session" to secure your spot!
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="flex-1 overflow-y-auto pr-1 no-scrollbar space-y-3.5 pb-2">
+                      {upcomingBookings.map(booking => (
                         <div
-                          className={`h-full transition-all duration-700 ${(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? 'bg-red-400' : 'bg-[#0B4550]'}`}
+                          key={booking.id}
+                          className="bg-white/10 border border-white/10 rounded-2xl p-4 flex justify-between items-center hover:bg-white/[0.15] transition-all"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="w-10 h-10 rounded-xl bg-[#E6FF2B]/10 text-[#E6FF2B] flex items-center justify-center shrink-0">
+                              <Dumbbell size={18} />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-base text-white mb-0.5 leading-tight">{booking.title}</h4>
+                              <p className="text-white/60 text-xs flex items-center gap-1.5">
+                                <Clock size={12} /> {formatDbDate(booking.date)} at {booking.time}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to cancel your spot in ${booking.title}?`)) {
+                                handleQuickCancel(booking);
+                              }
+                            }}
+                            className="px-4 py-2 bg-transparent hover:bg-red-500/20 text-white/80 hover:text-red-300 border border-white/20 hover:border-red-500/30 rounded-full text-xs font-bold transition-all"
+                          >
+                            Cancel Class
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* MOBILE HOME VIEW */}
+            <div className="md:hidden flex flex-col gap-4 flex-1 pb-4 animate-in fade-in duration-500">
+
+              {/* Mobile Remaining Sessions */}
+              <div className="bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm relative overflow-hidden flex flex-col">
+                <div className="flex justify-between items-start z-10 mb-2">
+                  <div>
+                    <h3 className="font-bold text-[10px] text-[#898A8D] uppercase tracking-widest">Active Package</h3>
+                    <h2 className="font-black text-2xl text-[#0B4550] tracking-tight">{clientData.packageName}</h2>
+                  </div>
+                  <button onClick={() => setIsTopUpOpen(true)} className="bg-[#0B4550] text-[#E6FF2B] px-4 py-2 rounded-xl font-black text-[10px] shadow-sm flex items-center gap-1.5 relative z-20 uppercase tracking-widest"><CreditCard size={14} /> Top Up</button>
+                </div>
+
+                <div className="flex-1 flex flex-col justify-end z-10 pt-4 w-full">
+                  {clientData.unlimited ? (
+                    <div className="space-y-4 w-full">
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#E6FF2B]/10 text-[#0B4550] border border-[#E6FF2B]/20 text-[10px] font-black uppercase tracking-widest">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#0B4550] animate-pulse"></span>
+                        Unlimited Access Plan
+                      </span>
+                      <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2] rounded-2xl p-4 border border-gray-100">
+                        <div>
+                          <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Expiration Date</p>
+                          <p className="text-sm font-black text-[#0B4550]">{clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Time Remaining</p>
+                          <p className="text-sm font-black text-[#0B4550]">
+                            {(() => {
+                              const days = calculateRemainingDays(clientData.expiry);
+                              if (days === null) return 'Unlimited Days';
+                              if (days < 0) return 'Expired';
+                              if (days === 0) return 'Expires Today';
+                              return `${days} Days Left`;
+                            })()}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4 w-full">
+                      <div className="flex justify-between items-end">
+                        <div>
+                          <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Remaining Sessions</p>
+                          <p className="text-3xl font-black text-[#0B4550]">{clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Completed</p>
+                          <p className="text-xl font-black text-[#0B4550]">{clientData.usedSessions || 0}</p>
+                        </div>
+                      </div>
+
+                      <div className="w-full h-2 bg-[#F9F7F2] rounded-full overflow-hidden relative">
+                        <div
+                          className={`h-full transition-all duration-700 ${(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? 'bg-red-500' : 'bg-[#0B4550]'}`}
                           style={{ width: `${((clientData.usedSessions || 0) / ((clientData.usedSessions || 0) + (clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions || 1))) * 100}%` }}
                         ></div>
                       </div>
-                    </div>
 
-                    <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2]/80 backdrop-blur-md rounded-2xl p-4 border border-gray-100 mt-2">
-                      <div>
-                        <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-0.5">Package Expiration</p>
-                        <p className="text-sm font-bold text-[#0B4550]">
-                          {clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-0.5">Time Remaining</p>
-                        <p className="text-sm font-bold text-[#0B4550]">
-                          {(() => {
-                            const days = calculateRemainingDays(clientData.expiry);
-                            if (days === null) return 'No Time Limit';
-                            if (days < 0) return 'Expired';
-                            if (days === 0) return 'Expires Today';
-                            return `${days} Days Left`;
-                          })()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="md:col-span-6 lg:col-span-5 bg-[#0B4550] rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm text-white flex flex-col h-[380px] overflow-hidden">
-              <div className="flex justify-between items-center mb-6 shrink-0">
-                <div>
-                  <h3 className="font-medium text-2xl">Available Classes</h3>
-                  <p className="text-white/60 text-xs font-medium uppercase tracking-wider mt-0.5">Quick 1-Click Booking</p>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-[#E6FF2B]">
-                  <Calendar size={20} />
-                </div>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto pr-1 space-y-3 scrollbar-thin scrollbar-thumb-white/20 hover:scrollbar-thumb-white/40">
-                {(() => {
-                  const todayStr = new Date().toISOString().split('T')[0];
-                  const futureSessions = liveSessions.filter(s => s.date >= todayStr && s.type !== '1-on-1' && s.type !== 'Blocked');
-                  
-                  if (futureSessions.length === 0) {
-                    return (
-                      <div className="flex flex-col items-center justify-center py-12 text-center text-white/50">
-                        <Calendar size={32} className="mb-2 opacity-30" />
-                        <p className="text-sm font-medium">No classes scheduled yet.</p>
-                      </div>
-                    );
-                  }
-                  
-                  return futureSessions.map(session => {
-                    const isFull = session.attendees?.length >= session.capacity;
-                    return (
-                      <div key={session.id} className="bg-white/10 hover:bg-white/15 border border-white/10 rounded-2xl p-4 transition-all flex justify-between items-center gap-4 relative group">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1.5 flex-wrap">
-                            <span className="inline-block px-2.5 py-0.5 rounded-md bg-[#E6FF2B] text-[#0B4550] text-[9px] font-bold uppercase tracking-wider">
-                              {formatDbDate(session.date)}
-                            </span>
-                            <span className="text-[10px] font-bold text-white/80">
-                              {session.time}
-                            </span>
-                          </div>
-                          <h4 className="text-base font-bold text-white leading-snug truncate mb-1">
-                            {session.title}
-                          </h4>
-                          <p className="text-xs text-white/70 flex items-center gap-1 font-medium">
-                            <User size={12} className="text-[#E6FF2B]" /> {session.coach || session.trainer || 'Coach Keith'}
+                      <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2] rounded-2xl p-4 border border-gray-100">
+                        <div>
+                          <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Package Expiration</p>
+                          <p className="text-xs font-black text-[#0B4550]">{clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Time Remaining</p>
+                          <p className="text-xs font-black text-[#0B4550]">
+                            {(() => {
+                              const days = calculateRemainingDays(clientData.expiry);
+                              if (days === null) return 'No Time Limit';
+                              if (days < 0) return 'Expired';
+                              if (days === 0) return 'Expires Today';
+                              return `${days} Days Left`;
+                            })()}
                           </p>
                         </div>
-                        
-                        <div className="text-right shrink-0">
-                          <p className="text-[10px] font-bold text-white/50 uppercase tracking-widest mb-1.5">
-                            {session.attendees?.length || 0} / {session.capacity} Slots
-                          </p>
-                          {session.isBookedByMe ? (
-                            <div className="flex flex-col items-end gap-1">
-                              <span className="text-xs font-bold text-[#E6FF2B] bg-white/20 py-1.5 px-3.5 rounded-xl border border-white/10 flex items-center gap-1">
-                                Booked ✓
-                              </span>
-                              <button 
-                                onClick={() => handleQuickCancel(session)} 
-                                className="text-[10px] font-bold text-red-300 hover:text-red-400 hover:underline transition-colors mt-0.5 mr-1 animate-in fade-in"
-                              >
-                                Cancel
-                              </button>
-                            </div>
-                          ) : isFull ? (
-                            <span className="inline-block text-xs font-bold text-white/40 bg-white/5 py-1.5 px-3.5 rounded-xl border border-transparent">
-                              Full
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => handleQuickBook(session)}
-                              className="bg-[#E6FF2B] hover:bg-white text-[#0B4550] py-2 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:scale-[1.05]"
-                            >
-                              Book Spot
-                            </button>
-                          )}
-                        </div>
                       </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-
-            <div className="md:col-span-6 lg:col-span-5 flex flex-col gap-4 md:gap-6">
-              <div className="bg-white rounded-[2.5rem] p-8 shadow-sm border border-gray-100 flex-1 flex justify-between items-center">
-                <div>
-                  <h3 className="font-medium text-2xl text-[#0B4550] mb-1">{generatedWorkout ? "Today's Plan" : "Workout Builder"}</h3>
-                  <p className="text-[#898A8D] font-medium text-sm mb-4">{generatedWorkout ? "Ready to crush it?" : "Generate your session"}</p>
-                  <div className="flex gap-2">
-                    <button onClick={() => { if (generatedWorkout) setIsTrackerOpen(true); else { setStep(1); setIsBuilderOpen(true); } }} className="flex items-center gap-2 text-[#0B4550] font-medium bg-[#E6FF2B] px-5 py-2.5 rounded-full hover:scale-105 transition-all text-sm z-20 relative">{generatedWorkout ? "Start Workout" : "Start Building"} <Plus size={16} /></button>
-                    {generatedWorkout && <button onClick={() => { setGeneratedWorkout(null); setStep(1); setIsBuilderOpen(true); }} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-red-50 hover:text-red-500 text-[#0B4550] transition-all z-20 relative"><RefreshCw size={16} /></button>}
-                  </div>
+                    </div>
+                  )}
                 </div>
-                <Zap size={40} className={generatedWorkout ? "text-[#E6FF2B]" : "text-[#F9F7F2]"} />
               </div>
 
-              <div className="bg-white rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm border border-gray-100 flex-1 flex flex-col justify-center relative group cursor-pointer hover:border-[#0B4550] transition-all" onClick={openWeightModal}>
+              {/* Mobile Weight Tracker */}
+              <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex flex-col relative" onClick={openWeightModal}>
                 <div className="flex justify-between items-end mb-4">
-                  <div><h3 className="font-medium text-xl text-[#0B4550]">Weight Tracker</h3><p className="text-[#898A8D] font-medium text-xs uppercase tracking-widest">{weightProgress.toFixed(0)}% to Goal</p></div>
+                  <div>
+                    <h3 className="font-black text-lg text-[#0B4550]">Weight Tracker</h3>
+                    <p className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest">{weightProgress.toFixed(0)}% to Goal</p>
+                  </div>
                   <div className="text-right">
-                    <span className="font-medium text-3xl text-[#0B4550] block">{clientData.currentWeight} kg</span>
-                    {clientData.startWeight > clientData.currentWeight && <span className="text-xs font-medium text-emerald-500">-{(clientData.startWeight - clientData.currentWeight).toFixed(1)} kg so far!</span>}
+                    <span className="font-black text-2xl text-[#0B4550] block">{clientData.currentWeight} kg</span>
+                    {clientData.startWeight > clientData.currentWeight && <span className="text-[10px] font-black text-emerald-500">-{(clientData.startWeight - clientData.currentWeight).toFixed(1)} kg so far!</span>}
                   </div>
                 </div>
                 <div className="relative pt-2">
-                  <div className="w-full h-3 bg-[#F9F7F2] rounded-full overflow-hidden"><div className="h-full bg-[#0B4550] transition-all duration-1000" style={{ width: `${weightProgress}%` }}></div></div>
+                  <div className="w-full h-2 bg-[#F9F7F2] rounded-full overflow-hidden"><div className="h-full bg-[#0B4550] transition-all duration-1000" style={{ width: `${weightProgress}%` }}></div></div>
                 </div>
-                <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity"><div className="bg-[#F9F7F2] p-2 rounded-xl text-[#0B4550]"><Plus size={18} /></div></div>
               </div>
-            </div>
 
-            <div className="md:col-span-12 lg:col-span-7 bg-[#0B4550] rounded-[2.5rem] p-5 sm:p-6 md:p-8 shadow-sm border border-[#0B4550] flex flex-col text-white relative overflow-hidden h-auto lg:h-[380px] min-h-[340px]">
-              <div className="absolute -right-4 -bottom-4 opacity-10"><Calendar size={160} /></div>
-              
-              <div className="relative z-10 flex flex-col h-full">
-                <div className="flex justify-between items-center mb-6 shrink-0">
-                  <div>
-                    <h3 className="font-bold text-xs uppercase tracking-widest text-white/50 mb-0.5">My Schedule</h3>
-                    <h2 className="text-2xl font-medium text-white">Booked Classes</h2>
+              {/* Mobile Workout Builder */}
+              <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex justify-between items-center relative">
+                <div>
+                  <h3 className="font-black text-lg text-[#0B4550] mb-1">{generatedWorkout ? "Today's Plan" : "Workout Builder"}</h3>
+                  <p className="text-[#898A8D] font-bold text-xs mb-3">{generatedWorkout ? "Ready to crush it?" : "Generate your session"}</p>
+                  <div className="flex gap-2">
+                    <button onClick={() => { if (generatedWorkout) setIsTrackerOpen(true); else { setStep(1); setIsBuilderOpen(true); } }} className="flex items-center gap-2 text-[#E6FF2B] font-black bg-[#0B4550] px-4 py-2.5 rounded-full text-xs shadow-sm z-20 relative">
+                      {generatedWorkout ? "Start Workout" : "Start Building"} <Plus size={14} />
+                    </button>
+                    {generatedWorkout && (
+                      <button onClick={() => { setGeneratedWorkout(null); setStep(1); setIsBuilderOpen(true); }} className="w-9 h-9 rounded-xl bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] hover:bg-gray-100 transition-all z-20 relative">
+                        <RefreshCw size={14} />
+                      </button>
+                    )}
                   </div>
-                  <span className="bg-[#E6FF2B] text-[#0B4550] text-[10px] font-bold uppercase tracking-wider px-3 py-1 rounded-full shadow-sm">
-                    {upcomingBookings.length} {upcomingBookings.length === 1 ? 'Class' : 'Classes'} Booked
+                </div>
+                <div className="w-12 h-12 rounded-full bg-[#F9F7F2] flex items-center justify-center shrink-0">
+                  <Zap size={24} className={generatedWorkout ? "text-[#0B4550]" : "text-[#898A8D]"} />
+                </div>
+              </div>
+
+              {/* Mobile Available Classes */}
+              <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex flex-col h-[320px]">
+                <div className="flex justify-between items-center mb-4 shrink-0">
+                  <div>
+                    <h3 className="font-black text-lg text-[#0B4550]">Available Classes</h3>
+                    <p className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest mt-0.5">Quick 1-Click Booking</p>
+                  </div>
+                </div>
+                <div className="flex-1 overflow-y-auto pr-1 space-y-3 no-scrollbar">
+                  {(() => {
+                    const todayStr = new Date().toISOString().split('T')[0];
+                    const futureSessions = liveSessions.filter(s => s.date >= todayStr && s.type !== '1-on-1' && s.type !== 'Blocked');
+
+                    if (futureSessions.length === 0) {
+                      return (
+                        <div className="flex flex-col items-center justify-center py-8 text-center text-[#898A8D]">
+                          <Calendar size={24} className="mb-2 opacity-50" />
+                          <p className="text-xs font-bold">No classes scheduled yet.</p>
+                        </div>
+                      );
+                    }
+
+                    return futureSessions.map(session => {
+                      const isFull = session.attendees?.length >= session.capacity;
+                      return (
+                        <div key={session.id} className="bg-[#F9F7F2] border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 relative">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="inline-block px-2 py-0.5 rounded text-[#0B4550] bg-[#E6FF2B] text-[9px] font-black uppercase tracking-wider">
+                                  {formatDbDate(session.date)}
+                                </span>
+                                <span className="text-[10px] font-bold text-[#898A8D]">
+                                  {session.time}
+                                </span>
+                              </div>
+                              <h4 className="text-sm font-black text-[#0B4550] leading-tight">{session.title}</h4>
+                              <p className="text-[10px] text-[#898A8D] flex items-center gap-1 font-bold mt-1">
+                                <User size={10} className="text-[#0B4550]" /> {session.coach || session.trainer || 'Coach'}
+                              </p>
+                            </div>
+                            <p className="text-[9px] font-black text-[#898A8D] uppercase tracking-widest">
+                              {session.attendees?.length || 0} / {session.capacity} Slots
+                            </p>
+                          </div>
+
+                          <div className="flex justify-end pt-2 border-t border-gray-100">
+                            {session.isBookedByMe ? (
+                              <div className="flex items-center gap-3">
+                                <span className="text-[10px] font-black text-[#0B4550] bg-[#E6FF2B] py-1.5 px-3 rounded-lg flex items-center gap-1 uppercase tracking-wider">
+                                  Booked ✓
+                                </span>
+                                <button onClick={() => handleQuickCancel(session)} className="text-[10px] font-black text-red-500 px-2 py-1.5">
+                                  Cancel
+                                </button>
+                              </div>
+                            ) : isFull ? (
+                              <span className="text-[10px] font-black text-[#898A8D] bg-gray-150 py-1.5 px-3 rounded-lg uppercase tracking-wider">
+                                Full
+                              </span>
+                            ) : (
+                              <button
+                                onClick={() => handleQuickBook(session)}
+                                className="bg-[#0B4550] text-[#E6FF2B] py-2 px-4 rounded-xl text-[10px] font-black w-full"
+                              >
+                                Book Spot
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    });
+                  })()}
+                </div>
+              </div>
+
+              {/* Mobile Booked Classes */}
+              <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex flex-col h-[300px]">
+                <div className="flex justify-between items-center mb-4 shrink-0">
+                  <div>
+                    <h3 className="font-black text-lg text-[#0B4550]">Booked Classes</h3>
+                    <p className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest mt-0.5">My Schedule</p>
+                  </div>
+                  <span className="bg-[#E6FF2B] text-[#0B4550] text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full">
+                    {upcomingBookings.length}
                   </span>
                 </div>
 
                 {upcomingBookings.length === 0 ? (
                   <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-                    <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-[#E6FF2B] mb-4">
-                      <CalendarCheck size={28} />
+                    <div className="w-12 h-12 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#898A8D] mb-3">
+                      <CalendarCheck size={20} />
                     </div>
-                    <h4 className="font-medium text-base text-white mb-1">No Upcoming Bookings</h4>
-                    <p className="text-white/60 text-xs max-w-xs leading-relaxed">
-                      Use the Available Classes hub or click "Book Session" to secure your spot!
-                    </p>
+                    <h4 className="font-black text-sm text-[#0B4550] mb-1">No Bookings</h4>
+                    <p className="text-[#898A8D] text-[10px] font-bold">Use "Available Classes" to book.</p>
                   </div>
                 ) : (
-                  <div className="flex-1 overflow-y-auto pr-1 no-scrollbar space-y-3.5 pb-2">
+                  <div className="flex-1 overflow-y-auto pr-1 no-scrollbar space-y-3">
                     {upcomingBookings.map(booking => (
-                      <div 
-                        key={booking.id}
-                        className="bg-white/10 border border-white/10 rounded-2xl p-4 flex justify-between items-center hover:bg-white/[0.15] transition-all"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="w-10 h-10 rounded-xl bg-[#E6FF2B]/10 text-[#E6FF2B] flex items-center justify-center shrink-0">
-                            <Dumbbell size={18} />
+                      <div key={booking.id} className="bg-[#F9F7F2] border border-gray-100 rounded-2xl p-3.5 flex justify-between items-center">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white text-[#0B4550] flex items-center justify-center border border-gray-150">
+                            <Calendar size={16} />
                           </div>
                           <div>
-                            <h4 className="font-medium text-base text-white mb-0.5 leading-tight">{booking.title}</h4>
-                            <p className="text-white/60 text-xs flex items-center gap-1.5">
-                              <Clock size={12} /> {formatDbDate(booking.date)} at {booking.time}
+                            <h4 className="font-black text-sm text-[#0B4550] mb-0.5 leading-tight">{booking.title}</h4>
+                            <p className="text-[#898A8D] text-[10px] font-bold flex items-center gap-1.5">
+                              <Clock size={10} /> {formatDbDate(booking.date)} at {booking.time}
                             </p>
                           </div>
                         </div>
-                        <button 
+                        <button
                           onClick={() => {
                             if (window.confirm(`Are you sure you want to cancel your spot in ${booking.title}?`)) {
                               handleQuickCancel(booking);
                             }
                           }}
-                          className="px-4 py-2 bg-transparent hover:bg-red-500/20 text-white/80 hover:text-red-300 border border-white/20 hover:border-red-500/30 rounded-full text-xs font-bold transition-all"
+                          className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20"
                         >
-                          Cancel Class
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
+
             </div>
-          </div>
-
-          {/* MOBILE HOME VIEW */}
-          <div className="md:hidden flex flex-col gap-4 flex-1 pb-4 animate-in fade-in duration-500">
-            
-            {/* Mobile Remaining Sessions */}
-            <div className="bg-white border border-gray-100 rounded-[2rem] p-5 shadow-sm relative overflow-hidden flex flex-col">
-              <div className="flex justify-between items-start z-10 mb-2">
-                <div>
-                  <h3 className="font-bold text-[10px] text-[#898A8D] uppercase tracking-widest">Active Package</h3>
-                  <h2 className="font-black text-2xl text-[#0B4550] tracking-tight">{clientData.packageName}</h2>
-                </div>
-                <button onClick={() => setIsTopUpOpen(true)} className="bg-[#0B4550] text-[#E6FF2B] px-4 py-2 rounded-xl font-black text-[10px] shadow-sm flex items-center gap-1.5 relative z-20 uppercase tracking-widest"><CreditCard size={14} /> Top Up</button>
-              </div>
-              
-              <div className="flex-1 flex flex-col justify-end z-10 pt-4 w-full">
-                {clientData.unlimited ? (
-                  <div className="space-y-4 w-full">
-                    <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#E6FF2B]/10 text-[#0B4550] border border-[#E6FF2B]/20 text-[10px] font-black uppercase tracking-widest">
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#0B4550] animate-pulse"></span>
-                      Unlimited Access Plan
-                    </span>
-                    <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2] rounded-2xl p-4 border border-gray-100">
-                      <div>
-                        <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Expiration Date</p>
-                        <p className="text-sm font-black text-[#0B4550]">{clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Time Remaining</p>
-                        <p className="text-sm font-black text-[#0B4550]">
-                          {(() => {
-                            const days = calculateRemainingDays(clientData.expiry);
-                            if (days === null) return 'Unlimited Days';
-                            if (days < 0) return 'Expired';
-                            if (days === 0) return 'Expires Today';
-                            return `${days} Days Left`;
-                          })()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4 w-full">
-                    <div className="flex justify-between items-end">
-                      <div>
-                        <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Remaining Sessions</p>
-                        <p className="text-3xl font-black text-[#0B4550]">{clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Completed</p>
-                        <p className="text-xl font-black text-[#0B4550]">{clientData.usedSessions || 0}</p>
-                      </div>
-                    </div>
-                    
-                    <div className="w-full h-2 bg-[#F9F7F2] rounded-full overflow-hidden relative">
-                      <div
-                        className={`h-full transition-all duration-700 ${(clientData.remaining_package || clientData.remainingSessions || 0) <= 0 ? 'bg-red-500' : 'bg-[#0B4550]'}`}
-                        style={{ width: `${((clientData.usedSessions || 0) / ((clientData.usedSessions || 0) + (clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions || 1))) * 100}%` }}
-                      ></div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4 bg-[#F9F7F2] rounded-2xl p-4 border border-gray-100">
-                      <div>
-                        <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Package Expiration</p>
-                        <p className="text-xs font-black text-[#0B4550]">{clientData.expiry ? formatDbDate(clientData.expiry) : 'No Expiration'}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-[9px] font-bold text-[#898A8D] uppercase tracking-widest mb-1">Time Remaining</p>
-                        <p className="text-xs font-black text-[#0B4550]">
-                          {(() => {
-                            const days = calculateRemainingDays(clientData.expiry);
-                            if (days === null) return 'No Time Limit';
-                            if (days < 0) return 'Expired';
-                            if (days === 0) return 'Expires Today';
-                            return `${days} Days Left`;
-                          })()}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Mobile Weight Tracker */}
-            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex flex-col relative" onClick={openWeightModal}>
-              <div className="flex justify-between items-end mb-4">
-                <div>
-                  <h3 className="font-black text-lg text-[#0B4550]">Weight Tracker</h3>
-                  <p className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest">{weightProgress.toFixed(0)}% to Goal</p>
-                </div>
-                <div className="text-right">
-                  <span className="font-black text-2xl text-[#0B4550] block">{clientData.currentWeight} kg</span>
-                  {clientData.startWeight > clientData.currentWeight && <span className="text-[10px] font-black text-emerald-500">-{(clientData.startWeight - clientData.currentWeight).toFixed(1)} kg so far!</span>}
-                </div>
-              </div>
-              <div className="relative pt-2">
-                <div className="w-full h-2 bg-[#F9F7F2] rounded-full overflow-hidden"><div className="h-full bg-[#0B4550] transition-all duration-1000" style={{ width: `${weightProgress}%` }}></div></div>
-              </div>
-            </div>
-
-            {/* Mobile Workout Builder */}
-            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex justify-between items-center relative">
-              <div>
-                <h3 className="font-black text-lg text-[#0B4550] mb-1">{generatedWorkout ? "Today's Plan" : "Workout Builder"}</h3>
-                <p className="text-[#898A8D] font-bold text-xs mb-3">{generatedWorkout ? "Ready to crush it?" : "Generate your session"}</p>
-                <div className="flex gap-2">
-                  <button onClick={() => { if (generatedWorkout) setIsTrackerOpen(true); else { setStep(1); setIsBuilderOpen(true); } }} className="flex items-center gap-2 text-[#E6FF2B] font-black bg-[#0B4550] px-4 py-2.5 rounded-full text-xs shadow-sm z-20 relative">
-                    {generatedWorkout ? "Start Workout" : "Start Building"} <Plus size={14} />
-                  </button>
-                  {generatedWorkout && (
-                    <button onClick={() => { setGeneratedWorkout(null); setStep(1); setIsBuilderOpen(true); }} className="w-9 h-9 rounded-xl bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] hover:bg-gray-100 transition-all z-20 relative">
-                      <RefreshCw size={14} />
-                    </button>
-                  )}
-                </div>
-              </div>
-              <div className="w-12 h-12 rounded-full bg-[#F9F7F2] flex items-center justify-center shrink-0">
-                <Zap size={24} className={generatedWorkout ? "text-[#0B4550]" : "text-[#898A8D]"} />
-              </div>
-            </div>
-
-            {/* Mobile Available Classes */}
-            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex flex-col h-[320px]">
-              <div className="flex justify-between items-center mb-4 shrink-0">
-                <div>
-                  <h3 className="font-black text-lg text-[#0B4550]">Available Classes</h3>
-                  <p className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest mt-0.5">Quick 1-Click Booking</p>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto pr-1 space-y-3 no-scrollbar">
-                {(() => {
-                  const todayStr = new Date().toISOString().split('T')[0];
-                  const futureSessions = liveSessions.filter(s => s.date >= todayStr && s.type !== '1-on-1' && s.type !== 'Blocked');
-                  
-                  if (futureSessions.length === 0) {
-                    return (
-                      <div className="flex flex-col items-center justify-center py-8 text-center text-[#898A8D]">
-                        <Calendar size={24} className="mb-2 opacity-50" />
-                        <p className="text-xs font-bold">No classes scheduled yet.</p>
-                      </div>
-                    );
-                  }
-                  
-                  return futureSessions.map(session => {
-                    const isFull = session.attendees?.length >= session.capacity;
-                    return (
-                      <div key={session.id} className="bg-[#F9F7F2] border border-gray-100 rounded-2xl p-4 flex flex-col gap-3 relative">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1">
-                              <span className="inline-block px-2 py-0.5 rounded text-[#0B4550] bg-[#E6FF2B] text-[9px] font-black uppercase tracking-wider">
-                                {formatDbDate(session.date)}
-                              </span>
-                              <span className="text-[10px] font-bold text-[#898A8D]">
-                                {session.time}
-                              </span>
-                            </div>
-                            <h4 className="text-sm font-black text-[#0B4550] leading-tight">{session.title}</h4>
-                            <p className="text-[10px] text-[#898A8D] flex items-center gap-1 font-bold mt-1">
-                              <User size={10} className="text-[#0B4550]" /> {session.coach || session.trainer || 'Coach'}
-                            </p>
-                          </div>
-                          <p className="text-[9px] font-black text-[#898A8D] uppercase tracking-widest">
-                            {session.attendees?.length || 0} / {session.capacity} Slots
-                          </p>
-                        </div>
-                        
-                        <div className="flex justify-end pt-2 border-t border-gray-100">
-                          {session.isBookedByMe ? (
-                            <div className="flex items-center gap-3">
-                              <span className="text-[10px] font-black text-[#0B4550] bg-[#E6FF2B] py-1.5 px-3 rounded-lg flex items-center gap-1 uppercase tracking-wider">
-                                Booked ✓
-                              </span>
-                              <button onClick={() => handleQuickCancel(session)} className="text-[10px] font-black text-red-500 px-2 py-1.5">
-                                Cancel
-                              </button>
-                            </div>
-                          ) : isFull ? (
-                            <span className="text-[10px] font-black text-[#898A8D] bg-gray-150 py-1.5 px-3 rounded-lg uppercase tracking-wider">
-                              Full
-                            </span>
-                          ) : (
-                            <button
-                              onClick={() => handleQuickBook(session)}
-                              className="bg-[#0B4550] text-[#E6FF2B] py-2 px-4 rounded-xl text-[10px] font-black w-full"
-                            >
-                              Book Spot
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
-            </div>
-
-            {/* Mobile Booked Classes */}
-            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 flex flex-col h-[300px]">
-              <div className="flex justify-between items-center mb-4 shrink-0">
-                <div>
-                  <h3 className="font-black text-lg text-[#0B4550]">Booked Classes</h3>
-                  <p className="text-[#898A8D] text-[10px] font-bold uppercase tracking-widest mt-0.5">My Schedule</p>
-                </div>
-                <span className="bg-[#E6FF2B] text-[#0B4550] text-[9px] font-black uppercase tracking-wider px-2 py-1 rounded-full">
-                  {upcomingBookings.length}
-                </span>
-              </div>
-
-              {upcomingBookings.length === 0 ? (
-                <div className="flex-1 flex flex-col items-center justify-center text-center p-4">
-                  <div className="w-12 h-12 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#898A8D] mb-3">
-                    <CalendarCheck size={20} />
-                  </div>
-                  <h4 className="font-black text-sm text-[#0B4550] mb-1">No Bookings</h4>
-                  <p className="text-[#898A8D] text-[10px] font-bold">Use "Available Classes" to book.</p>
-                </div>
-              ) : (
-                <div className="flex-1 overflow-y-auto pr-1 no-scrollbar space-y-3">
-                  {upcomingBookings.map(booking => (
-                    <div key={booking.id} className="bg-[#F9F7F2] border border-gray-100 rounded-2xl p-3.5 flex justify-between items-center">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white text-[#0B4550] flex items-center justify-center border border-gray-150">
-                          <Calendar size={16} />
-                        </div>
-                        <div>
-                          <h4 className="font-black text-sm text-[#0B4550] mb-0.5 leading-tight">{booking.title}</h4>
-                          <p className="text-[#898A8D] text-[10px] font-bold flex items-center gap-1.5">
-                            <Clock size={10} /> {formatDbDate(booking.date)} at {booking.time}
-                          </p>
-                        </div>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          if (window.confirm(`Are you sure you want to cancel your spot in ${booking.title}?`)) {
-                            handleQuickCancel(booking);
-                          }
-                        }}
-                        className="p-2 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500/20"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-          </div>
           </>
         )}
 
         {/* --- ACTIVITY LEDGER VIEW --- */}
         {activeNav === 'History' && (
           <>
-          {/* DESKTOP HISTORY VIEW */}
-          <div className="hidden md:flex flex-1 pb-4 animate-in fade-in duration-500 max-w-4xl mx-auto w-full">
-            <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-gray-100 h-full flex flex-col">
-              <div className="flex justify-between items-center mb-8">
-                <div>
-                  <h3 className="text-2xl font-medium text-[#0B4550]">History & Invoices</h3>
-                  <p className="text-[#898A8D] font-medium">All your sessions and purchases in one place.</p>
-                </div>
-                <div className="bg-[#F9F7F2] px-5 py-2 rounded-2xl border border-gray-100 flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
-                    <span className="text-xs font-bold text-[#0B4550] uppercase">Credit</span>
+            {/* DESKTOP HISTORY VIEW */}
+            <div className="hidden md:flex flex-1 pb-4 animate-in fade-in duration-500 max-w-4xl mx-auto w-full">
+              <div className="bg-white rounded-[2.5rem] p-10 shadow-sm border border-gray-100 h-full flex flex-col">
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h3 className="text-2xl font-medium text-[#0B4550]">History & Invoices</h3>
+                    <p className="text-[#898A8D] font-medium">All your sessions and purchases in one place.</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full bg-rose-400"></div>
-                    <span className="text-xs font-bold text-[#0B4550] uppercase">Debit</span>
+                  <div className="bg-[#F9F7F2] px-5 py-2 rounded-2xl border border-gray-100 flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-emerald-400"></div>
+                      <span className="text-xs font-bold text-[#0B4550] uppercase">Credit</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-3 h-3 rounded-full bg-rose-400"></div>
+                      <span className="text-xs font-bold text-[#0B4550] uppercase">Debit</span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-4">
-                {activityHistory.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-20 text-center">
-                    <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 mb-4"><Activity size={40} /></div>
-                    <p className="text-[#898A8D] font-medium">No activity recorded yet.</p>
-                  </div>
-                ) : (
-                  activityHistory.map((item) => (
-                    <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 md:p-6 bg-[#F9F7F2] rounded-3xl border border-transparent hover:border-[#E6FF2B] transition-all group gap-4 sm:gap-2">
-                      <div className="flex items-center gap-4 md:gap-5">
-                        <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-sm transition-transform group-hover:scale-110 shrink-0 ${item.type === 'purchase' ? 'bg-emerald-50 text-emerald-500' :
+                <div className="flex-1 overflow-y-auto pr-2 no-scrollbar space-y-4">
+                  {activityHistory.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-20 text-center">
+                      <div className="w-20 h-20 bg-gray-50 rounded-full flex items-center justify-center text-gray-300 mb-4"><Activity size={40} /></div>
+                      <p className="text-[#898A8D] font-medium">No activity recorded yet.</p>
+                    </div>
+                  ) : (
+                    activityHistory.map((item) => (
+                      <div key={item.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-5 md:p-6 bg-[#F9F7F2] rounded-3xl border border-transparent hover:border-[#E6FF2B] transition-all group gap-4 sm:gap-2">
+                        <div className="flex items-center gap-4 md:gap-5">
+                          <div className={`w-12 h-12 md:w-14 md:h-14 rounded-2xl flex items-center justify-center text-xl md:text-2xl shadow-sm transition-transform group-hover:scale-110 shrink-0 ${item.type === 'purchase' ? 'bg-emerald-50 text-emerald-500' :
                             item.type === 'usage' ? 'bg-rose-50 text-rose-500' : 'bg-blue-50 text-blue-500'
-                          }`}>
-                          {item.type === 'purchase' ? <CreditCard size={20} /> :
-                            item.type === 'usage' ? <Zap size={20} /> : <FileText size={20} />}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-base md:text-lg font-bold text-[#0B4550] truncate">{item.title}</p>
-                          <p className="text-xs md:text-sm font-medium text-[#898A8D] mt-0.5">
-                            {item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            {item.method && ` • ${item.method}`}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-center justify-between sm:justify-end gap-4 text-right w-full sm:w-auto border-t sm:border-t-0 border-gray-100 pt-3.5 sm:pt-0">
-                        {item.type === 'purchase' && item.invoiceNumber && (
-                          <button 
-                            onClick={() => {
-                              setSelectedInvoice(item);
-                              setIsInvoiceOpen(true);
-                            }}
-                            className="bg-[#0B4550]/10 hover:bg-[#0B4550] text-[#0B4550] hover:text-[#E6FF2B] px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0"
-                          >
-                            <FileText size={13} /> PDF Invoice
-                          </button>
-                        )}
-                        <div className="text-right ml-auto">
-                          <p className={`text-xl md:text-2xl font-black ${item.type === 'purchase' ? 'text-emerald-500' :
-                              item.type === 'usage' ? 'text-rose-500' : 'text-[#0B4550]'
                             }`}>
-                            {item.type === 'purchase' ? `RM ${Math.abs(item.amount)}` : `-${Math.abs(item.amount)}`}
-                          </p>
-                          <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mt-0.5">
-                            {item.type === 'purchase' ? 'Paid' : 'Session'}
-                          </p>
+                            {item.type === 'purchase' ? <CreditCard size={20} /> :
+                              item.type === 'usage' ? <Zap size={20} /> : <FileText size={20} />}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-base md:text-lg font-bold text-[#0B4550] truncate">{item.title}</p>
+                            <p className="text-xs md:text-sm font-medium text-[#898A8D] mt-0.5">
+                              {item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              {item.method && ` • ${item.method}`}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between sm:justify-end gap-4 text-right w-full sm:w-auto border-t sm:border-t-0 border-gray-100 pt-3.5 sm:pt-0">
+                          {item.type === 'purchase' && item.invoiceNumber && (
+                            <button
+                              onClick={() => {
+                                setSelectedInvoice(item);
+                                setIsInvoiceOpen(true);
+                              }}
+                              className="bg-[#0B4550]/10 hover:bg-[#0B4550] text-[#0B4550] hover:text-[#E6FF2B] px-3.5 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shrink-0"
+                            >
+                              <FileText size={13} /> PDF Invoice
+                            </button>
+                          )}
+                          <div className="text-right ml-auto">
+                            <p className={`text-xl md:text-2xl font-black ${item.type === 'purchase' ? 'text-emerald-500' :
+                              item.type === 'usage' ? 'text-rose-500' : 'text-[#0B4550]'
+                              }`}>
+                              {item.type === 'purchase' ? `RM ${Math.abs(item.amount)}` : `-${Math.abs(item.amount)}`}
+                            </p>
+                            <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest mt-0.5">
+                              {item.type === 'purchase' ? 'Paid' : 'Session'}
+                            </p>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))
-                )}
+                    ))
+                  )}
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* MOBILE HISTORY VIEW */}
-          <div className="md:hidden flex flex-col gap-4 flex-1 pb-4 animate-in fade-in duration-500 w-full">
-            <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 h-full flex flex-col">
-              <div className="flex flex-col gap-4 mb-6">
-                <div>
-                  <h3 className="text-2xl font-black text-[#0B4550]">History & Invoices</h3>
-                  <p className="text-[#898A8D] font-bold text-xs mt-1">All your sessions and purchases.</p>
-                </div>
-                <div className="bg-[#F9F7F2] px-4 py-3 rounded-xl border border-gray-100 flex justify-between items-center">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
-                    <span className="text-[10px] font-black text-[#898A8D] uppercase tracking-widest">Credit</span>
+            {/* MOBILE HISTORY VIEW */}
+            <div className="md:hidden flex flex-col gap-4 flex-1 pb-4 animate-in fade-in duration-500 w-full">
+              <div className="bg-white rounded-[2rem] p-5 shadow-sm border border-gray-100 h-full flex flex-col">
+                <div className="flex flex-col gap-4 mb-6">
+                  <div>
+                    <h3 className="text-2xl font-black text-[#0B4550]">History & Invoices</h3>
+                    <p className="text-[#898A8D] font-bold text-xs mt-1">All your sessions and purchases.</p>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                    <span className="text-[10px] font-black text-[#898A8D] uppercase tracking-widest">Debit</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-3">
-                {activityHistory.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 text-center">
-                    <div className="w-16 h-16 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#898A8D] mb-4"><Activity size={32} /></div>
-                    <p className="text-[#898A8D] font-bold text-sm">No activity recorded yet.</p>
-                  </div>
-                ) : (
-                  activityHistory.map((item) => (
-                    <div key={item.id} className="flex flex-col p-4 bg-white rounded-2xl border border-gray-100 gap-3 relative">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${
-                          item.type === 'purchase' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
-                          item.type === 'usage' ? 'bg-red-50 text-red-600 border border-red-100' : 
-                          'bg-blue-50 text-blue-600 border border-blue-100'
-                        }`}>
-                          {item.type === 'purchase' ? <CreditCard size={20} /> :
-                            item.type === 'usage' ? <Zap size={20} /> : <FileText size={20} />}
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="text-sm font-black text-[#0B4550] truncate leading-tight mb-0.5">{item.title}</p>
-                          <p className="text-[10px] font-bold text-[#898A8D]">
-                            {item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                            {item.method && ` • ${item.method}`}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-1">
-                        {item.type === 'purchase' && item.invoiceNumber ? (
-                          <button 
-                            onClick={() => {
-                              setSelectedInvoice(item);
-                              setIsInvoiceOpen(true);
-                            }}
-                            className="bg-[#F9F7F2] hover:bg-gray-200 text-[#0B4550] border border-gray-150 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1.5 uppercase tracking-wider"
-                          >
-                            <FileText size={12} /> Invoice
-                          </button>
-                        ) : <div></div>}
-                        <div className="text-right">
-                          <p className={`text-base font-black ${
-                            item.type === 'purchase' ? 'text-emerald-600' :
-                            item.type === 'usage' ? 'text-red-500' : 'text-[#0B4550]'
-                          }`}>
-                            {item.type === 'purchase' ? `RM ${Math.abs(item.amount)}` : `-${Math.abs(item.amount)}`}
-                          </p>
-                          <p className="text-[9px] font-black text-[#898A8D] uppercase tracking-widest mt-0.5">
-                            {item.type === 'purchase' ? 'Paid' : 'Session'}
-                          </p>
-                        </div>
-                      </div>
+                  <div className="bg-[#F9F7F2] px-4 py-3 rounded-xl border border-gray-100 flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                      <span className="text-[10px] font-black text-[#898A8D] uppercase tracking-widest">Credit</span>
                     </div>
-                  ))
-                )}
+                    <div className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
+                      <span className="text-[10px] font-black text-[#898A8D] uppercase tracking-widest">Debit</span>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto no-scrollbar space-y-3">
+                  {activityHistory.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-12 text-center">
+                      <div className="w-16 h-16 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#898A8D] mb-4"><Activity size={32} /></div>
+                      <p className="text-[#898A8D] font-bold text-sm">No activity recorded yet.</p>
+                    </div>
+                  ) : (
+                    activityHistory.map((item) => (
+                      <div key={item.id} className="flex flex-col p-4 bg-white rounded-2xl border border-gray-100 gap-3 relative">
+                        <div className="flex items-center gap-3">
+                          <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-xl shrink-0 ${item.type === 'purchase' ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' :
+                              item.type === 'usage' ? 'bg-red-50 text-red-600 border border-red-100' :
+                                'bg-blue-50 text-blue-600 border border-blue-100'
+                            }`}>
+                            {item.type === 'purchase' ? <CreditCard size={20} /> :
+                              item.type === 'usage' ? <Zap size={20} /> : <FileText size={20} />}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-black text-[#0B4550] truncate leading-tight mb-0.5">{item.title}</p>
+                            <p className="text-[10px] font-bold text-[#898A8D]">
+                              {item.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                              {item.method && ` • ${item.method}`}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between border-t border-gray-100 pt-3 mt-1">
+                          {item.type === 'purchase' && item.invoiceNumber ? (
+                            <button
+                              onClick={() => {
+                                setSelectedInvoice(item);
+                                setIsInvoiceOpen(true);
+                              }}
+                              className="bg-[#F9F7F2] hover:bg-gray-200 text-[#0B4550] border border-gray-150 px-3 py-1.5 rounded-lg text-[10px] font-black transition-all flex items-center gap-1.5 uppercase tracking-wider"
+                            >
+                              <FileText size={12} /> Invoice
+                            </button>
+                          ) : <div></div>}
+                          <div className="text-right">
+                            <p className={`text-base font-black ${item.type === 'purchase' ? 'text-emerald-600' :
+                                item.type === 'usage' ? 'text-red-500' : 'text-[#0B4550]'
+                              }`}>
+                              {item.type === 'purchase' ? `RM ${Math.abs(item.amount)}` : `-${Math.abs(item.amount)}`}
+                            </p>
+                            <p className="text-[9px] font-black text-[#898A8D] uppercase tracking-widest mt-0.5">
+                              {item.type === 'purchase' ? 'Paid' : 'Session'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
               </div>
             </div>
-          </div>
           </>
         )}
 
@@ -2044,7 +2042,7 @@ Client Special Requests: ${customPrompt || 'None'}
 
         {/* BOOKING MODAL (NOW LIVE!) */}
         {isBookingOpen && <div className="fixed inset-0 bg-black/40 md:bg-black/20 backdrop-blur-sm z-[115] transition-opacity" onClick={closeBookingDrawer} />}
-        
+
         {/* DESKTOP BOOKING DRAWER */}
         <div className={`hidden md:flex fixed top-0 right-0 h-full w-[450px] bg-white z-[120] shadow-2xl transition-transform duration-500 ease-out p-10 flex-col ${isBookingOpen ? 'translate-x-0' : 'translate-x-full'}`}>
           <div className="flex justify-between items-center mb-10"><h2 className="text-3xl font-medium text-[#0B4550]">Book Session</h2><button onClick={closeBookingDrawer} className="w-10 h-10 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-colors"><X size={20} /></button></div>
@@ -2264,86 +2262,86 @@ Client Special Requests: ${customPrompt || 'None'}
         {/* TOP UP MODAL */}
         {isTopUpOpen && (
           <>
-          {/* DESKTOP MODAL */}
-          <div className="hidden md:flex fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] justify-center items-center p-4">
-            <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-xl shadow-2xl relative animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto no-scrollbar">
-              <button onClick={() => setIsTopUpOpen(false)} className="absolute top-6 right-6 w-10 h-10 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-colors"><X size={20} /></button>
+            {/* DESKTOP MODAL */}
+            <div className="hidden md:flex fixed inset-0 bg-black/40 backdrop-blur-sm z-[150] justify-center items-center p-4">
+              <div className="bg-white rounded-[2.5rem] p-8 w-full max-w-xl shadow-2xl relative animate-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto no-scrollbar">
+                <button onClick={() => setIsTopUpOpen(false)} className="absolute top-6 right-6 w-10 h-10 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-colors"><X size={20} /></button>
 
-              <div className="text-center mb-8 mt-2">
-                <div className="w-16 h-16 bg-[#0B4550] text-[#E6FF2B] rounded-full flex items-center justify-center mx-auto mb-4 shadow-md"><Package size={32} /></div>
-                <h2 className="text-3xl font-extrabold text-[#0B4550]">Top Up Sessions</h2>
-                <p className="text-[#898A8D] font-bold mt-2">Choose a package to continue booking classes.</p>
-              </div>
+                <div className="text-center mb-8 mt-2">
+                  <div className="w-16 h-16 bg-[#0B4550] text-[#E6FF2B] rounded-full flex items-center justify-center mx-auto mb-4 shadow-md"><Package size={32} /></div>
+                  <h2 className="text-3xl font-extrabold text-[#0B4550]">Top Up Sessions</h2>
+                  <p className="text-[#898A8D] font-bold mt-2">Choose a package to continue booking classes.</p>
+                </div>
 
-              <div className="space-y-4">
-                {packagesList.map(pkg => (
-                  <div key={pkg.id} className="border-2 border-gray-100 rounded-3xl p-6 flex flex-col justify-between items-center gap-6 hover:border-[#0B4550] transition-colors group bg-white">
-                    <div className="flex-1 w-full text-center">
-                      <span className="inline-block px-3 py-1 rounded-lg bg-[#F9F7F2] text-[#0B4550] text-[10px] font-extrabold uppercase tracking-widest mb-3">{pkg.type}</span>
-                      <h3 className="text-xl font-extrabold text-[#0B4550] mb-1">{pkg.name}</h3>
-                      <p className="text-[#898A8D] font-bold text-sm">Valid for {pkg.validity_days} days</p>
-                    </div>
-
-                    <div className="text-center w-full">
-                      <div className="flex items-baseline justify-center gap-1 mb-3">
-                        <span className="text-sm font-bold text-[#898A8D]">RM</span>
-                        <span className="text-3xl font-black text-[#0B4550]">{pkg.price}</span>
+                <div className="space-y-4">
+                  {packagesList.map(pkg => (
+                    <div key={pkg.id} className="border-2 border-gray-100 rounded-3xl p-6 flex flex-col justify-between items-center gap-6 hover:border-[#0B4550] transition-colors group bg-white">
+                      <div className="flex-1 w-full text-center">
+                        <span className="inline-block px-3 py-1 rounded-lg bg-[#F9F7F2] text-[#0B4550] text-[10px] font-extrabold uppercase tracking-widest mb-3">{pkg.type}</span>
+                        <h3 className="text-xl font-extrabold text-[#0B4550] mb-1">{pkg.name}</h3>
+                        <p className="text-[#898A8D] font-bold text-sm">Valid for {pkg.validity_days} days</p>
                       </div>
-                      <button
-                        onClick={() => handlePurchasePackage(pkg)}
-                        className="w-full px-8 py-3 rounded-xl font-extrabold bg-[#0B4550] text-[#E6FF2B] hover:scale-105 transition-transform shadow-md"
-                      >
-                        Buy Now
-                      </button>
+
+                      <div className="text-center w-full">
+                        <div className="flex items-baseline justify-center gap-1 mb-3">
+                          <span className="text-sm font-bold text-[#898A8D]">RM</span>
+                          <span className="text-3xl font-black text-[#0B4550]">{pkg.price}</span>
+                        </div>
+                        <button
+                          onClick={() => handlePurchasePackage(pkg)}
+                          className="w-full px-8 py-3 rounded-xl font-extrabold bg-[#0B4550] text-[#E6FF2B] hover:scale-105 transition-transform shadow-md"
+                        >
+                          Buy Now
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
-          
-          {/* MOBILE MODAL */}
-          <div className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex justify-center items-end p-0">
-            <div className="bg-white border-t border-gray-150 rounded-t-[2.5rem] p-6 w-full relative animate-in slide-in-from-bottom-10 duration-300 max-h-[85vh] flex flex-col pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
-              <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 shrink-0"></div>
-              <button onClick={() => setIsTopUpOpen(false)} className="absolute top-6 right-6 w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#898A8D] hover:text-[#0B4550] transition-colors"><X size={16} /></button>
 
-              <div className="mb-6 mt-2 shrink-0 pr-10">
-                <div className="w-12 h-12 bg-[#0B4550] text-[#E6FF2B] rounded-2xl flex items-center justify-center mb-3 border border-[#0B4550] shadow-md"><Package size={24} /></div>
-                <h2 className="text-2xl font-black text-[#0B4550]">Top Up Sessions</h2>
-                <p className="text-[#898A8D] font-bold text-xs mt-1">Choose a package to continue booking classes.</p>
-              </div>
+            {/* MOBILE MODAL */}
+            <div className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[150] flex justify-center items-end p-0">
+              <div className="bg-white border-t border-gray-150 rounded-t-[2.5rem] p-6 w-full relative animate-in slide-in-from-bottom-10 duration-300 max-h-[85vh] flex flex-col pb-[calc(1.5rem+env(safe-area-inset-bottom))]">
+                <div className="w-12 h-1.5 bg-gray-200 rounded-full mx-auto mb-6 shrink-0"></div>
+                <button onClick={() => setIsTopUpOpen(false)} className="absolute top-6 right-6 w-8 h-8 bg-[#F9F7F2] rounded-full flex items-center justify-center text-[#898A8D] hover:text-[#0B4550] transition-colors"><X size={16} /></button>
 
-              <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 min-h-0">
-                {packagesList.map(pkg => (
-                  <div key={pkg.id} className="border border-gray-100 rounded-[1.5rem] p-5 flex flex-col gap-4 bg-[#F9F7F2] relative overflow-hidden">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <span className="inline-block px-2 py-1 rounded bg-white text-[#0B4550] text-[9px] font-black uppercase tracking-widest mb-2 border border-gray-100">{pkg.type}</span>
-                        <h3 className="text-lg font-black text-[#0B4550] leading-tight">{pkg.name}</h3>
+                <div className="mb-6 mt-2 shrink-0 pr-10">
+                  <div className="w-12 h-12 bg-[#0B4550] text-[#E6FF2B] rounded-2xl flex items-center justify-center mb-3 border border-[#0B4550] shadow-md"><Package size={24} /></div>
+                  <h2 className="text-2xl font-black text-[#0B4550]">Top Up Sessions</h2>
+                  <p className="text-[#898A8D] font-bold text-xs mt-1">Choose a package to continue booking classes.</p>
+                </div>
+
+                <div className="flex-1 overflow-y-auto no-scrollbar space-y-3 min-h-0">
+                  {packagesList.map(pkg => (
+                    <div key={pkg.id} className="border border-gray-100 rounded-[1.5rem] p-5 flex flex-col gap-4 bg-[#F9F7F2] relative overflow-hidden">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <span className="inline-block px-2 py-1 rounded bg-white text-[#0B4550] text-[9px] font-black uppercase tracking-widest mb-2 border border-gray-100">{pkg.type}</span>
+                          <h3 className="text-lg font-black text-[#0B4550] leading-tight">{pkg.name}</h3>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <span className="text-[10px] font-bold text-[#898A8D] mr-1">RM</span>
+                          <span className="text-2xl font-black text-[#0B4550]">{pkg.price}</span>
+                        </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <span className="text-[10px] font-bold text-[#898A8D] mr-1">RM</span>
-                        <span className="text-2xl font-black text-[#0B4550]">{pkg.price}</span>
+
+                      <div className="flex justify-between items-center pt-3 border-t border-gray-100 mt-1">
+                        <p className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest flex items-center gap-1.5">
+                          <Clock size={12} /> {pkg.validity_days} days
+                        </p>
+                        <button
+                          onClick={() => handlePurchasePackage(pkg)}
+                          className="px-5 py-2 rounded-xl font-black text-[10px] bg-[#0B4550] text-[#E6FF2B] uppercase tracking-widest shadow-md"
+                        >
+                          Buy Now
+                        </button>
                       </div>
                     </div>
-                    
-                    <div className="flex justify-between items-center pt-3 border-t border-gray-100 mt-1">
-                      <p className="text-[#898A8D] font-bold text-[10px] uppercase tracking-widest flex items-center gap-1.5">
-                        <Clock size={12} /> {pkg.validity_days} days
-                      </p>
-                      <button
-                        onClick={() => handlePurchasePackage(pkg)}
-                        className="px-5 py-2 rounded-xl font-black text-[10px] bg-[#0B4550] text-[#E6FF2B] uppercase tracking-widest shadow-md"
-                      >
-                        Buy Now
-                      </button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
-          </div>
           </>
         )}
 
@@ -2354,23 +2352,23 @@ Client Special Requests: ${customPrompt || 'None'}
               <div className="flex items-center gap-6 md:gap-16 mx-auto w-full max-w-4xl">
                 <StepIndicator num={1} label="Equipment" active={step >= 1} current={step === 1} />
                 <div className={`flex-1 h-1 rounded-full ${step >= 2 ? 'bg-[#0B4550]' : 'bg-gray-100'}`}></div>
-                
+
                 <StepIndicator num={2} label="Muscles" active={step >= 2} current={step === 2} />
                 <div className={`flex-1 h-1 rounded-full ${step >= 3 ? 'bg-[#0B4550]' : 'bg-gray-100'}`}></div>
-                
+
                 <StepIndicator num={3} label="Preferences" active={step >= 3} current={step === 3} />
                 <div className={`flex-1 h-1 rounded-full ${step >= 4 ? 'bg-[#0B4550]' : 'bg-gray-100'}`}></div>
-                
+
                 <StepIndicator num={4} label="Exercises" active={step === 4} current={step === 4} />
               </div>
               <button onClick={() => { setIsBuilderOpen(false); setStep(1); }} className="absolute right-8 top-8 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center text-[#898A8D] hover:bg-red-50 hover:text-red-500 transition-colors">
                 <X size={20} />
               </button>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto p-8 flex justify-center">
               <div className="max-w-4xl w-full">
-                
+
                 {/* STEP 1: SELECT EQUIPMENT */}
                 {step === 1 && (
                   <div className="animate-in slide-in-from-right-4">
@@ -2382,9 +2380,9 @@ Client Special Requests: ${customPrompt || 'None'}
                       {EQUIPMENT_OPTIONS.map(eq => {
                         const isSelected = selectedEquip.includes(eq);
                         return (
-                          <div 
-                            key={eq} 
-                            onClick={() => toggleSelection(eq, selectedEquip, setSelectedEquip)} 
+                          <div
+                            key={eq}
+                            onClick={() => toggleSelection(eq, selectedEquip, setSelectedEquip)}
                             className={`group relative bg-white rounded-[1.5rem] overflow-hidden border-4 cursor-pointer transition-all hover:scale-[1.02] flex flex-col h-36 ${isSelected ? 'border-[#0B4550] shadow-md scale-[1.03]' : 'border-transparent shadow-sm'}`}
                           >
                             <img src={EQUIPMENT_IMAGES[eq]} alt={eq} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
@@ -2403,7 +2401,7 @@ Client Special Requests: ${customPrompt || 'None'}
                     </div>
                   </div>
                 )}
-                
+
                 {/* STEP 2: TARGET MUSCLE SELECTION */}
                 {step === 2 && (
                   <div className="animate-in slide-in-from-right-4">
@@ -2411,31 +2409,31 @@ Client Special Requests: ${customPrompt || 'None'}
                       <h2 className="text-3xl sm:text-4xl font-medium text-[#0B4550] mb-2">Target Muscles</h2>
                       <p className="text-base sm:text-lg text-[#898A8D] font-medium">Select the muscle groups you want to target.</p>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-center mt-4">
                       {/* Left: SVG Body Map */}
                       <div className="md:col-span-5 flex flex-col justify-center">
                         <div className="flex bg-[#F9F7F2] p-1 rounded-xl border border-gray-200/80 w-fit mx-auto mb-4">
-                          <button 
+                          <button
                             type="button"
-                            onClick={() => setBodyView('front')} 
+                            onClick={() => setBodyView('front')}
                             className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${bodyView === 'front' ? 'bg-[#0B4550] text-[#E6FF2B] shadow-sm' : 'text-[#898A8D]'}`}
                           >
                             Front View
                           </button>
-                          <button 
+                          <button
                             type="button"
-                            onClick={() => setBodyView('back')} 
+                            onClick={() => setBodyView('back')}
                             className={`px-4 py-1.5 text-xs font-bold rounded-lg transition-all ${bodyView === 'back' ? 'bg-[#0B4550] text-[#E6FF2B] shadow-sm' : 'text-[#898A8D]'}`}
                           >
                             Back View
                           </button>
                         </div>
-                        
+
                         {/* 3D Flip Container */}
                         <div className="w-full max-w-[240px] h-[340px] mx-auto relative" style={{ perspective: '1000px' }}>
                           <div className="w-full h-full relative transition-transform duration-700" style={{ transformStyle: 'preserve-3d', transform: bodyView === 'back' ? 'rotateY(180deg)' : 'rotateY(0deg)' }}>
-                            
+
                             {/* Front Side */}
                             <div className="absolute inset-0 w-full h-full bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col items-center justify-center" style={{ backfaceVisibility: 'hidden' }}>
                               <svg viewBox="0 0 200 380" className="w-full h-full max-h-[320px] text-[#0B4550]">
@@ -2451,10 +2449,10 @@ Client Special Requests: ${customPrompt || 'None'}
                                 </defs>
                                 <path d="M 100,20 C 120,20 120,50 100,50 C 80,50 80,20 100,20 Z M 100,50 L 100,60 M 80,60 L 120,60 L 140,90 L 150,150 L 138,150 L 130,105 L 120,160 L 122,250 L 114,350 L 108,350 L 105,250 L 100,200 L 95,250 L 92,350 L 86,350 L 78,250 L 80,160 L 70,105 L 62,150 L 50,150 L 60,90 Z" fill="none" stroke="#E5E7EB" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
                                 <ellipse cx="100" cy="35" rx="14" ry="18" className="fill-[#F9F7F2] stroke-gray-300 stroke-[1.5]" />
-                                
+
                                 {/* Chest */}
-                                <path 
-                                  d="M 100,70 L 78,73 C 76,90 82,105 100,105 Z" 
+                                <path
+                                  d="M 100,70 L 78,73 C 76,90 82,105 100,105 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Chest') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2464,8 +2462,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Chest', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 100,70 L 122,73 C 124,90 118,105 100,105 Z" 
+                                <path
+                                  d="M 100,70 L 122,73 C 124,90 118,105 100,105 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Chest') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2477,8 +2475,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                 />
 
                                 {/* Shoulders */}
-                                <path 
-                                  d="M 78,65 C 67,67 62,80 66,92 C 70,88 74,80 78,74 Z" 
+                                <path
+                                  d="M 78,65 C 67,67 62,80 66,92 C 70,88 74,80 78,74 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Shoulders') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2488,8 +2486,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Shoulders', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 122,65 C 133,67 138,80 134,92 C 130,88 126,80 122,74 Z" 
+                                <path
+                                  d="M 122,65 C 133,67 138,80 134,92 C 130,88 126,80 122,74 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Shoulders') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2501,8 +2499,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                 />
 
                                 {/* Core (Abs) */}
-                                <path 
-                                  d="M 84,107 L 116,107 L 112,160 L 88,160 Z" 
+                                <path
+                                  d="M 84,107 L 116,107 L 112,160 L 88,160 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Core') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2514,8 +2512,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                 />
 
                                 {/* Arms */}
-                                <path 
-                                  d="M 66,92 C 60,105 58,118 64,124 L 72,104 Z" 
+                                <path
+                                  d="M 66,92 C 60,105 58,118 64,124 L 72,104 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2525,8 +2523,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 64,124 L 54,155 C 57,162 61,162 66,155 L 72,126 Z" 
+                                <path
+                                  d="M 64,124 L 54,155 C 57,162 61,162 66,155 L 72,126 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2536,8 +2534,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 134,92 C 140,105 142,118 136,124 L 128,104 Z" 
+                                <path
+                                  d="M 134,92 C 140,105 142,118 136,124 L 128,104 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2547,8 +2545,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 136,124 L 146,155 C 143,162 139,162 134,155 L 128,126 Z" 
+                                <path
+                                  d="M 136,124 L 146,155 C 143,162 139,162 134,155 L 128,126 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2560,8 +2558,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                 />
 
                                 {/* Legs */}
-                                <path 
-                                  d="M 86,165 C 72,200 78,250 86,255 C 92,255 96,220 98,165 Z" 
+                                <path
+                                  d="M 86,165 C 72,200 78,250 86,255 C 92,255 96,220 98,165 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2571,8 +2569,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 86,258 C 76,285 82,335 88,340 C 90,340 92,300 92,258 Z" 
+                                <path
+                                  d="M 86,258 C 76,285 82,335 88,340 C 90,340 92,300 92,258 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2582,8 +2580,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 114,165 C 128,200 122,250 114,255 C 108,255 104,220 102,165 Z" 
+                                <path
+                                  d="M 114,165 C 128,200 122,250 114,255 C 108,255 104,220 102,165 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2593,8 +2591,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 114,258 C 124,285 118,335 112,340 C 110,340 108,300 108,258 Z" 
+                                <path
+                                  d="M 114,258 C 124,285 118,335 112,340 C 110,340 108,300 108,258 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2606,7 +2604,7 @@ Client Special Requests: ${customPrompt || 'None'}
                                 />
                               </svg>
                             </div>
-                            
+
                             {/* Back Side */}
                             <div className="absolute inset-0 w-full h-full bg-white rounded-3xl p-4 shadow-sm border border-gray-100 flex flex-col items-center justify-center" style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}>
                               <svg viewBox="0 0 200 380" className="w-full h-full max-h-[320px] text-[#0B4550]">
@@ -2624,8 +2622,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                 <ellipse cx="100" cy="35" rx="14" ry="18" className="fill-[#F9F7F2] stroke-gray-300 stroke-[1.5]" />
 
                                 {/* Shoulders */}
-                                <path 
-                                  d="M 78,65 C 67,67 62,80 66,92 C 70,88 74,80 78,74 Z" 
+                                <path
+                                  d="M 78,65 C 67,67 62,80 66,92 C 70,88 74,80 78,74 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Shoulders') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2635,8 +2633,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Shoulders', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 122,65 C 133,67 138,80 134,92 C 130,88 126,80 122,74 Z" 
+                                <path
+                                  d="M 122,65 C 133,67 138,80 134,92 C 130,88 126,80 122,74 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Shoulders') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2648,8 +2646,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                 />
 
                                 {/* Back */}
-                                <path 
-                                  d="M 100,58 L 82,70 L 100,85 L 118,70 Z" 
+                                <path
+                                  d="M 100,58 L 82,70 L 100,85 L 118,70 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Back') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2659,8 +2657,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Back', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 100,85 L 80,94 C 76,120 84,135 100,135 Z" 
+                                <path
+                                  d="M 100,85 L 80,94 C 76,120 84,135 100,135 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Back') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2670,8 +2668,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Back', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 100,85 L 120,94 C 124,120 116,135 100,135 Z" 
+                                <path
+                                  d="M 100,85 L 120,94 C 124,120 116,135 100,135 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Back') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2681,8 +2679,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Back', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 86,135 L 114,135 L 110,165 L 90,165 Z" 
+                                <path
+                                  d="M 86,135 L 114,135 L 110,165 L 90,165 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Back') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2694,8 +2692,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                 />
 
                                 {/* Arms */}
-                                <path 
-                                  d="M 66,92 C 60,105 58,118 64,124 L 72,104 Z" 
+                                <path
+                                  d="M 66,92 C 60,105 58,118 64,124 L 72,104 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2705,8 +2703,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 64,124 L 54,155 C 57,162 61,162 66,155 L 72,126 Z" 
+                                <path
+                                  d="M 64,124 L 54,155 C 57,162 61,162 66,155 L 72,126 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2716,8 +2714,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 134,92 C 140,105 142,118 136,124 L 128,104 Z" 
+                                <path
+                                  d="M 134,92 C 140,105 142,118 136,124 L 128,104 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2727,8 +2725,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Arms', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 136,124 L 146,155 C 143,162 139,162 134,155 L 128,126 Z" 
+                                <path
+                                  d="M 136,124 L 146,155 C 143,162 139,162 134,155 L 128,126 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Arms') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2740,8 +2738,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                 />
 
                                 {/* Legs */}
-                                <path 
-                                  d="M 88,166 L 112,166 C 120,185 110,205 100,205 C 90,205 80,185 88,166 Z" 
+                                <path
+                                  d="M 88,166 L 112,166 C 120,185 110,205 100,205 C 90,205 80,185 88,166 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2751,8 +2749,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 86,206 C 72,225 76,250 86,255 C 92,255 96,230 96,206 Z" 
+                                <path
+                                  d="M 86,206 C 72,225 76,250 86,255 C 92,255 96,230 96,206 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2762,8 +2760,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 86,258 C 76,285 82,335 88,340 C 90,340 92,300 92,258 Z" 
+                                <path
+                                  d="M 86,258 C 76,285 82,335 88,340 C 90,340 92,300 92,258 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2773,8 +2771,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 114,206 C 128,225 124,250 114,255 C 108,255 104,230 104,206 Z" 
+                                <path
+                                  d="M 114,206 C 128,225 124,250 114,255 C 108,255 104,230 104,206 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2784,8 +2782,8 @@ Client Special Requests: ${customPrompt || 'None'}
                                   }}
                                   onClick={() => toggleSelection('Legs', selectedMuscles, setSelectedMuscles)}
                                 />
-                                <path 
-                                  d="M 114,258 C 124,285 118,335 112,340 C 110,340 108,300 108,258 Z" 
+                                <path
+                                  d="M 114,258 C 124,285 118,335 112,340 C 110,340 108,300 108,258 Z"
                                   className="transition-all duration-300 cursor-pointer hover:opacity-85"
                                   style={{
                                     fill: selectedMuscles.includes('Legs') ? 'url(#activeMuscleGrad)' : '#E5E7EB',
@@ -2797,11 +2795,11 @@ Client Special Requests: ${customPrompt || 'None'}
                                 />
                               </svg>
                             </div>
-                            
+
                           </div>
                         </div>
                       </div>
-                      
+
                       {/* Right: Selection List */}
                       <div className="md:col-span-7 space-y-4">
                         <h3 className="text-lg font-bold text-[#0B4550] uppercase tracking-wider mb-2">Target Muscles</h3>
@@ -2809,9 +2807,9 @@ Client Special Requests: ${customPrompt || 'None'}
                           {MUSCLE_OPTIONS.map(m => {
                             const isSelected = selectedMuscles.includes(m);
                             return (
-                              <div 
-                                key={m} 
-                                onClick={() => toggleSelection(m, selectedMuscles, setSelectedMuscles)} 
+                              <div
+                                key={m}
+                                onClick={() => toggleSelection(m, selectedMuscles, setSelectedMuscles)}
                                 className={`p-5 rounded-[2rem] border-4 cursor-pointer transition-all flex flex-col items-center gap-3 hover:scale-[1.02] ${isSelected ? 'border-[#0B4550] bg-[#0B4550] text-white shadow-md' : 'bg-white border-transparent text-[#0B4550] shadow-sm hover:border-gray-200'}`}
                               >
                                 <Target size={30} className={isSelected ? 'text-[#E6FF2B]' : 'text-gray-400'} />
@@ -2824,7 +2822,7 @@ Client Special Requests: ${customPrompt || 'None'}
                     </div>
                   </div>
                 )}
-                
+
                 {/* STEP 3: AI ROUTINE PREFERENCES */}
                 {step === 3 && (
                   <div className="animate-in slide-in-from-right-4">
@@ -2832,16 +2830,16 @@ Client Special Requests: ${customPrompt || 'None'}
                       <h2 className="text-3xl sm:text-4xl font-medium text-[#0B4550] mb-2">AI Routine Customizer</h2>
                       <p className="text-base sm:text-lg text-[#898A8D] font-medium">Fine-tune your training program parameters.</p>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto">
                       {/* Fitness Experience */}
                       <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-3">
                         <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Fitness Experience</label>
                         <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100">
                           {['Beginner', 'Intermediate', 'Advanced'].map(level => (
-                            <button 
+                            <button
                               type="button"
-                              key={level} 
+                              key={level}
                               onClick={() => setDifficulty(level)}
                               className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all ${difficulty === level ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
                             >
@@ -2856,9 +2854,9 @@ Client Special Requests: ${customPrompt || 'None'}
                         <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Fitness Goal</label>
                         <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100">
                           {['Strength', 'Hypertrophy', 'Endurance'].map(goalOption => (
-                            <button 
+                            <button
                               type="button"
-                              key={goalOption} 
+                              key={goalOption}
                               onClick={() => setWorkoutGoal(goalOption)}
                               className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all ${workoutGoal === goalOption ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
                             >
@@ -2873,9 +2871,9 @@ Client Special Requests: ${customPrompt || 'None'}
                         <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Workout Style</label>
                         <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100">
                           {['Standard', 'Circuits'].map(style => (
-                            <button 
+                            <button
                               type="button"
-                              key={style} 
+                              key={style}
                               onClick={() => setWorkoutStyle(style)}
                               className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all ${workoutStyle === style ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
                             >
@@ -2890,9 +2888,9 @@ Client Special Requests: ${customPrompt || 'None'}
                         <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Workout Duration</label>
                         <div className="flex gap-2 bg-[#F9F7F2] p-1.5 rounded-2xl border border-gray-100">
                           {[30, 45, 60, 90].map(mins => (
-                            <button 
+                            <button
                               type="button"
-                              key={mins} 
+                              key={mins}
                               onClick={() => setWorkoutDuration(mins)}
                               className={`flex-1 py-2.5 text-xs font-extrabold rounded-xl transition-all ${workoutDuration === mins ? 'bg-[#0B4550] text-white shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
                             >
@@ -2946,9 +2944,9 @@ Client Special Requests: ${customPrompt || 'None'}
                       {/* Exclude Exercises */}
                       <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm space-y-3 col-span-1 md:col-span-2">
                         <label className="text-[11px] font-bold text-[#898A8D] uppercase tracking-widest block">Exclude Specific Exercises (Optional)</label>
-                        <input 
-                          type="text" 
-                          value={excludeExercises} 
+                        <input
+                          type="text"
+                          value={excludeExercises}
                           onChange={(e) => setExcludeExercises(e.target.value)}
                           placeholder="e.g. Burpees, squats, pull-ups"
                           className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl p-4 text-xs font-bold text-[#0B4550] outline-none focus:border-[#0B4550] focus:bg-white transition-colors"
@@ -2968,7 +2966,7 @@ Client Special Requests: ${customPrompt || 'None'}
                     </div>
                   </div>
                 )}
-                
+
                 {/* STEP 4: EXERCISES REVIEW */}
                 {step === 4 && generatedWorkout && (
                   <div className="animate-in slide-in-from-right-4">
@@ -3033,26 +3031,26 @@ Client Special Requests: ${customPrompt || 'None'}
                     </div>
                   </div>
                 )}
-                
+
               </div>
             </div>
-            
+
             <div className="bg-white p-6 pb-8 sm:pb-6 border-t border-gray-100 flex justify-center shrink-0 shadow-[0_-4px_20px_rgba(0,0,0,0.02)]">
               <div className="max-w-4xl w-full flex justify-between items-center">
                 <button onClick={() => step > 1 ? setStep(step - 1) : setIsBuilderOpen(false)} className="px-8 font-medium text-[#898A8D] flex items-center gap-2 hover:text-[#0B4550] transition-colors">
                   <ChevronLeft size={20} /> Previous
                 </button>
-                <button 
-                  disabled={isGenerating || (step === 1 ? selectedEquip.length === 0 : step === 2 ? selectedMuscles.length === 0 : false)} 
-                  onClick={() => { 
+                <button
+                  disabled={isGenerating || (step === 1 ? selectedEquip.length === 0 : step === 2 ? selectedMuscles.length === 0 : false)}
+                  onClick={() => {
                     if (step === 3) {
-                      generateWorkout(); 
+                      generateWorkout();
                     } else if (step === 4) {
-                      setIsBuilderOpen(false); 
+                      setIsBuilderOpen(false);
                     } else {
-                      setStep(step + 1); 
+                      setStep(step + 1);
                     }
-                  }} 
+                  }}
                   className="bg-[#E6FF2B] text-[#0B4550] px-16 py-4 rounded-full font-medium text-lg shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-3"
                 >
                   {isGenerating ? (
@@ -3138,7 +3136,7 @@ Client Special Requests: ${customPrompt || 'None'}
                   <h2 className="text-2xl font-bold text-[#0B4550]">Invoice Receipt</h2>
                   <p className="text-xs text-[#898A8D] font-bold mt-1">Review transaction details or download invoice as PDF.</p>
                 </div>
-                <button 
+                <button
                   onClick={() => window.print()}
                   className="bg-[#0B4550] text-[#E6FF2B] hover:bg-[#E6FF2B] hover:text-[#0B4550] border border-transparent px-5 py-3 rounded-xl text-sm font-bold transition-all flex items-center gap-2 shadow-sm mr-12"
                 >
@@ -3146,7 +3144,8 @@ Client Special Requests: ${customPrompt || 'None'}
                 </button>
               </div>
 
-              <style dangerouslySetInnerHTML={{__html: `
+              <style dangerouslySetInnerHTML={{
+                __html: `
                 @media print {
                   body * {
                     visibility: hidden !important;
