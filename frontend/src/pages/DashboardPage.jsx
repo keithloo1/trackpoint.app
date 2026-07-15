@@ -8169,45 +8169,67 @@ export default function Dashboard({ session }) {
                     if (!classSearchQuery) return true;
                     return (c.name || '').toLowerCase().includes(classSearchQuery.toLowerCase());
                   })
-                  .map(client => (
-                    <button
-                      key={client.id}
-                      onClick={() => {
-                        setSelectedClassClient(client);
-                        // Pre-select first class today if available
-                        const todayDate = new Date();
-                        const todayClasses = sessions.filter(session => {
-                          if (session.type === 'Blocked') return false;
-                          const sessDate = new Date(session.start_time);
-                          return sessDate.getDate() === todayDate.getDate() &&
-                            sessDate.getMonth() === todayDate.getMonth() &&
-                            sessDate.getFullYear() === todayDate.getFullYear();
-                        });
-                        const sortedTodayClasses = [...todayClasses].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
-                        setSelectedClassSession(sortedTodayClasses.length > 0 ? sortedTodayClasses[0] : null);
-                        setShowCheckInModal(true);
-                      }}
-                      className="bg-white p-4 md:p-6 rounded-2xl shadow-sm hover:shadow-md border border-gray-100 hover:border-[#0B4550] transition-all flex flex-col items-center gap-3 active:scale-95 group"
-                    >
-                      <div className="w-16 h-16 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-2xl font-bold group-hover:scale-110 transition-transform">
-                        {getInitials(client.name)}
-                      </div>
-                      <div className="flex flex-col items-center">
-                        <span className="font-bold text-lg text-[#0B4550] text-center line-clamp-1 leading-tight">{client.name}</span>
-                        {client.unlimited ? (
-                          <div className="flex flex-col items-center mt-1.5 space-y-0.5">
-                            <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider text-[10px]">Unlimited</span>
-                            <span className="text-[11px] font-medium text-[#898A8D]">{getExpiryText(client)}</span>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center mt-1.5 space-y-0.5">
-                            <span className="text-xs font-extrabold text-[#0B4550]">{client.remaining_package || 0} Sessions Left</span>
-                            <span className="text-[11px] font-medium text-[#898A8D]">{getExpiryText(client)}</span>
-                          </div>
-                        )}
-                      </div>
-                    </button>
-                  ))}
+                  .map(client => {
+                    const isExpired = client.status === 'Expired' || getLiveClientStatus(client) === 'Expired';
+                    const isOutOfSessions = !client.unlimited && (parseInt(client.remaining_package, 10) <= 0 || !client.remaining_package);
+                    const cannotCheckIn = isExpired || isOutOfSessions;
+
+                    return (
+                      <button
+                        key={client.id}
+                        onClick={() => {
+                          if (cannotCheckIn) {
+                            alert(`${client.name} has an expired package or 0 sessions left. Please renew their package first.`);
+                            return;
+                          }
+                          setSelectedClassClient(client);
+                          // Pre-select first class today if available
+                          const todayDate = new Date();
+                          const todayClasses = sessions.filter(session => {
+                            if (session.type === 'Blocked') return false;
+                            const sessDate = new Date(session.start_time);
+                            return sessDate.getDate() === todayDate.getDate() &&
+                              sessDate.getMonth() === todayDate.getMonth() &&
+                              sessDate.getFullYear() === todayDate.getFullYear();
+                          });
+                          const sortedTodayClasses = [...todayClasses].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+                          setSelectedClassSession(sortedTodayClasses.length > 0 ? sortedTodayClasses[0] : null);
+                          setShowCheckInModal(true);
+                        }}
+                        className={`p-4 md:p-6 rounded-2xl shadow-sm transition-all flex flex-col items-center gap-3 group ${
+                          cannotCheckIn 
+                            ? 'bg-red-50/60 hover:bg-red-50 border-red-200/60 cursor-not-allowed' 
+                            : 'bg-white hover:shadow-md border-gray-100 hover:border-[#0B4550] active:scale-95'
+                        }`}
+                      >
+                        <div className={`w-16 h-16 rounded-full flex items-center justify-center text-2xl font-bold transition-transform ${
+                          cannotCheckIn 
+                            ? 'bg-red-200 text-red-800' 
+                            : 'bg-[#0B4550] text-[#E6FF2B] group-hover:scale-110'
+                        }`}>
+                          {getInitials(client.name)}
+                        </div>
+                        <div className="flex flex-col items-center">
+                          <span className={`font-bold text-lg text-center line-clamp-1 leading-tight ${cannotCheckIn ? 'text-red-800' : 'text-[#0B4550]'}`}>{client.name}</span>
+                          {cannotCheckIn && (
+                            <span className="text-xs font-extrabold text-red-600 bg-red-100 px-2 py-0.5 rounded-full uppercase tracking-wider text-[10px] mt-1.5 animate-pulse">Renew Required</span>
+                          )}
+                          {client.unlimited ? (
+                            <div className="flex flex-col items-center mt-1.5 space-y-0.5">
+                              {!cannotCheckIn && <span className="text-xs font-extrabold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full uppercase tracking-wider text-[10px]">Unlimited</span>}
+                              <span className="text-[11px] font-medium text-[#898A8D]">{getExpiryText(client)}</span>
+                            </div>
+                          ) : (
+                            <div className="flex flex-col items-center mt-1.5 space-y-0.5">
+                              {!cannotCheckIn && <span className="text-xs font-extrabold text-[#0B4550]">{client.remaining_package || 0} Sessions Left</span>}
+                              {cannotCheckIn && !isExpired && <span className="text-xs font-extrabold text-red-500">{client.remaining_package || 0} Sessions Left</span>}
+                              <span className="text-[11px] font-medium text-[#898A8D]">{getExpiryText(client)}</span>
+                            </div>
+                          )}
+                        </div>
+                      </button>
+                    );
+                  })}
               </div>
             </div>
 
