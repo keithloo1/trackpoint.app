@@ -3697,19 +3697,41 @@ export default function Dashboard({ session }) {
         descriptionStr = `Class Mode Check-in for ${selectedClassSession.title}`;
         cost = getClassCreditCost(selectedClassSession.title);
 
-        // Create the booking record
-        const { data: bookingData, error: bookingErr } = await supabase
+        // Check for existing booking for this client and session
+        const { data: existingBookings, error: fetchErr } = await supabase
           .from('bookings')
-          .insert([{
-            client_id: client.id,
-            session_id: selectedClassSession.id,
-            status: 'Attended'
-          }])
           .select('*')
-          .single();
+          .eq('client_id', client.id)
+          .eq('session_id', selectedClassSession.id);
 
-        if (bookingErr) throw bookingErr;
-        bookingId = bookingData?.id;
+        if (fetchErr) throw fetchErr;
+
+        if (existingBookings && existingBookings.length > 0) {
+          // Update the existing booking record to 'Attended'
+          const { error: updateErr } = await supabase
+            .from('bookings')
+            .update({ status: 'Attended' })
+            .eq('id', existingBookings[0].id);
+
+          if (updateErr) throw updateErr;
+          bookingId = existingBookings[0].id;
+        } else {
+          // Create the booking record
+          const { data: bookingData, error: bookingErr } = await supabase
+            .from('bookings')
+            .insert([{
+              client_id: client.id,
+              session_id: selectedClassSession.id,
+              session_date: selectedClassSession.date,
+              time_slot: selectedClassSession.time,
+              status: 'Attended'
+            }])
+            .select('*')
+            .single();
+
+          if (bookingErr) throw bookingErr;
+          bookingId = bookingData?.id;
+        }
       }
 
       const { data: transData, error: transError } = await supabase.from('transactions').insert([{
@@ -8185,14 +8207,16 @@ export default function Dashboard({ session }) {
                           setSelectedClassClient(client);
                           // Pre-select first class today if available
                           const todayDate = new Date();
+                          const year = todayDate.getFullYear();
+                          const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+                          const day = String(todayDate.getDate()).padStart(2, '0');
+                          const todayStr = `${year}-${month}-${day}`;
+
                           const todayClasses = sessions.filter(session => {
-                            if (session.type === 'Blocked') return false;
-                            const sessDate = new Date(session.start_time);
-                            return sessDate.getDate() === todayDate.getDate() &&
-                              sessDate.getMonth() === todayDate.getMonth() &&
-                              sessDate.getFullYear() === todayDate.getFullYear();
+                            if (session.type !== 'Group Class') return false;
+                            return session.date === todayStr;
                           });
-                          const sortedTodayClasses = [...todayClasses].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+                          const sortedTodayClasses = [...todayClasses].sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
                           setSelectedClassSession(sortedTodayClasses.length > 0 ? sortedTodayClasses[0] : null);
                           setShowCheckInModal(true);
                         }}
@@ -8236,14 +8260,16 @@ export default function Dashboard({ session }) {
             {/* Check-in Modal */}
             {showCheckInModal && selectedClassClient && (() => {
               const todayDate = new Date();
+              const year = todayDate.getFullYear();
+              const month = String(todayDate.getMonth() + 1).padStart(2, '0');
+              const day = String(todayDate.getDate()).padStart(2, '0');
+              const todayStr = `${year}-${month}-${day}`;
+
               const todayClasses = sessions.filter(session => {
-                if (session.type === 'Blocked') return false;
-                const sessDate = new Date(session.start_time);
-                return sessDate.getDate() === todayDate.getDate() &&
-                  sessDate.getMonth() === todayDate.getMonth() &&
-                  sessDate.getFullYear() === todayDate.getFullYear();
+                if (session.type !== 'Group Class') return false;
+                return session.date === todayStr;
               });
-              const sortedTodayClasses = [...todayClasses].sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
+              const sortedTodayClasses = [...todayClasses].sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
 
               return (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70] flex items-center justify-center p-4">
