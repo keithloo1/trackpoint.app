@@ -96,6 +96,29 @@ const getInitials = (name) => {
   return name.split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
 };
 
+const getBirthdayMonthDay = (dobStr) => {
+  if (!dobStr) return '';
+  try {
+    const parts = dobStr.split('-');
+    if (parts.length >= 3) {
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      if (!isNaN(monthIdx) && !isNaN(day) && monthIdx >= 0 && monthIdx < 12) {
+        const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+        return `${monthNames[monthIdx]} ${day}`;
+      }
+    }
+    const d = new Date(dobStr);
+    if (!isNaN(d.getTime())) {
+      return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }
+  } catch (e) {
+    console.error("Error formatting birthday:", e);
+  }
+  return '';
+};
+
+
 const getWeekDays = (date) => {
   const current = new Date(date);
   const day = current.getDay();
@@ -3471,12 +3494,20 @@ export default function Dashboard({ session }) {
   const lowestPackagePrice = packagesList?.length > 0 ? packagesList[0].price : 0;
   const estimatedRevenue = activeClientsCount * lowestPackagePrice;
 
-  // 1. Live Birthdays (Clients born in the current month)
-  const liveBirthdays = clients.filter(c => {
-    if (!c.dob) return false;
-    const dob = new Date(c.dob);
-    return dob.getMonth() === currentMonth;
-  });
+  // 1. Live Birthdays (Clients born in the current month, sorted chronologically by day of birth)
+  const liveBirthdays = clients
+    .filter(c => {
+      if (!c.dob) return false;
+      const parts = c.dob.split('-');
+      if (parts.length < 2) return false;
+      const dobMonth = parseInt(parts[1], 10) - 1;
+      return dobMonth === currentMonth;
+    })
+    .sort((a, b) => {
+      const dayA = parseInt(a.dob.split('-')[2], 10) || 0;
+      const dayB = parseInt(b.dob.split('-')[2], 10) || 0;
+      return dayA - dayB;
+    });
 
   // 2. Upcoming Expiries (Clients expiring in the next 14 days)
   const fourteenDaysFromNow = new Date(today.getTime() + 14 * 24 * 60 * 60 * 1000);
@@ -4987,14 +5018,25 @@ export default function Dashboard({ session }) {
                     {liveBirthdays.length === 0 ? (
                       <p className="text-[#898A8D] font-medium text-sm text-center pt-8">No birthdays this month</p>
                     ) : (
-                      liveBirthdays.map(b => (
-                        <div key={b.id} className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 text-sm font-medium p-2 hover:bg-[#F9F7F2] rounded-lg transition-colors cursor-pointer">
-                          <span className="text-[#0B4550] flex items-center">
-                            {b.name} {b.date === todayMonthDay && <span className="ml-2 text-base" title="Birthday Today!">🎁</span>}
-                          </span>
-                          <span className="text-[#898A8D]">{b.date}</span>
-                        </div>
-                      ))
+                      liveBirthdays.map(b => {
+                        const birthdayFormatted = getBirthdayMonthDay(b.dob);
+                        const isBirthdayToday = birthdayFormatted === todayMonthDay;
+                        return (
+                          <div
+                            key={b.id}
+                            onClick={() => {
+                              setSelectedClient(b);
+                              handleNavigateToPage('Clients');
+                            }}
+                            className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 text-sm font-medium p-2 hover:bg-[#F9F7F2] rounded-lg transition-colors cursor-pointer"
+                          >
+                            <span className="text-[#0B4550] flex items-center">
+                              {b.name} {isBirthdayToday && <span className="ml-2 text-base" title="Birthday Today!">🎁</span>}
+                            </span>
+                            <span className="text-[#898A8D]">{birthdayFormatted}</span>
+                          </div>
+                        );
+                      })
                     )}
                   </div>
                 </div>
