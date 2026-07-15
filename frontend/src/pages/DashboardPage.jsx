@@ -8303,7 +8303,9 @@ export default function Dashboard({ session }) {
                         <div className="space-y-2 max-h-[220px] overflow-y-auto pr-1 scrollbar-thin">
                           {sortedTodayClasses.map((session) => {
                             const isSelected = selectedClassSession?.id === session.id;
-                            const startTimeStr = new Date(session.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                            const startTimeStr = session.time || '';
+                            const locationParts = session.location ? session.location.split(' | Coach: ') : [];
+                            const displayCoach = locationParts[1] || '';
                             return (
                               <button
                                 key={session.id}
@@ -8319,7 +8321,7 @@ export default function Dashboard({ session }) {
                                     {session.title}
                                   </span>
                                   <span className={`text-[10px] font-bold block mt-0.5 ${isSelected ? 'text-white/70' : 'text-[#898A8D]'}`}>
-                                    {session.coach ? `Coach: ${session.coach}` : 'No Coach'}
+                                    {displayCoach ? `Coach: ${displayCoach}` : 'No Coach'}
                                   </span>
                                 </div>
                                 <span className={`text-[10px] font-black px-2.5 py-0.5 rounded-lg whitespace-nowrap ${isSelected ? 'bg-white/20 text-[#E6FF2B]' : 'bg-white text-[#0B4550] shadow-sm'}`}>
