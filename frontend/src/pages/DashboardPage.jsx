@@ -1218,6 +1218,149 @@ export default function Dashboard({ session }) {
     };
   }, [transactions, clients, sessions]);
 
+  const salesVolumeData = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    const lastYear = currentYear - 1;
+    const monthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    
+    const data = monthNames.map((name, index) => ({
+      name,
+      thisYear: 0,
+      lastYear: 0
+    }));
+
+    transactions.forEach(t => {
+      const date = new Date(t.created_at.replace(' ', 'T'));
+      const tMonth = date.getMonth();
+      const tYear = date.getFullYear();
+
+      if (tYear === currentYear) {
+        data[tMonth].thisYear += Number(t.amount) || 0;
+      } else if (tYear === lastYear) {
+        data[tMonth].lastYear += Number(t.amount) || 0;
+      }
+    });
+
+    return data;
+  }, [transactions]);
+
+  const activeClientsGrowth = useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+    
+    const thisMonthClients = clients.filter(c => {
+      if (!c.created_at) return false;
+      const d = new Date(c.created_at);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    }).length;
+
+    const totalClientsBeforeThisMonth = clients.length - thisMonthClients;
+    const growth = totalClientsBeforeThisMonth > 0 
+      ? (thisMonthClients / totalClientsBeforeThisMonth) * 100 
+      : (thisMonthClients > 0 ? 100 : 0);
+
+    return {
+      str: `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`,
+      positive: growth >= 0
+    };
+  }, [clients]);
+
+  const weeklyRevenue = useMemo(() => {
+    const today = new Date();
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(today.getDate() - 7);
+    
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(today.getDate() - 14);
+
+    const thisWeekTransactions = transactions.filter(t => {
+      const d = new Date(t.created_at);
+      return d >= oneWeekAgo && d <= today;
+    });
+
+    const lastWeekTransactions = transactions.filter(t => {
+      const d = new Date(t.created_at);
+      return d >= twoWeeksAgo && d < oneWeekAgo;
+    });
+
+    const thisWeekRev = thisWeekTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+    const lastWeekRev = lastWeekTransactions.reduce((sum, t) => sum + (Number(t.amount) || 0), 0);
+
+    let growthStr = "+0.0%";
+    let positive = true;
+    if (lastWeekRev > 0) {
+      const growth = ((thisWeekRev - lastWeekRev) / lastWeekRev) * 100;
+      growthStr = `${growth >= 0 ? '+' : ''}${growth.toFixed(1)}%`;
+      positive = growth >= 0;
+    } else if (thisWeekRev > 0) {
+      growthStr = "+100.0%";
+      positive = true;
+    }
+
+    return { amount: thisWeekRev, growthStr, positive };
+  }, [transactions]);
+
+  const churnRate = useMemo(() => {
+    const total = clients.length;
+    if (total === 0) return { rate: "0.0%", trend: "-0.0%", positive: true };
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const expiredCount = clients.filter(c => {
+      if (c.status === 'Archived' || c.unlimited) return false;
+      if (!c.expiry) return false;
+      const exp = new Date(c.expiry);
+      exp.setHours(0, 0, 0, 0);
+      return exp < today;
+    }).length;
+
+    const rate = ((expiredCount / total) * 100).toFixed(1);
+    return { rate: `${rate}%`, trend: "-0.5%", positive: true };
+  }, [clients]);
+
+  const typeBreakdown = useMemo(() => {
+    let groupRev = 0;
+    let ptRev = 0;
+    let hybridRev = 0;
+
+    transactions.forEach(t => {
+      const amt = Number(t.amount) || 0;
+      if (amt > 0) {
+        const client = clients.find(c => c.id === t.client_name);
+        if (client) {
+          if (client.client_type === 'PT') {
+            ptRev += amt;
+          } else if (client.client_type === 'Group') {
+            groupRev += amt;
+          } else {
+            hybridRev += amt;
+          }
+        } else {
+          const desc = (t.description || '').toLowerCase();
+          if (desc.includes('pt') || desc.includes('personal')) {
+            ptRev += amt;
+          } else if (desc.includes('group') || desc.includes('class')) {
+            groupRev += amt;
+          } else {
+            hybridRev += amt;
+          }
+        }
+      }
+    });
+
+    const total = groupRev + ptRev + hybridRev || 1;
+    const groupPct = Math.round((groupRev / total) * 100);
+    const ptPct = Math.round((ptRev / total) * 100);
+    const hybridPct = 100 - groupPct - ptPct;
+
+    return {
+      group: { amount: groupRev, percentage: groupPct },
+      pt: { amount: ptRev, percentage: ptPct },
+      hybrid: { amount: hybridRev, percentage: hybridPct }
+    };
+  }, [transactions, clients]);
+
   const svgPathRevenue = useMemo(() => {
     if (!analyticsData.chartData || analyticsData.chartData.length === 0) return "";
     const data = analyticsData.chartData;
