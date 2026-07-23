@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import newLogo from '../assets/logo.svg';
 import Papa from 'papaparse';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // --- Helper Functions ---
 const getGreeting = () => {
@@ -7464,216 +7465,255 @@ export default function Dashboard({ session }) {
               </button>
             </div>
           ) : (
-            <div className="animate-in fade-in duration-500">
-              <div className="flex justify-end items-center mb-8">
-                <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100">
-                  {['1M', '3M', '6M', '1Y', 'All Time'].map((tab) => (
-                    <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>{tab}</button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-                <div className="bg-[#0B4550] rounded-3xl p-4 md:p-6 shadow-md">
-                  <h3 className="text-white/80 font-medium text-lg mb-2">Net Revenue Growth</h3>
-                  <div className="flex items-end gap-3">
-                    <h2 className="text-3xl md:text-5xl font-medium text-white">{analyticsData.revenueGrowthStr}</h2>
-                    {analyticsData.revenueGrowthPositive ? (
-                      <TrendingUp size={24} className="text-[#E6FF2B] mb-2" />
-                    ) : (
-                      <TrendingDown size={24} className="text-red-400 mb-2" />
-                    )}
-                  </div>
-                </div>
-                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
-                  <h3 className="text-[#898A8D] font-medium text-lg mb-2">Client Retention Rate</h3>
-                  <h2 className="text-3xl md:text-5xl font-medium text-[#0B4550]">{analyticsData.retentionRate}%</h2>
-                </div>
-                <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100">
-                  <h3 className="text-[#898A8D] font-medium text-lg mb-2">Avg. Session Attendance</h3>
-                  <h2 className="text-3xl md:text-5xl font-medium text-[#0B4550]">{analyticsData.attendanceRate}%</h2>
-                </div>
-              </div>
-
-              {/* Revenue Overview Chart inside Analytics */}
-              <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mb-8 flex flex-col">
-                <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
-                  <div>
-                    <h3 className="font-medium text-2xl text-[#0B4550]">Revenue Overview</h3>
-                    <p className="text-sm text-[#898A8D] mt-1">Monthly breakdown of gross revenue generated</p>
-                  </div>
-                </div>
-
-                {/* PREMIUM DYNAMIC BAR CHART */}
-                <div className="overflow-x-auto no-scrollbar w-full">
-                  <div className="relative h-64 min-w-[600px] md:min-w-0 mt-10 group">
-
-                    {/* Y-AXIS LABELS & GRID LINES */}
-                    <div className="absolute inset-0 flex flex-col justify-between pointer-events-none">
-                      {[1, 0.75, 0.5, 0.25, 0].map((perc) => (
-                        <div key={perc} className="w-full h-0 border-t border-gray-50 flex items-center relative">
-                          <span className="absolute -left-2 text-[15px] font-bold text-gray-500 tabular-nums">
-                            {perc === 0 ? '0' : (maxChartAmount * perc >= 1000 ? (maxChartAmount * perc / 1000).toFixed(1) + 'k' : (maxChartAmount * perc))}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* THE BARS CONTAINER */}
-                    <div className="relative flex items-end justify-between gap-2 h-full w-full pt-4 pl-10 pr-2">
-                      {chartData.map((data) => {
-                        const heightPercentage = (data.amount / maxChartAmount) * 100;
-                        const isCurrentMonth = data.month === currentMonth;
-
-                        return (
-                          <div key={data.label} className="flex-1 flex flex-col justify-end items-center group/bar h-full relative">
-                            {/* TOOLTIP ON HOVER */}
-                            <div className="opacity-0 group-hover/bar:opacity-100 transition-all duration-200 bg-[#0B4550] text-white text-[10px] px-2 py-1 rounded absolute mb-2 z-30 pointer-events-none whitespace-nowrap bottom-full shadow-lg">
-                              RM {data.amount.toLocaleString()}
-                            </div>
-
-                            {/* THE BAR */}
-                            <div
-                              className={`w-full max-w-[5.5rem] rounded-t-md transition-all duration-1000 ease-out relative z-10
-                              ${isCurrentMonth ? 'bg-[#E6FF2B] shadow-[0_0_15px_rgba(230,255,43,0.3)]' : 'bg-[#0B4550]/10 group-hover/bar:bg-[#0B4550]/20'}`}
-                              style={{ height: `${Math.max(heightPercentage, 4)}%` }}
-                            >
-                              {!isCurrentMonth && data.amount > 0 && (
-                                <div className="absolute inset-0 bg-[#0B4550] rounded-t-md"></div>
-                              )}
-                            </div>
-
-                            {/* MONTH LABEL */}
-                            <div className={`text-[15px] mt-4 transition-colors ${isCurrentMonth ? 'font-black text-[#0B4550]' : 'font-medium text-gray-400 group-hover/bar:text-gray-600'}`}>
-                              {data.label}
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8">
-                <div className="lg:col-span-2 bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
-                  <div className="flex flex-col md:flex-row md:justify-between items-start gap-4 md:gap-0 mb-6">
-                    <div>
-                      <h3 className="font-medium text-2xl text-[#0B4550]">Revenue & Client Growth</h3>
-                      <p className="text-sm text-[#898A8D] mt-1">Comparing 6-month historical trends</p>
-                    </div>
-                    <div className="flex gap-4 text-xs font-bold">
-                      <span className="flex items-center gap-1.5 text-[#0B4550]"><span className="w-3 h-3 rounded-full bg-[#0B4550] inline-block"></span> Revenue</span>
-                      <span className="flex items-center gap-1.5 text-[#898A8D]"><span className="w-3 h-3 rounded-full bg-[#E6FF2B] inline-block"></span> Active Clients</span>
-                    </div>
-                  </div>
-                  <div className="h-64 w-full border-b-2 border-l-2 border-gray-100 relative flex items-end justify-between px-4 pb-0 pt-10">
-                    <svg className="absolute inset-0 h-full w-full" preserveAspectRatio="none" viewBox="0 0 500 240">
-                      {svgPathRevenue && <path d={svgPathRevenue} fill="none" stroke="#0B4550" strokeWidth="5" strokeLinecap="round" className="transition-all duration-500" />}
-                      {svgPathClients && <path d={svgPathClients} fill="none" stroke="#E6FF2B" strokeWidth="5" strokeLinecap="round" className="transition-all duration-500" />}
-                    </svg>
-                    <div className="absolute -bottom-8 left-0 right-0 flex justify-between text-sm font-medium text-[#898A8D] px-2">
-                      {analyticsData.chartData.map((m, idx) => (
-                        <span key={idx} className="w-16 text-center">{m.label}</span>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                <div className="lg:col-span-1 bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col">
-                  <h3 className="font-medium text-2xl text-[#0B4550] mb-6">Top Packages</h3>
-                  <div className="flex-1 flex flex-col justify-center space-y-6">
-                    {analyticsData.topPackages.map((pkg, idx) => {
-                      const colors = ['bg-[#0B4550]', 'bg-[#898A8D]', 'bg-[#E6FF2B]'];
-                      return (
-                        <div key={pkg.name}>
-                          <div className="flex justify-between text-base font-medium mb-2">
-                            <span className="text-[#0B4550] truncate max-w-[180px]" title={pkg.name}>{pkg.name}</span>
-                            <span className="text-[#898A8D]">{pkg.percentage}%</span>
-                          </div>
-                          <div className="w-full bg-gray-100 rounded-full h-4">
-                            <div className={`${colors[idx % colors.length]} h-4 rounded-full`} style={{ width: `${pkg.percentage}%` }}></div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-
-              {/* Client Revenue Contribution & SVG Pie Chart */}
-              <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 mt-8 flex flex-col">
+            <div className="animate-in fade-in duration-500 space-y-6">
+              
+              {/* TOP HEADER BAR */}
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
                 <div>
-                  <h3 className="font-medium text-2xl text-[#0B4550]">Client Revenue Contribution</h3>
-                  <p className="text-sm text-[#898A8D] mt-1">Share of total revenue generated per client (sum of positive transactions)</p>
+                  <h1 className="text-3xl font-black text-[#0B4550] tracking-wide">Dashboard</h1>
+                  <p className="text-sm text-[#898A8D] font-medium mt-1">Real-time studio statistics and performance insights</p>
+                </div>
+                
+                {/* Search Bar & Actions */}
+                <div className="flex items-center gap-3">
+                  <div className="relative">
+                    <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+                    <input 
+                      type="text" 
+                      placeholder="Search anything..." 
+                      className="bg-white border border-gray-100 rounded-full py-2.5 pl-10 pr-4 text-sm font-medium text-[#0B4550] outline-none shadow-sm focus:border-[#0B4550] w-64 transition-all"
+                    />
+                  </div>
+                  
+                  <button className="p-2.5 rounded-full bg-white border border-gray-100 text-[#0B4550] hover:bg-gray-50 transition-all shadow-sm">
+                    <RotateCw className="w-4 h-4" />
+                  </button>
+                  <button className="p-2.5 rounded-full bg-white border border-gray-100 text-[#0B4550] hover:bg-gray-50 transition-all shadow-sm">
+                    <Calendar className="w-4 h-4" />
+                  </button>
+                  <button className="p-2.5 rounded-full bg-white border border-gray-100 text-[#0B4550] hover:bg-gray-50 transition-all shadow-sm">
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* THREE TOP STATS CARDS */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                
+                {/* 1. Total Revenue Card (Teal container, high contrast) */}
+                <div className="bg-[#0B4550] text-white rounded-3xl p-6 shadow-md flex flex-col justify-between h-[180px] relative overflow-hidden group">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-[#E6FF2B]/10 rounded-full blur-3xl pointer-events-none group-hover:scale-125 transition-transform duration-700"></div>
+                  
+                  <div className="flex justify-between items-start">
+                    <div className="p-3 bg-[#E6FF2B]/10 text-[#E6FF2B] rounded-2xl">
+                      <DollarSign className="w-6 h-6" />
+                    </div>
+                    <button className="text-white/60 hover:text-white transition-colors">
+                      <Edit3 className="w-5 h-5" />
+                    </button>
+                  </div>
+                  
+                  <div>
+                    <span className="text-white/70 text-sm font-bold uppercase tracking-wider">Total Revenue</span>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <h2 className="text-3xl font-black text-white">RM {analyticsData.totalPositiveRevenue.toLocaleString()}</h2>
+                      <div className="flex items-center gap-0.5 text-xs font-bold text-[#E6FF2B] bg-[#E6FF2B]/10 px-2 py-0.5 rounded-full">
+                        <TrendingUp className="w-3 h-3" />
+                        <span>{analyticsData.revenueGrowthStr}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-white/60 mt-1.5 truncate">
+                      {analyticsData.topPackages && analyticsData.topPackages.length > 0 
+                        ? `Driven mainly by ${analyticsData.topPackages[0].name} (${analyticsData.topPackages[0].percentage}%)` 
+                        : "Driven mainly by Group classes (+18%)"}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mt-8 items-center">
-                  {/* Left: SVG Donut Chart */}
-                  <div className="lg:col-span-1 flex flex-col items-center justify-center p-4">
-                    {analyticsData.pieChartData && analyticsData.pieChartData.length > 0 ? (
-                      <div className="relative w-52 h-52 flex items-center justify-center">
-                        <svg width="100%" height="100%" viewBox="0 0 120 120" className="transform rotate-[-90deg]">
-                          {(() => {
-                            const radius = 40;
-                            const circumference = 2 * Math.PI * radius; // ~251.327
-                            let cumulativeOffset = 0;
-                            return analyticsData.pieChartData.map((slice, idx) => {
-                              const percentage = parseFloat(slice.percentage) || 0;
-                              const strokeLength = (percentage / 100) * circumference;
-                              const strokeOffset = cumulativeOffset;
-                              cumulativeOffset += strokeLength;
+                {/* 2. Active Clients Card */}
+                <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between h-[180px] relative overflow-hidden group">
+                  <div className="flex justify-between items-start">
+                    <div className="p-3 bg-gray-50 text-[#0B4550] rounded-2xl">
+                      <Users className="w-6 h-6" />
+                    </div>
+                    <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                      <Edit3 className="w-5 h-5" />
+                    </button>
+                  </div>
 
-                              return (
-                                <circle
-                                  key={idx}
-                                  cx="60"
-                                  cy="60"
-                                  r={radius}
-                                  fill="transparent"
-                                  stroke={slice.color}
-                                  strokeWidth="14"
-                                  strokeDasharray={`${strokeLength} ${circumference}`}
-                                  strokeDashoffset={-strokeOffset}
-                                  className="transition-all duration-300 hover:stroke-[16px] cursor-pointer"
-                                  title={`${slice.name}: ${slice.percentage}%`}
-                                />
-                              );
-                            });
-                          })()}
-                        </svg>
-                        <div className="absolute flex flex-col items-center justify-center">
-                          <span className="text-[10px] uppercase font-bold text-[#898A8D] tracking-wider">Total Revenue</span>
-                          <span className="text-xl font-black text-[#0B4550]">RM {analyticsData.totalPositiveRevenue.toLocaleString()}</span>
+                  <div>
+                    <span className="text-[#898A8D] text-sm font-bold uppercase tracking-wider">Active Clients</span>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <h2 className="text-3xl font-black text-[#0B4550]">{analyticsData.activeClientsCount}</h2>
+                      <div className={`flex items-center gap-0.5 text-xs font-bold ${activeClientsGrowth.positive ? 'text-emerald-600 bg-emerald-50' : 'text-rose-600 bg-rose-50'} px-2 py-0.5 rounded-full`}>
+                        {activeClientsGrowth.positive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
+                        <span>{activeClientsGrowth.str}</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-[#898A8D] mt-1.5">
+                      Total registered: {clients.length} clients
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Conversion / Retention Card */}
+                <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between h-[180px] relative overflow-hidden group">
+                  <div className="flex justify-between items-start">
+                    <div className="p-3 bg-gray-50 text-[#0B4550] rounded-2xl">
+                      <Award className="w-6 h-6" />
+                    </div>
+                    <button className="text-gray-400 hover:text-gray-600 transition-colors">
+                      <Edit3 className="w-5 h-5" />
+                    </button>
+                  </div>
+
+                  <div>
+                    <span className="text-[#898A8D] text-sm font-bold uppercase tracking-wider">Conversion Rate</span>
+                    <div className="flex items-baseline gap-2 mt-1">
+                      <h2 className="text-3xl font-black text-[#0B4550]">{analyticsData.retentionRate}%</h2>
+                      <div className="flex items-center gap-0.5 text-xs font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">
+                        <TrendingUp className="w-3 h-3" />
+                        <span>+1.2%</span>
+                      </div>
+                    </div>
+                    <p className="text-xs text-[#898A8D] mt-1.5">
+                      Based on active vs inactive member status
+                    </p>
+                  </div>
+                </div>
+
+              </div>
+
+              {/* MIDDLE ROW BENTO GRID */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                
+                {/* 4. Sales Volume Line Chart (Wide) */}
+                <div className="lg:col-span-2 bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
+                  <div className="flex items-center justify-between mb-6">
+                    <div>
+                      <h3 className="text-lg font-black text-[#0B4550]">Sales volume</h3>
+                      <p className="text-xs text-[#898A8D] mt-0.5">Monthly revenue comparison (This Year vs Last Year)</p>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <select className="bg-gray-50 border border-gray-100 text-xs font-bold text-[#0B4550] rounded-xl px-3 py-1.5 outline-none focus:border-gray-200">
+                        <option>Sales Volume</option>
+                      </select>
+                      <button className="p-2 bg-gray-50 border border-gray-100 text-[#0B4550] hover:bg-gray-100 rounded-xl transition-all">
+                        <Calendar className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Recharts Area Chart */}
+                  <div className="h-64 w-full mt-4">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <AreaChart data={salesVolumeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+                        <defs>
+                          <linearGradient id="colorThisYear" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor="#0B4550" stopOpacity={0.2}/>
+                            <stop offset="95%" stopColor="#0B4550" stopOpacity={0.01}/>
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F3F5" />
+                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#898A8D', fontSize: 11, fontWeight: 500 }} />
+                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#898A8D', fontSize: 11, fontWeight: 500 }} tickFormatter={(val) => val >= 1000 ? `RM ${val/1000}k` : `RM ${val}`} />
+                        <Tooltip content={<CustomChartTooltip />} />
+                        <Area type="monotone" dataKey="thisYear" name="This Year" stroke="#0B4550" strokeWidth={3} fillOpacity={1} fill="url(#colorThisYear)" dot={false} activeDot={{ r: 6, fill: '#0B4550', stroke: '#fff', strokeWidth: 2 }} />
+                        <Area type="monotone" dataKey="lastYear" name="Last Year" stroke="#898A8D" strokeWidth={2} strokeDasharray="4 4" fill="none" dot={false} activeDot={{ r: 4, fill: '#898A8D' }} />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
+
+                {/* 5. Column (Weekly Revenue & Churn, and Revenue Breakdown) */}
+                <div className="lg:col-span-1 space-y-6">
+                  
+                  {/* Weekly Revenue & Churn Rates stacked */}
+                  <div className="grid grid-cols-2 gap-4">
+                    
+                    {/* Weekly Revenue Card */}
+                    <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm flex flex-col justify-between h-[120px]">
+                      <div className="flex justify-between items-center">
+                        <div className="p-2 bg-gray-50 text-[#0B4550] rounded-xl">
+                          <DollarSign className="w-4 h-4" />
                         </div>
                       </div>
-                    ) : (
-                      <div className="text-center text-gray-400 py-12">No data available</div>
-                    )}
+                      <div>
+                        <span className="text-[#898A8D] text-xs font-bold uppercase tracking-wider block">Revenue</span>
+                        <span className="text-lg font-black text-[#0B4550] block mt-0.5">RM {weeklyRevenue.amount.toLocaleString()}</span>
+                        <span className={`text-[10px] font-bold ${weeklyRevenue.positive ? 'text-emerald-600' : 'text-rose-600'} flex items-center gap-0.5 mt-1`}>
+                          {weeklyRevenue.positive ? <TrendingUp className="w-2.5 h-2.5" /> : <TrendingDown className="w-2.5 h-2.5" />}
+                          <span>{weeklyRevenue.growthStr} vs last week</span>
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Churn Rate Card */}
+                    <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm flex flex-col justify-between h-[120px]">
+                      <div className="flex justify-between items-center">
+                        <div className="p-2 bg-gray-50 text-[#0B4550] rounded-xl">
+                          <Users className="w-4 h-4" />
+                        </div>
+                      </div>
+                      <div>
+                        <span className="text-[#898A8D] text-xs font-bold uppercase tracking-wider block">Churn Rate</span>
+                        <span className="text-lg font-black text-[#0B4550] block mt-0.5">{churnRate.rate}</span>
+                        <span className="text-[10px] font-bold text-emerald-600 flex items-center gap-0.5 mt-1">
+                          <TrendingDown className="w-2.5 h-2.5" />
+                          <span>{churnRate.trend} vs last week</span>
+                        </span>
+                      </div>
+                    </div>
+
                   </div>
 
-                  {/* Right: Clients contribution breakdown list */}
-                  <div className="lg:col-span-2 flex flex-col gap-3">
-                    <div className="flex flex-col gap-2 max-h-[250px] overflow-y-auto pr-2 no-scrollbar">
-                      {analyticsData.pieChartData && analyticsData.pieChartData.length > 0 ? (
-                        analyticsData.pieChartData.map((slice, idx) => (
-                          <div key={idx} className="flex justify-between items-center p-3 rounded-2xl bg-gray-50 border border-gray-100">
-                            <div className="flex items-center gap-3">
-                              <span className="w-3.5 h-3.5 rounded-full shrink-0" style={{ backgroundColor: slice.color }}></span>
-                              <span className="text-base font-semibold text-[#0B4550]">{slice.name}</span>
-                            </div>
-                            <div className="flex items-center gap-4 text-right">
-                              <span className="text-sm font-bold text-[#898A8D]">{slice.percentage}%</span>
-                              <span className="text-base font-black text-[#0B4550]">RM {slice.amount.toLocaleString()}</span>
-                            </div>
-                          </div>
-                        ))
-                      ) : (
-                        <div className="text-center text-gray-400 py-8 font-medium">No client transactions found.</div>
-                      )}
+                  {/* Revenue Breakdown Venn bubble card */}
+                  <div className="bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between h-[230px]">
+                    <h3 className="text-base font-black text-[#0B4550] text-center">Revenue Breakdown</h3>
+                    
+                    {/* Overlapping Venn Circles */}
+                    <div className="relative w-full h-24 flex items-center justify-center mt-2">
+                      {/* Circle 1: Group (Teal) */}
+                      <div className="absolute left-[24%] z-10 w-20 h-20 bg-[#0B4550] text-white rounded-full flex flex-col items-center justify-center shadow-md border border-[#0B4550]/20 hover:scale-105 transition-transform duration-300">
+                        <span className="text-base font-black">{typeBreakdown.group.percentage}%</span>
+                        <span className="text-[9px] font-bold text-white/80">Group</span>
+                      </div>
+                      
+                      {/* Circle 2: PT (Lime-yellow) */}
+                      <div className="absolute left-[42%] z-20 w-16 h-16 bg-[#E6FF2B] text-[#0B4550] rounded-full flex flex-col items-center justify-center shadow-md border border-[#E6FF2B]/20 hover:scale-105 transition-transform duration-300">
+                        <span className="text-sm font-black">{typeBreakdown.pt.percentage}%</span>
+                        <span className="text-[9px] font-bold text-[#0B4550]/80">PT</span>
+                      </div>
+
+                      {/* Circle 3: Hybrid (Gray) */}
+                      <div className="absolute left-[58%] z-10 w-12 h-12 bg-[#898A8D] text-white rounded-full flex flex-col items-center justify-center shadow-md border border-[#898A8D]/20 hover:scale-105 transition-transform duration-300">
+                        <span className="text-xs font-black">{typeBreakdown.hybrid.percentage}%</span>
+                        <span className="text-[8px] font-bold text-white/80">Hybrid</span>
+                      </div>
+                    </div>
+
+                    {/* Breakdown Legends */}
+                    <div className="grid grid-cols-3 gap-1 text-center text-[10px] font-bold text-[#898A8D] mt-2 pt-2 border-t border-gray-50">
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-[#0B4550]"><span className="w-1.5 h-1.5 rounded-full bg-[#0B4550]"></span> Group</span>
+                        <span className="text-[#0B4550]/80 mt-0.5">RM {typeBreakdown.group.amount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-[#E6FF2B]"><span className="w-1.5 h-1.5 rounded-full bg-[#E6FF2B]"></span> PT</span>
+                        <span className="text-[#0B4550]/80 mt-0.5">RM {typeBreakdown.pt.amount.toLocaleString()}</span>
+                      </div>
+                      <div className="flex flex-col items-center">
+                        <span className="flex items-center gap-1 text-[#898A8D]"><span className="w-1.5 h-1.5 rounded-full bg-[#898A8D]"></span> Hybrid</span>
+                        <span className="text-[#0B4550]/80 mt-0.5">RM {typeBreakdown.hybrid.amount.toLocaleString()}</span>
+                      </div>
                     </div>
                   </div>
+
                 </div>
+
               </div>
+
             </div>
           )
         )}
@@ -10349,3 +10389,26 @@ function TransactionRow({ name, avatar, desc, method, amount }) {
     </tr>
   );
 }
+
+const CustomChartTooltip = ({ active, payload }) => {
+  if (active && payload && payload.length) {
+    const monthName = payload[0].payload.name;
+    const thisYearVal = payload[0].value;
+    const lastYearVal = payload[1]?.value || 0;
+    
+    return (
+      <div className="bg-white border border-gray-150 rounded-2xl p-4 shadow-lg text-xs font-semibold text-[#0B4550]">
+        <p className="text-gray-400 font-bold uppercase tracking-wider mb-2">{monthName}</p>
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#0B4550]"></span>
+          <span>This Year: <span className="font-black">RM {thisYearVal.toLocaleString()}</span></span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-2.5 h-2.5 rounded-full bg-[#898A8D]"></span>
+          <span>Last Year: <span className="font-black">RM {lastYearVal.toLocaleString()}</span></span>
+        </div>
+      </div>
+    );
+  }
+  return null;
+};
