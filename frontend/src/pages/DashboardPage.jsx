@@ -2258,6 +2258,152 @@ export default function Dashboard({ session }) {
     }
   };
 
+  // --- MANUAL BACKUP & RESTORE HANDLERS ---
+  const handleExportFullBackupJSON = () => {
+    try {
+      const backupData = {
+        version: "1.0",
+        exportedAt: new Date().toISOString(),
+        trainerProfile: trainerProfile || {},
+        scheduleSettings: scheduleSettings || {},
+        packages: packagesList || [],
+        clients: clients || [],
+        transactions: transactions || []
+      };
+
+      const jsonStr = JSON.stringify(backupData, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.href = url;
+      link.download = `TrackPoint_Backup_${dateStr}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert("Error exporting backup: " + err.message);
+    }
+  };
+
+  const handleExportClientsCSV = () => {
+    try {
+      const headers = ["Full Name", "Email", "Phone", "Date of Birth", "Client Type", "Member Status", "Package Type", "Initial Pkg", "Remaining", "Date Paid", "Expiry Date", "Address"];
+      const rows = clients.map(c => [
+        `"${(c.name || '').replace(/"/g, '""')}"`,
+        `"${(c.email || '').replace(/"/g, '""')}"`,
+        `"${(c.phone || '').replace(/"/g, '""')}"`,
+        `"${c.dob || ''}"`,
+        `"${c.client_type || 'Group'}"`,
+        `"${c.member_status || 'Member'}"`,
+        `"${(c.package || '').replace(/"/g, '""')}"`,
+        c.initial_package || 0,
+        c.remaining_package || 0,
+        `"${c.date_paid || ''}"`,
+        `"${c.expiry || ''}"`,
+        `"${(c.address || '').replace(/"/g, '""')}"`
+      ]);
+
+      const csvContent = "data:text/csv;charset=utf-8," + [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+      const encodedUri = encodeURI(csvContent);
+      const link = document.createElement("a");
+      const dateStr = new Date().toISOString().split('T')[0];
+      link.setAttribute("href", encodedUri);
+      link.setAttribute("download", `TrackPoint_Clients_${dateStr}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    } catch (err) {
+      alert("Error exporting clients CSV: " + err.message);
+    }
+  };
+
+  const handleImportFullBackupJSON = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const backupData = JSON.parse(event.target.result);
+        if (!backupData || !backupData.clients) {
+          throw new Error("Invalid TrackPoint backup file format.");
+        }
+
+        const confirmRestore = window.confirm(
+          `Backup detected from ${backupData.exportedAt ? new Date(backupData.exportedAt).toLocaleDateString() : 'unknown date'}.\n\n` +
+          `Contains:\n- ${backupData.clients?.length || 0} clients\n- ${backupData.packages?.length || 0} packages\n- ${backupData.transactions?.length || 0} transactions\n\n` +
+          `Do you want to import and sync missing data back into your system?`
+        );
+
+        if (!confirmRestore) return;
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        // 1. Restore clients if any
+        if (backupData.clients && backupData.clients.length > 0) {
+          const clientRecords = backupData.clients.map(c => ({
+            trainer_id: user.id,
+            name: c.name,
+            email: c.email || '',
+            phone: c.phone || '',
+            dob: c.dob || null,
+            notes: c.notes || '',
+            package: c.package || '',
+            expiry: c.expiry || null,
+            unlimited: !!c.unlimited,
+            client_type: c.client_type || 'Group',
+            member_status: c.member_status || 'Member',
+            initial_package: c.initial_package || 0,
+            remaining_package: c.remaining_package || 0,
+            date_paid: c.date_paid || null,
+            total_sessions: c.total_sessions || c.initial_package || 0,
+            used_sessions: c.used_sessions || 0,
+            status: c.status || 'Active'
+          }));
+
+          const { error: clientErr } = await supabase.from('clients').upsert(clientRecords, { onConflict: 'id' });
+          if (clientErr) console.warn("Client restore notice:", clientErr.message);
+        }
+
+        // 2. Restore transactions if any
+        if (backupData.transactions && backupData.transactions.length > 0) {
+          const txnRecords = backupData.transactions.map(t => ({
+            trainer_id: user.id,
+            client_name: t.client_name,
+            description: t.description || '',
+            amount: t.amount || 0,
+            payment_method: t.payment_method || 'Cash',
+            created_at: t.created_at || new Date().toISOString()
+          }));
+          await supabase.from('transactions').insert(txnRecords);
+        }
+
+        // 3. Restore packages if any
+        if (backupData.packages && backupData.packages.length > 0) {
+          const pkgRecords = backupData.packages.map(p => ({
+            name: p.name,
+            type: p.type || 'Session Pack',
+            session_count: p.session_count || 0,
+            price: p.price || 0,
+            validity_days: p.validity_days || 30
+          }));
+          await supabase.from('packages').upsert(pkgRecords, { onConflict: 'id' });
+        }
+
+        await fetchClients();
+        alert("Backup data successfully imported and synced into the system!");
+      } catch (err) {
+        alert("Error restoring backup file: " + err.message);
+      } finally {
+        e.target.value = "";
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const handleAddClient = async (e) => {
     e.preventDefault();
     setIsAddingClient(true);
@@ -8097,6 +8243,81 @@ export default function Dashboard({ session }) {
                   <div>
                     <label className="text-[#898A8D] font-bold text-xs uppercase tracking-widest mb-2 block">Account Number</label>
                     <input type="text" value={settingsForm.bank_account_number} onChange={(e) => setSettingsForm({ ...settingsForm, bank_account_number: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3.5 px-4 font-semibold text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. 564892482390" />
+                  </div>
+                </div>
+              </div>
+
+              {/* DATA BACKUP & RESTORE SECTION */}
+              <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100">
+                <h3 className="font-bold text-2xl text-[#0B4550] mb-2 pb-3 border-b border-gray-50 flex items-center gap-2">
+                  <Download size={24} /> Data Backup & System Restore
+                </h3>
+                <p className="text-[#898A8D] font-medium text-sm mb-6">
+                  Export a full backup of all your clients, package catalog, financial transactions, and system settings to your computer as JSON or CSV files.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Backup / Download Card */}
+                  <div className="bg-[#F9F7F2]/80 border border-gray-100 rounded-2xl p-6 flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-3 bg-[#0B4550] text-[#E6FF2B] rounded-xl shadow-sm">
+                          <Download size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-lg text-[#0B4550]">Export Full Backup</h4>
+                          <span className="text-xs text-[#898A8D]">Save data locally to PC (.json)</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-[#898A8D] leading-relaxed mt-2">
+                        Downloads your entire dataset (Clients, Packages, Revenue & Transactions, Settings) in a single structured backup file for safekeeping.
+                      </p>
+                    </div>
+                    <div className="flex flex-col sm:flex-row gap-2 pt-2">
+                      <button
+                        type="button"
+                        onClick={handleExportFullBackupJSON}
+                        className="flex-1 bg-[#0B4550] text-[#E6FF2B] py-3 px-4 rounded-xl text-xs font-black hover:scale-[1.02] active:scale-[0.98] transition-all shadow-sm flex items-center justify-center gap-2"
+                      >
+                        <Download size={16} /> Backup JSON
+                      </button>
+                      <button
+                        type="button"
+                        onClick={handleExportClientsCSV}
+                        className="flex-1 bg-white border border-gray-200 text-[#0B4550] py-3 px-4 rounded-xl text-xs font-bold hover:bg-gray-50 transition-all flex items-center justify-center gap-2"
+                      >
+                        <FileText size={16} /> Clients CSV (Excel / Sheets)
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Restore / Import Card */}
+                  <div className="bg-[#F9F7F2]/80 border border-gray-100 rounded-2xl p-6 flex flex-col justify-between space-y-4">
+                    <div>
+                      <div className="flex items-center gap-3 mb-2">
+                        <div className="p-3 bg-[#0B4550] text-[#E6FF2B] rounded-xl shadow-sm">
+                          <Upload size={20} />
+                        </div>
+                        <div>
+                          <h4 className="font-bold text-lg text-[#0B4550]">Restore from Backup</h4>
+                          <span className="text-xs text-[#898A8D]">Import saved backup file (.json)</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-[#898A8D] leading-relaxed mt-2">
+                        Upload a previously saved TrackPoint backup JSON file to restore or sync missing data back into your system.
+                      </p>
+                    </div>
+                    <div className="pt-2">
+                      <label className="w-full bg-white border-2 border-dashed border-[#0B4550]/30 hover:border-[#0B4550] text-[#0B4550] py-3 px-4 rounded-xl text-xs font-black transition-all flex items-center justify-center gap-2 cursor-pointer shadow-sm">
+                        <Upload size={16} /> Select Backup File to Restore
+                        <input
+                          type="file"
+                          accept=".json"
+                          onChange={handleImportFullBackupJSON}
+                          className="hidden"
+                        />
+                      </label>
+                    </div>
                   </div>
                 </div>
               </div>
