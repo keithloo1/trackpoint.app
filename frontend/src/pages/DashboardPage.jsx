@@ -4,7 +4,7 @@ import {
   Home, Users, Calendar, CalendarSearch, BarChart2, Package,
   Settings, LogOut, Search, Bell,
   ChevronLeft, ChevronRight, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, RotateCw,
-  DollarSign, Download, FileText, Plus, ArrowLeft, Copy, Check, Clock, MapPin, CheckSquare, X, Square, ArrowRight, Save, Trash2, Upload, Minus, LayoutGrid, List, Edit3, Lock, Monitor, Unlock, Sparkles, Send, Bot, MessageSquare, Award, Camera, CreditCard, Eye, EyeOff, User
+  DollarSign, Download, FileText, Plus, ArrowLeft, Copy, Check, Clock, MapPin, CheckSquare, X, Square, ArrowRight, Save, Trash2, Upload, Minus, LayoutGrid, List, Edit3, Lock, Monitor, Unlock, Sparkles, Send, Bot, MessageSquare, Award, Camera, CreditCard, Eye, EyeOff, User, Wand2
 } from 'lucide-react';
 import newLogo from '../assets/logo.svg';
 import Papa from 'papaparse';
@@ -863,6 +863,9 @@ export default function Dashboard({ session }) {
   ]);
   const [activeBulkClientRowId, setActiveBulkClientRowId] = useState(null);
   const [bulkClientSearchQuery, setBulkClientSearchQuery] = useState('');
+  const [showQuickTextBooker, setShowQuickTextBooker] = useState(false);
+  const [quickTextInput, setQuickTextInput] = useState('');
+  const [quickTextError, setQuickTextError] = useState('');
 
   // EDIT EVENT MODAL STATES
   const [showEditEventModal, setShowEditEventModal] = useState(false);
@@ -2093,6 +2096,156 @@ export default function Dashboard({ session }) {
       alert("Error adding event: " + error.message);
     } finally {
       setIsAddingEvent(false);
+    }
+  };
+
+  const parseQuickTextToAppointments = (text) => {
+    if (!text || !text.trim()) {
+      return { error: "Please enter text describing your appointments." };
+    }
+
+    const trimmed = text.trim();
+
+    // 1. Detect Client
+    let matchedClient = null;
+    // Try explicit "book for (name)" or "for (name)"
+    const clientPattern = /(?:book\s+(?:for|with)\s+|for\s+)([A-Za-z0-9\s'.-]+?)(?:,|\s+at\s+|\s+in\s+|\s+on\s+|\s+for\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|\d)|$)/i;
+    const clientMatch = trimmed.match(clientPattern);
+
+    if (clientMatch && clientMatch[1]) {
+      const candidate = clientMatch[1].trim();
+      matchedClient = clients.find(c => c.name.toLowerCase() === candidate.toLowerCase()) ||
+                      clients.find(c => c.name.toLowerCase().includes(candidate.toLowerCase()));
+    }
+
+    // Fallback: match any existing client name mentioned anywhere in text
+    if (!matchedClient) {
+      matchedClient = clients.find(c => trimmed.toLowerCase().includes(c.name.toLowerCase()));
+    }
+
+    // 2. Detect Location
+    let matchedLocation = scheduleSettings.locations[0] || 'Main Floor';
+    const locPattern = /(?:at|location:?|in)\s+([A-Za-z0-9\s]+?)(?:,|\s+at\s+\d|\s+for\s+|\s+on\s+|$)/i;
+    const locMatch = trimmed.match(locPattern);
+    if (locMatch && locMatch[1]) {
+      const candidateLoc = locMatch[1].trim();
+      const foundLoc = scheduleSettings.locations.find(l => l.toLowerCase() === candidateLoc.toLowerCase()) ||
+                       scheduleSettings.locations.find(l => candidateLoc.toLowerCase().includes(l.toLowerCase()));
+      if (foundLoc) matchedLocation = foundLoc;
+    }
+
+    // 3. Detect Time
+    let matchedTime = '10:00 AM';
+    const timeMatch = trimmed.match(/(\b\d{1,2}(?::\d{2})?\s*(?:am|pm)\b)/i);
+    if (timeMatch) {
+      let rawT = timeMatch[1].toUpperCase().trim();
+      if (!rawT.includes(':')) {
+        rawT = rawT.replace(/(\d{1,2})\s*(AM|PM)/i, '$1:00 $2');
+      }
+      const parts = parseTimeToParts(rawT);
+      matchedTime = `${parts.hour}:${parts.minute} ${parts.ampm}`;
+    }
+
+    // 4. Detect Coach
+    let matchedCoach = scheduleSettings.coaches[0] || '';
+    const coachMatch = scheduleSettings.coaches.find(c => trimmed.toLowerCase().includes(c.toLowerCase()));
+    if (coachMatch) matchedCoach = coachMatch;
+
+    // 5. Parse Dates (Support multiple months, e.g. "Oct 5, 7, 12 and Nov 2, 4")
+    const monthNames = {
+      jan: 1, january: 1,
+      feb: 2, february: 2,
+      mar: 3, march: 3,
+      apr: 4, april: 4,
+      may: 5,
+      jun: 6, june: 6,
+      jul: 7, july: 7,
+      aug: 8, august: 8,
+      sep: 9, sept: 9, september: 9,
+      oct: 10, october: 10,
+      nov: 11, november: 11,
+      dec: 12, december: 12
+    };
+
+    const currentYear = new Date().getFullYear();
+    const generatedDates = [];
+
+    // Regex to split by month chunks: (MonthName) followed by days until next month or end
+    const monthChunkRegex = /(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+([^a-zA-Z]+?)(?=(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:t|tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)|$)/gi;
+
+    let match;
+    let foundAnyMonth = false;
+
+    while ((match = monthChunkRegex.exec(trimmed)) !== null) {
+      foundAnyMonth = true;
+      const monthKey = match[1].toLowerCase();
+      const monthNum = monthNames[monthKey];
+      const daysStr = match[2];
+
+      // Extract all numbers representing day of month
+      const dayMatches = daysStr.match(/\b([1-9]|[12]\d|3[01])\b/g);
+      if (dayMatches && monthNum) {
+        dayMatches.forEach(dStr => {
+          const dayNum = parseInt(dStr, 10);
+          const formattedDate = `${currentYear}-${String(monthNum).padStart(2, '0')}-${String(dayNum).padStart(2, '0')}`;
+          if (!generatedDates.includes(formattedDate)) {
+            generatedDates.push(formattedDate);
+          }
+        });
+      }
+    }
+
+    // Fallback: standard YYYY-MM-DD or DD/MM/YYYY dates
+    if (generatedDates.length === 0) {
+      const isoMatches = trimmed.match(/\b\d{4}-\d{2}-\d{2}\b/g);
+      if (isoMatches) {
+        isoMatches.forEach(d => {
+          if (!generatedDates.includes(d)) generatedDates.push(d);
+        });
+      }
+    }
+
+    if (generatedDates.length === 0) {
+      return {
+        error: "Could not detect dates. Please specify dates like 'Oct 5, 7, 12 and Nov 2, 4'."
+      };
+    }
+
+    // Generate appointment rows
+    const newRows = generatedDates.map((dateStr, idx) => ({
+      id: `quick-${Date.now()}-${idx}-${Math.random().toString(36).substr(2, 4)}`,
+      date: dateStr,
+      time: matchedTime,
+      duration: '60 min',
+      type: '1-on-1',
+      title: 'PT Session',
+      location: matchedLocation,
+      coach: matchedCoach,
+      capacity: 1,
+      assignedClients: matchedClient ? [matchedClient.id] : []
+    }));
+
+    return {
+      success: true,
+      rows: newRows,
+      matchedClient,
+      count: newRows.length
+    };
+  };
+
+  const handleQuickTextGenerate = () => {
+    setQuickTextError('');
+    const result = parseQuickTextToAppointments(quickTextInput);
+    if (result.error) {
+      setQuickTextError(result.error);
+      return;
+    }
+
+    if (result.rows && result.rows.length > 0) {
+      setBulkRows(result.rows);
+      setShowQuickTextBooker(false);
+      setQuickTextInput('');
+      setQuickTextError('');
     }
   };
 
@@ -9906,6 +10059,13 @@ export default function Dashboard({ session }) {
                   <div className="flex items-center gap-2">
                     <button
                       type="button"
+                      onClick={() => setShowQuickTextBooker(!showQuickTextBooker)}
+                      className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm ${showQuickTextBooker ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-white border border-gray-200 text-[#0B4550] hover:bg-gray-50'}`}
+                    >
+                      <Wand2 size={16} /> Quick Text Booker
+                    </button>
+                    <button
+                      type="button"
                       onClick={() => {
                         const newRow = {
                           id: `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
@@ -9927,6 +10087,77 @@ export default function Dashboard({ session }) {
                     </button>
                   </div>
                 </div>
+
+                {/* QUICK TEXT BOOKER PANEL */}
+                {showQuickTextBooker && (
+                  <div className="bg-white border-2 border-[#0B4550]/20 rounded-3xl p-5 shadow-md space-y-4 animate-in fade-in zoom-in-95 duration-150">
+                    <div className="flex items-center justify-between border-b border-gray-100 pb-3">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-xl bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center shadow-xs">
+                          <Wand2 size={18} />
+                        </div>
+                        <div>
+                          <h4 className="font-extrabold text-[#0B4550] text-base leading-tight">Type to Schedule</h4>
+                          <span className="text-xs text-[#898A8D] font-medium">Type your booking request in natural language to generate appointments instantly.</span>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setShowQuickTextBooker(false);
+                          setQuickTextError('');
+                        }}
+                        className="text-gray-400 hover:text-[#0B4550] p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <X size={18} />
+                      </button>
+                    </div>
+
+                    <div>
+                      <textarea
+                        rows={3}
+                        value={quickTextInput}
+                        onChange={(e) => {
+                          setQuickTextInput(e.target.value);
+                          if (quickTextError) setQuickTextError('');
+                        }}
+                        placeholder='e.g. "Book for Lakveer, at Studio A, at 10:00 AM, for Oct 5, 7, 12, 14, 16, 19, 21, 23, 26, 28, 30 and Nov 2, 4"'
+                        className="w-full bg-[#F9F7F2] border border-gray-200 rounded-2xl p-4 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550] transition-colors resize-none placeholder:text-gray-400"
+                      />
+                    </div>
+
+                    {quickTextError && (
+                      <div className="text-xs font-bold text-red-500 bg-red-50 p-3 rounded-xl border border-red-100 flex items-center gap-1.5">
+                        <X size={14} /> {quickTextError}
+                      </div>
+                    )}
+
+                    <div className="flex flex-col sm:flex-row items-center justify-between gap-2 pt-1">
+                      <div className="text-[11px] text-[#898A8D] font-medium">
+                        💡 Supports client names, locations, times, and multiple months & date lists.
+                      </div>
+                      <div className="flex gap-2 w-full sm:w-auto">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setQuickTextInput('Book for Lakveer, at Main Floor, at 10:00 AM, for Oct 5, 7, 12, 14, 16, 19, 21, 23, 26, 28, 30 and Nov 2, 4');
+                          }}
+                          className="px-3 py-2 text-xs font-bold text-gray-500 hover:text-[#0B4550] hover:bg-gray-100 rounded-xl transition-colors"
+                        >
+                          Fill Example
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleQuickTextGenerate}
+                          disabled={!quickTextInput.trim()}
+                          className="flex-1 sm:flex-none bg-[#0B4550] text-[#E6FF2B] px-5 py-2.5 rounded-xl text-xs font-black hover:bg-[#0B4550]/90 transition-all shadow-sm flex items-center justify-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          <Wand2 size={15} /> Generate Appointments
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* BULK ROWS LIST */}
                 <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
