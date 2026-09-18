@@ -837,6 +837,7 @@ export default function Dashboard({ session }) {
 
   // ADD EVENT MODAL STATES (NEW!)
   const [showEventModal, setShowEventModal] = useState(false);
+  const [eventModalTab, setEventModalTab] = useState('single'); // 'single' | 'bulk'
   const [isAddingEvent, setIsAddingEvent] = useState(false);
   const [newEventData, setNewEventData] = useState({
     title: '', date: '', time: '09:00 AM', duration: '60 min', type: 'Group Class', location: 'Main Floor', capacity: 10, coach: '', recurrence: 'none', recurrenceCount: 4, recurrenceDays: []
@@ -844,6 +845,24 @@ export default function Dashboard({ session }) {
   const [eventAssignedClients, setEventAssignedClients] = useState([]);
   const [searchEventClientsQuery, setSearchEventClientsQuery] = useState('');
   const [showEventClientsDropdown, setShowEventClientsDropdown] = useState(false);
+
+  // BULK ADD APPOINTMENTS STATES
+  const [bulkRows, setBulkRows] = useState([
+    {
+      id: 'bulk-1',
+      date: new Date().toISOString().split('T')[0],
+      time: '09:00 AM',
+      duration: '60 min',
+      type: '1-on-1',
+      title: 'PT Session',
+      location: 'Main Floor',
+      coach: '',
+      capacity: 1,
+      assignedClients: []
+    }
+  ]);
+  const [activeBulkClientRowId, setActiveBulkClientRowId] = useState(null);
+  const [bulkClientSearchQuery, setBulkClientSearchQuery] = useState('');
 
   // EDIT EVENT MODAL STATES
   const [showEditEventModal, setShowEditEventModal] = useState(false);
@@ -2039,8 +2058,16 @@ export default function Dashboard({ session }) {
 
       // Direct Google Calendar Live Sync push (NEW!)
       if (insertedData && insertedData.length > 0) {
+        const assignedAttendees = (eventAssignedClients || []).map(cId => {
+          const matched = clients.find(c => c.id === cId);
+          return matched ? { client_id: matched.id, name: matched.name } : null;
+        }).filter(Boolean);
+
         insertedData.forEach(session => {
-          syncToGoogleCalendar('CREATE', session);
+          syncToGoogleCalendar('CREATE', {
+            ...session,
+            attendees: assignedAttendees
+          });
         });
       }
       setShowEventModal(false);
@@ -2064,6 +2091,150 @@ export default function Dashboard({ session }) {
       alert(`Successfully scheduled ${sessionsToInsert.length} session(s)!`);
     } catch (error) {
       alert("Error adding event: " + error.message);
+    } finally {
+      setIsAddingEvent(false);
+    }
+  };
+
+  const handleBulkAddEvents = async (e) => {
+    e.preventDefault();
+    if (!bulkRows || bulkRows.length === 0) {
+      alert("Please add at least one appointment.");
+      return;
+    }
+
+    // Validate rows
+    for (let i = 0; i < bulkRows.length; i++) {
+      const row = bulkRows[i];
+      if (!row.title || !row.title.trim()) {
+        alert(`Please specify a title or class for row #${i + 1}.`);
+        return;
+      }
+      if (!row.date) {
+        alert(`Please specify a date for row #${i + 1}.`);
+        return;
+      }
+    }
+
+    setIsAddingEvent(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const sessionsToInsert = bulkRows.map(row => {
+        const fullLocation = row.coach ? `${row.location || 'Main Floor'} | Coach: ${row.coach}` : (row.location || 'Main Floor');
+        const capacityVal = row.type === '1-on-1' ? 1 : (parseInt(row.capacity) || 10);
+        return {
+          trainer_id: user.id,
+          title: row.title.trim(),
+          date: row.date,
+          time: row.time || '09:00 AM',
+          duration: row.duration || '60 min',
+          type: row.type || '1-on-1',
+          location: fullLocation,
+          capacity: capacityVal
+        };
+      });
+
+      const { data: insertedData, error: insertErr } = await supabase
+        .from('sessions')
+        .insert(sessionsToInsert)
+        .select();
+
+      if (insertErr) throw insertErr;
+
+      if (insertedData && insertedData.length > 0) {
+        const bookingsToInsert = [];
+        const clientUpdates = {};
+
+        insertedData.forEach((session, idx) => {
+          const rowConfig = bulkRows[idx];
+          const assignedIds = rowConfig?.assignedClients || [];
+
+          assignedIds.forEach(clientId => {
+            bookingsToInsert.push({
+              client_id: clientId,
+              session_id: session.id,
+              session_date: session.date,
+              time_slot: session.time,
+              status: 'Booked'
+            });
+
+            const client = clients.find(c => c.id === clientId);
+            if (client && !client.unlimited) {
+              const creditCost = getClassCreditCost(session.title);
+              if (!clientUpdates[clientId]) {
+                clientUpdates[clientId] = {
+                  remaining: client.remaining_package || 0,
+                  used: client.used_sessions || 0
+                };
+              }
+              clientUpdates[clientId].remaining = Math.max(0, clientUpdates[clientId].remaining - creditCost);
+              clientUpdates[clientId].used = clientUpdates[clientId].used + creditCost;
+            }
+          });
+        });
+
+        if (bookingsToInsert.length > 0) {
+          const { error: bookingsErr } = await supabase.from('bookings').insert(bookingsToInsert);
+          if (bookingsErr) console.error("Error inserting bulk bookings:", bookingsErr);
+        }
+
+        for (const clientId of Object.keys(clientUpdates)) {
+          const update = clientUpdates[clientId];
+          await supabase.from('clients')
+            .update({ remaining_package: update.remaining, used_sessions: update.used })
+            .eq('id', clientId);
+        }
+
+        if (Object.keys(clientUpdates).length > 0) {
+          setClients(prev => prev.map(c => {
+            if (clientUpdates[c.id]) {
+              return {
+                ...c,
+                remaining_package: clientUpdates[c.id].remaining,
+                used_sessions: clientUpdates[c.id].used
+              };
+            }
+            return c;
+          }));
+        }
+
+        // Direct Google Calendar Live Sync push for each bulk item
+        insertedData.forEach((session, idx) => {
+          const rowConfig = bulkRows[idx];
+          const assignedIds = rowConfig?.assignedClients || [];
+          const attendees = assignedIds.map(cId => {
+            const matched = clients.find(c => c.id === cId);
+            return matched ? { client_id: matched.id, name: matched.name } : null;
+          }).filter(Boolean);
+
+          syncToGoogleCalendar('CREATE', {
+            ...session,
+            attendees: attendees
+          });
+        });
+      }
+
+      setShowEventModal(false);
+      setBulkRows([
+        {
+          id: `bulk-${Date.now()}`,
+          date: new Date().toISOString().split('T')[0],
+          time: '09:00 AM',
+          duration: '60 min',
+          type: '1-on-1',
+          title: 'PT Session',
+          location: 'Main Floor',
+          coach: '',
+          capacity: 1,
+          assignedClients: []
+        }
+      ]);
+      setActiveBulkClientRowId(null);
+      fetchSessions();
+      alert(`Successfully bulk scheduled ${insertedData.length} appointment(s)!`);
+    } catch (error) {
+      alert("Error bulk adding appointments: " + error.message);
     } finally {
       setIsAddingEvent(false);
     }
@@ -9401,302 +9572,752 @@ export default function Dashboard({ session }) {
       {/* MODAL OVERLAY: ADD EVENT (NEW!) */}
       {showEventModal && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-5 md:py-8 overflow-hidden">
-          <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full max-w-xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin">
+          <div className={`bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full ${eventModalTab === 'bulk' ? 'max-w-5xl' : 'max-w-xl'} shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto scrollbar-thin transition-all`}>
             <button onClick={() => setShowEventModal(false)} className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full">
               <X size={24} />
             </button>
 
-            <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550] mb-2">New Event</h2>
-            <p className="text-[#898A8D] font-medium text-lg mb-8">Schedule a class or block time off.</p>
-
-            <form onSubmit={handleAddEvent} className="space-y-6">
-
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6 pr-10">
               <div>
-                <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Event Title / Class</label>
-                {newEventData.type === 'Blocked' ? (
-                  <input type="text" required value={newEventData.title} onChange={(e) => setNewEventData({ ...newEventData, title: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Blocked Time" />
-                ) : (
-                  <select required value={newEventData.title} onChange={(e) => setNewEventData({ ...newEventData, title: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
-                    <option value="">-- Select Class Offered --</option>
-                    {scheduleSettings.classes.map(cls => (
-                      <option key={cls.name} value={cls.name}>{cls.name} ({cls.credits} {cls.credits === 1 ? 'credit' : 'credits'})</option>
-                    ))}
-                  </select>
-                )}
+                <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550] mb-1">New Event</h2>
+                <p className="text-[#898A8D] font-medium text-base">Schedule a class, block time off, or bulk schedule appointments.</p>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+              {/* TABS: Single Event vs Bulk Add */}
+              <div className="flex bg-[#F4F2EC] p-1.5 rounded-2xl gap-1 shrink-0 self-start md:self-center">
+                <button
+                  type="button"
+                  onClick={() => setEventModalTab('single')}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all ${eventModalTab === 'single' ? 'bg-white text-[#0B4550] shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                >
+                  Single Event
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setEventModalTab('bulk')}
+                  className={`px-4 py-2 rounded-xl text-sm font-bold transition-all flex items-center gap-1.5 ${eventModalTab === 'bulk' ? 'bg-[#0B4550] text-[#E6FF2B] shadow-sm' : 'text-[#898A8D] hover:text-[#0B4550]'}`}
+                >
+                  Bulk Add
+                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#E6FF2B]/20 text-[#0B4550] font-black uppercase">Batch</span>
+                </button>
+              </div>
+            </div>
+
+            {eventModalTab === 'single' ? (
+              <form onSubmit={handleAddEvent} className="space-y-6">
+
                 <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Date</label>
-                  <input type="date" required value={newEventData.date} onChange={(e) => setNewEventData({ ...newEventData, date: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
+                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Event Title / Class</label>
+                  {newEventData.type === 'Blocked' ? (
+                    <input type="text" required value={newEventData.title} onChange={(e) => setNewEventData({ ...newEventData, title: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" placeholder="e.g. Blocked Time" />
+                  ) : (
+                    <select required value={newEventData.title} onChange={(e) => setNewEventData({ ...newEventData, title: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                      <option value="">-- Select Class Offered --</option>
+                      {scheduleSettings.classes.map(cls => (
+                        <option key={cls.name} value={cls.name}>{cls.name} ({cls.credits} {cls.credits === 1 ? 'credit' : 'credits'})</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
-                <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Start Time</label>
-                  <div className="flex gap-2">
-                    <select
-                      value={parseTimeToParts(newEventData.time || '09:00 AM').hour}
-                      onChange={(e) => handleNewEventTimeChange('hour', e.target.value)}
-                      className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
-                    >
-                      {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
-                        <option key={h} value={h}>{h}</option>
-                      ))}
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  <div>
+                    <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Date</label>
+                    <input type="date" required value={newEventData.date} onChange={(e) => setNewEventData({ ...newEventData, date: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B]" />
+                  </div>
+                  <div>
+                    <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Start Time</label>
+                    <div className="flex gap-2">
+                      <select
+                        value={parseTimeToParts(newEventData.time || '09:00 AM').hour}
+                        onChange={(e) => handleNewEventTimeChange('hour', e.target.value)}
+                        className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
+                          <option key={h} value={h}>{h}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={parseTimeToParts(newEventData.time || '09:00 AM').minute}
+                        onChange={(e) => handleNewEventTimeChange('minute', e.target.value)}
+                        className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
+                      >
+                        {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')).map(m => (
+                          <option key={m} value={m}>{m}</option>
+                        ))}
+                      </select>
+                      <select
+                        value={parseTimeToParts(newEventData.time || '09:00 AM').ampm}
+                        onChange={(e) => handleNewEventTimeChange('ampm', e.target.value)}
+                        className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
+                      >
+                        <option value="AM">AM</option>
+                        <option value="PM">PM</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                  <div>
+                    <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Duration</label>
+                    <select required value={newEventData.duration} onChange={(e) => setNewEventData({ ...newEventData, duration: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                      <option value="30 min">30 min</option>
+                      <option value="45 min">45 min</option>
+                      <option value="60 min">60 min</option>
+                      <option value="90 min">90 min</option>
+                      <option value="120 min">120 min</option>
                     </select>
-                    <select
-                      value={parseTimeToParts(newEventData.time || '09:00 AM').minute}
-                      onChange={(e) => handleNewEventTimeChange('minute', e.target.value)}
-                      className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
-                    >
-                      {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')).map(m => (
-                        <option key={m} value={m}>{m}</option>
-                      ))}
-                    </select>
-                    <select
-                      value={parseTimeToParts(newEventData.time || '09:00 AM').ampm}
-                      onChange={(e) => handleNewEventTimeChange('ampm', e.target.value)}
-                      className="w-1/3 bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-2 font-bold text-lg text-[#0B4550] outline-none text-center cursor-pointer focus:border-[#E6FF2B]"
-                    >
-                      <option value="AM">AM</option>
-                      <option value="PM">PM</option>
+                  </div>
+                  <div>
+                    <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Type</label>
+                    <select required value={newEventData.type} onChange={(e) => setNewEventData({ ...newEventData, type: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                      <option value="Group Class">Group Class</option>
+                      <option value="1-on-1">1-on-1 Session</option>
+                      <option value="Blocked">Blocked / Busy</option>
                     </select>
                   </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Duration</label>
-                  <select required value={newEventData.duration} onChange={(e) => setNewEventData({ ...newEventData, duration: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
-                    <option value="30 min">30 min</option>
-                    <option value="45 min">45 min</option>
-                    <option value="60 min">60 min</option>
-                    <option value="90 min">90 min</option>
-                    <option value="120 min">120 min</option>
-                  </select>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
+                  <div>
+                    <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Location</label>
+                    <select value={newEventData.location} onChange={(e) => setNewEventData({ ...newEventData, location: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                      <option value="">-- Select Location --</option>
+                      {scheduleSettings.locations.map(loc => (
+                        <option key={loc} value={loc}>{loc}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Assign Coach</label>
+                    <select value={newEventData.coach} onChange={(e) => setNewEventData({ ...newEventData, coach: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
+                      <option value="">-- Select Coach --</option>
+                      {scheduleSettings.coaches.map(co => (
+                        <option key={co} value={co}>{co}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Max Capacity</label>
+                    <input type="number" min="1" disabled={newEventData.type === '1-on-1' || newEventData.type === 'Blocked'} value={newEventData.type === '1-on-1' ? 1 : newEventData.capacity} onChange={(e) => setNewEventData({ ...newEventData, capacity: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50" />
+                  </div>
                 </div>
-                <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Type</label>
-                  <select required value={newEventData.type} onChange={(e) => setNewEventData({ ...newEventData, type: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
-                    <option value="Group Class">Group Class</option>
-                    <option value="1-on-1">1-on-1 Session</option>
-                    <option value="Blocked">Blocked / Busy</option>
-                  </select>
-                </div>
-              </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-                <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Location</label>
-                  <select value={newEventData.location} onChange={(e) => setNewEventData({ ...newEventData, location: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
-                    <option value="">-- Select Location --</option>
-                    {scheduleSettings.locations.map(loc => (
-                      <option key={loc} value={loc}>{loc}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Assign Coach</label>
-                  <select value={newEventData.coach} onChange={(e) => setNewEventData({ ...newEventData, coach: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer">
-                    <option value="">-- Select Coach --</option>
-                    {scheduleSettings.coaches.map(co => (
-                      <option key={co} value={co}>{co}</option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Max Capacity</label>
-                  <input type="number" min="1" disabled={newEventData.type === '1-on-1' || newEventData.type === 'Blocked'} value={newEventData.type === '1-on-1' ? 1 : newEventData.capacity} onChange={(e) => setNewEventData({ ...newEventData, capacity: e.target.value })} className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50" />
-                </div>
-              </div>
+                {/* RECURRENCE RULES (NEW!) */}
+                {(() => {
+                  const getCustomScheduledCount = () => {
+                    if (!newEventData.date) return 1;
+                    const baseDate = new Date(newEventData.date);
+                    const selectedDays = newEventData.recurrenceDays || [];
+                    if (selectedDays.length === 0) return 1;
 
-              {/* RECURRENCE RULES (NEW!) */}
-              {(() => {
-                const getCustomScheduledCount = () => {
-                  if (!newEventData.date) return 1;
-                  const baseDate = new Date(newEventData.date);
-                  const selectedDays = newEventData.recurrenceDays || [];
-                  if (selectedDays.length === 0) return 1;
+                    const weeksCount = parseInt(newEventData.recurrenceCount) || 1;
+                    const safeWeeks = Math.min(6, Math.max(1, weeksCount));
 
-                  const weeksCount = parseInt(newEventData.recurrenceCount) || 1;
-                  const safeWeeks = Math.min(6, Math.max(1, weeksCount));
+                    let count = 1; // Base class
+                    let currentDate = new Date(baseDate);
+                    const totalDaysToScan = safeWeeks * 7;
 
-                  let count = 1; // Base class
-                  let currentDate = new Date(baseDate);
-                  const totalDaysToScan = safeWeeks * 7;
-
-                  for (let i = 1; i <= totalDaysToScan; i++) {
-                    currentDate.setDate(currentDate.getDate() + 1);
-                    if (selectedDays.includes(currentDate.getDay())) {
-                      count++;
+                    for (let i = 1; i <= totalDaysToScan; i++) {
+                      currentDate.setDate(currentDate.getDate() + 1);
+                      if (selectedDays.includes(currentDate.getDay())) {
+                        count++;
+                      }
                     }
-                  }
-                  return count;
-                };
+                    return count;
+                  };
 
-                return (
-                  <div className="space-y-4 bg-[#0B4550]/5 p-5 rounded-3xl border border-[#0B4550]/10">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-                      <div>
-                        <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Repeat Event</label>
-                        <select
-                          value={newEventData.recurrence || 'none'}
-                          onChange={(e) => setNewEventData({ ...newEventData, recurrence: e.target.value })}
-                          className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer"
-                        >
-                          <option value="none">One-time Event</option>
-                          <option value="daily">Daily</option>
-                          <option value="weekly">Weekly</option>
-                          <option value="weekdays">Every Weekday (Mon-Fri)</option>
-                          <option value="custom">Custom Days (Weekly)</option>
-                        </select>
+                  return (
+                    <div className="space-y-4 bg-[#0B4550]/5 p-5 rounded-3xl border border-[#0B4550]/10">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
+                        <div>
+                          <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Repeat Event</label>
+                          <select
+                            value={newEventData.recurrence || 'none'}
+                            onChange={(e) => setNewEventData({ ...newEventData, recurrence: e.target.value })}
+                            className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] appearance-none cursor-pointer"
+                          >
+                            <option value="none">One-time Event</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="weekdays">Every Weekday (Mon-Fri)</option>
+                            <option value="custom">Custom Days (Weekly)</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">
+                            {newEventData.recurrence === 'none' ? 'No Repeats' : newEventData.recurrence === 'custom' ? 'Number of Weeks' : 'Number of Repeats'}
+                          </label>
+                          <input
+                            type="number"
+                            min="1"
+                            max={newEventData.recurrence === 'custom' ? 6 : 20}
+                            disabled={newEventData.recurrence === 'none'}
+                            value={newEventData.recurrence === 'none' ? '' : newEventData.recurrenceCount}
+                            onChange={(e) => setNewEventData({ ...newEventData, recurrenceCount: e.target.value })}
+                            className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50"
+                            placeholder={newEventData.recurrence === 'custom' ? "e.g. 4 weeks" : "e.g. 4 repeats"}
+                          />
+                          {newEventData.recurrence && newEventData.recurrence !== 'none' && (
+                            <span className="text-xs font-semibold text-[#898A8D] mt-1 block">
+                              Total scheduled: {newEventData.recurrence === 'custom' ? getCustomScheduledCount() : (1 + (parseInt(newEventData.recurrenceCount) || 0))} classes
+                            </span>
+                          )}
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">
-                          {newEventData.recurrence === 'none' ? 'No Repeats' : newEventData.recurrence === 'custom' ? 'Number of Weeks' : 'Number of Repeats'}
-                        </label>
-                        <input
-                          type="number"
-                          min="1"
-                          max={newEventData.recurrence === 'custom' ? 6 : 20}
-                          disabled={newEventData.recurrence === 'none'}
-                          value={newEventData.recurrence === 'none' ? '' : newEventData.recurrenceCount}
-                          onChange={(e) => setNewEventData({ ...newEventData, recurrenceCount: e.target.value })}
-                          className="w-full bg-white border border-gray-100 rounded-2xl py-3 px-5 font-medium text-lg text-[#0B4550] outline-none focus:border-[#E6FF2B] disabled:opacity-50"
-                          placeholder={newEventData.recurrence === 'custom' ? "e.g. 4 weeks" : "e.g. 4 repeats"}
-                        />
-                        {newEventData.recurrence && newEventData.recurrence !== 'none' && (
-                          <span className="text-xs font-semibold text-[#898A8D] mt-1 block">
-                            Total scheduled: {newEventData.recurrence === 'custom' ? getCustomScheduledCount() : (1 + (parseInt(newEventData.recurrenceCount) || 0))} classes
-                          </span>
-                        )}
-                      </div>
+
+                      {/* CUSTOM DAYS SELECTOR (NEW!) */}
+                      {newEventData.recurrence === 'custom' && (
+                        <div className="pt-2 border-t border-[#0B4550]/10 animate-in fade-in slide-in-from-top-3 duration-200">
+                          <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Select Weekly Days</label>
+                          <div className="grid grid-cols-7 gap-1.5 mt-2">
+                            {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((label, index) => {
+                              const isSelected = (newEventData.recurrenceDays || []).includes(index);
+                              return (
+                                <button
+                                  type="button"
+                                  key={index}
+                                  onClick={() => {
+                                    const days = newEventData.recurrenceDays ? [...newEventData.recurrenceDays] : [];
+                                    if (days.includes(index)) {
+                                      setNewEventData({ ...newEventData, recurrenceDays: days.filter(d => d !== index) });
+                                    } else {
+                                      setNewEventData({ ...newEventData, recurrenceDays: [...days, index] });
+                                    }
+                                  }}
+                                  className={`py-2 rounded-xl font-bold text-xs transition-all border text-center ${isSelected ? 'bg-[#0B4550] text-[#E6FF2B] border-[#0B4550] shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
+                                >
+                                  {label}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
                     </div>
+                  );
+                })()}
 
-                    {/* CUSTOM DAYS SELECTOR (NEW!) */}
-                    {newEventData.recurrence === 'custom' && (
-                      <div className="pt-2 border-t border-[#0B4550]/10 animate-in fade-in slide-in-from-top-3 duration-200">
-                        <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">Select Weekly Days</label>
-                        <div className="grid grid-cols-7 gap-1.5 mt-2">
-                          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((label, index) => {
-                            const isSelected = (newEventData.recurrenceDays || []).includes(index);
-                            return (
-                              <button
-                                type="button"
-                                key={index}
-                                onClick={() => {
-                                  const days = newEventData.recurrenceDays ? [...newEventData.recurrenceDays] : [];
-                                  if (days.includes(index)) {
-                                    setNewEventData({ ...newEventData, recurrenceDays: days.filter(d => d !== index) });
-                                  } else {
-                                    setNewEventData({ ...newEventData, recurrenceDays: [...days, index] });
-                                  }
-                                }}
-                                className={`py-2 rounded-xl font-bold text-xs transition-all border text-center ${isSelected ? 'bg-[#0B4550] text-[#E6FF2B] border-[#0B4550] shadow-sm' : 'bg-white text-gray-500 border-gray-200 hover:border-gray-300'}`}
-                              >
-                                {label}
-                              </button>
-                            );
-                          })}
+                {newEventData.type !== 'Blocked' && (
+                  <div className="relative">
+                    <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">
+                      Assign Clients to Class
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowEventClientsDropdown(!showEventClientsDropdown);
+                        setSearchEventClientsQuery('');
+                      }}
+                      className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl px-5 py-3 text-lg text-[#0B4550] font-medium flex justify-between items-center outline-none focus:border-[#E6FF2B] cursor-pointer"
+                    >
+                      <span className="truncate">
+                        {eventAssignedClients.length === 0
+                          ? 'Select clients to book...'
+                          : `${eventAssignedClients.length} client(s) selected`}
+                      </span>
+                      <ChevronDown size={18} className={`transition-transform duration-200 ${showEventClientsDropdown ? 'rotate-180' : ''}`} />
+                    </button>
+
+                    {showEventClientsDropdown && (
+                      <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200 max-h-80 flex flex-col">
+                        {/* SEARCH BAR */}
+                        <div className="relative mb-3 shrink-0">
+                          <input
+                            type="text"
+                            placeholder="Search clients..."
+                            value={searchEventClientsQuery}
+                            onChange={(e) => setSearchEventClientsQuery(e.target.value)}
+                            className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2.5 pl-9 pr-8 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                          />
+                          <Search className="absolute left-3 top-3 text-gray-400" size={16} />
+                          {searchEventClientsQuery && (
+                            <button
+                              type="button"
+                              onClick={() => setSearchEventClientsQuery('')}
+                              className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0B4550] transition-colors"
+                            >
+                              <X size={16} />
+                            </button>
+                          )}
+                        </div>
+
+                        {/* CLIENTS CHECKBOX LIST */}
+                        <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
+                          {(() => {
+                            const filtered = clients
+                              .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(searchEventClientsQuery.toLowerCase()))
+                              .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                            if (filtered.length === 0) {
+                              return <p className="text-sm text-gray-400 text-center py-4">No clients found.</p>;
+                            }
+
+                            return filtered.map(c => {
+                              const isSelected = eventAssignedClients.includes(c.id);
+
+                              return (
+                                <label
+                                  key={c.id}
+                                  className="flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer hover:bg-[#F9F7F2]"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isSelected}
+                                    onChange={() => {
+                                      setEventAssignedClients(prev =>
+                                        prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
+                                      );
+                                    }}
+                                    className="w-5 h-5 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550] cursor-pointer"
+                                  />
+                                  <div className="flex flex-col text-left">
+                                    <span className="font-bold text-[#0B4550] text-sm">{c.name}</span>
+                                    <span className="text-[11px] text-[#898A8D] font-medium">
+                                      {c.package || 'No package'} • {c.unlimited ? 'Unlimited' : `${c.remaining_package || 0} left`}
+                                    </span>
+                                  </div>
+                                </label>
+                              );
+                            });
+                          })()}
                         </div>
                       </div>
                     )}
                   </div>
-                );
-              })()}
+                )}
 
-              {newEventData.type !== 'Blocked' && (
-                <div className="relative">
-                  <label className="text-[#898A8D] font-medium text-sm uppercase tracking-widest mb-2 block">
-                    Assign Clients to Class
-                  </label>
+                <button type="submit" disabled={isAddingEvent} className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-medium text-xl hover:bg-[#0B4550]/90 transition-all shadow-md mt-4 flex justify-center">
+                  {isAddingEvent ? <RotateCw className="animate-spin" size={28} /> : 'Save to Schedule'}
+                </button>
+              </form>
+            ) : (
+              /* BULK ADD APPOINTMENTS TAB */
+              <form onSubmit={handleBulkAddEvents} className="space-y-6 animate-in fade-in duration-200">
+                <div className="bg-[#0B4550]/5 p-4 rounded-2xl border border-[#0B4550]/10 flex flex-col md:flex-row md:items-center justify-between gap-3 text-sm">
+                  <div className="text-[#0B4550] font-medium">
+                    Plan multiple appointments across days or the week and assign clients to each appointment in one shot.
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newRow = {
+                          id: `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                          date: bulkRows.length > 0 ? bulkRows[bulkRows.length - 1].date : new Date().toISOString().split('T')[0],
+                          time: '10:00 AM',
+                          duration: '60 min',
+                          type: '1-on-1',
+                          title: 'PT Session',
+                          location: scheduleSettings.locations[0] || 'Main Floor',
+                          coach: scheduleSettings.coaches[0] || '',
+                          capacity: 1,
+                          assignedClients: []
+                        };
+                        setBulkRows(prev => [...prev, newRow]);
+                      }}
+                      className="bg-[#0B4550] text-[#E6FF2B] px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 hover:bg-[#0B4550]/90 transition-all shadow-sm"
+                    >
+                      <Plus size={16} /> Add Appointment Row
+                    </button>
+                  </div>
+                </div>
+
+                {/* BULK ROWS LIST */}
+                <div className="space-y-4 max-h-[52vh] overflow-y-auto pr-1">
+                  {bulkRows.map((row, index) => {
+                    const isClientDropdownOpen = activeBulkClientRowId === row.id;
+                    const assignedClientsCount = (row.assignedClients || []).length;
+
+                    return (
+                      <div key={row.id} className="bg-[#F9F7F2] p-4 md:p-5 rounded-3xl border border-gray-200/80 shadow-xs space-y-3 relative group">
+                        <div className="flex items-center justify-between border-b border-gray-200/60 pb-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-6 h-6 rounded-full bg-[#0B4550] text-[#E6FF2B] text-xs font-black flex items-center justify-center">
+                              {index + 1}
+                            </span>
+                            <span className="font-bold text-sm text-[#0B4550]">
+                              Appointment #{index + 1}
+                            </span>
+                            <span className="text-xs px-2 py-0.5 rounded-md bg-gray-200 font-bold text-gray-700">
+                              {row.type}
+                            </span>
+                          </div>
+
+                          <div className="flex items-center gap-1">
+                            <button
+                              type="button"
+                              title="Duplicate Appointment"
+                              onClick={() => {
+                                const duplicated = {
+                                  ...row,
+                                  id: `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                                  assignedClients: [...row.assignedClients]
+                                };
+                                setBulkRows(prev => {
+                                  const next = [...prev];
+                                  next.splice(index + 1, 0, duplicated);
+                                  return next;
+                                });
+                              }}
+                              className="p-1.5 text-gray-400 hover:text-[#0B4550] hover:bg-white rounded-lg transition-all"
+                            >
+                              <Calendar size={16} />
+                            </button>
+                            {bulkRows.length > 1 && (
+                              <button
+                                type="button"
+                                title="Remove Appointment"
+                                onClick={() => {
+                                  setBulkRows(prev => prev.filter(r => r.id !== row.id));
+                                  if (activeBulkClientRowId === row.id) setActiveBulkClientRowId(null);
+                                }}
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-white rounded-lg transition-all"
+                              >
+                                <Trash2 size={16} />
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* ROW INPUT CONTROLS */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3">
+                          {/* Date */}
+                          <div className="md:col-span-3">
+                            <label className="text-[11px] uppercase tracking-wider font-bold text-[#898A8D] mb-1 block">Date</label>
+                            <input
+                              type="date"
+                              required
+                              value={row.date}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, date: val } : r));
+                              }}
+                              className="w-full bg-white border border-gray-200 rounded-xl py-2 px-3 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                            />
+                          </div>
+
+                          {/* Time */}
+                          <div className="md:col-span-3">
+                            <label className="text-[11px] uppercase tracking-wider font-bold text-[#898A8D] mb-1 block">Start Time</label>
+                            <div className="flex gap-1">
+                              <select
+                                value={parseTimeToParts(row.time || '09:00 AM').hour}
+                                onChange={(e) => {
+                                  const parts = parseTimeToParts(row.time || '09:00 AM');
+                                  parts.hour = e.target.value;
+                                  const newTime = `${parts.hour}:${parts.minute} ${parts.ampm}`;
+                                  setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, time: newTime } : r));
+                                }}
+                                className="w-1/3 bg-white border border-gray-200 rounded-xl py-2 px-1 text-xs font-bold text-[#0B4550] text-center outline-none focus:border-[#0B4550]"
+                              >
+                                {Array.from({ length: 12 }, (_, i) => String(i + 1).padStart(2, '0')).map(h => (
+                                  <option key={h} value={h}>{h}</option>
+                                ))}
+                              </select>
+                              <select
+                                value={parseTimeToParts(row.time || '09:00 AM').minute}
+                                onChange={(e) => {
+                                  const parts = parseTimeToParts(row.time || '09:00 AM');
+                                  parts.minute = e.target.value;
+                                  const newTime = `${parts.hour}:${parts.minute} ${parts.ampm}`;
+                                  setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, time: newTime } : r));
+                                }}
+                                className="w-1/3 bg-white border border-gray-200 rounded-xl py-2 px-1 text-xs font-bold text-[#0B4550] text-center outline-none focus:border-[#0B4550]"
+                              >
+                                {Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0')).map(m => (
+                                  <option key={m} value={m}>{m}</option>
+                                ))}
+                              </select>
+                              <select
+                                value={parseTimeToParts(row.time || '09:00 AM').ampm}
+                                onChange={(e) => {
+                                  const parts = parseTimeToParts(row.time || '09:00 AM');
+                                  parts.ampm = e.target.value;
+                                  const newTime = `${parts.hour}:${parts.minute} ${parts.ampm}`;
+                                  setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, time: newTime } : r));
+                                }}
+                                className="w-1/3 bg-white border border-gray-200 rounded-xl py-2 px-1 text-xs font-bold text-[#0B4550] text-center outline-none focus:border-[#0B4550]"
+                              >
+                                <option value="AM">AM</option>
+                                <option value="PM">PM</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* Duration & Type */}
+                          <div className="md:col-span-2">
+                            <label className="text-[11px] uppercase tracking-wider font-bold text-[#898A8D] mb-1 block">Duration</label>
+                            <select
+                              value={row.duration}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, duration: val } : r));
+                              }}
+                              className="w-full bg-white border border-gray-200 rounded-xl py-2 px-2.5 text-xs font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                            >
+                              <option value="30 min">30 min</option>
+                              <option value="45 min">45 min</option>
+                              <option value="60 min">60 min</option>
+                              <option value="90 min">90 min</option>
+                              <option value="120 min">120 min</option>
+                            </select>
+                          </div>
+
+                          <div className="md:col-span-2">
+                            <label className="text-[11px] uppercase tracking-wider font-bold text-[#898A8D] mb-1 block">Type</label>
+                            <select
+                              value={row.type}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setBulkRows(prev => prev.map(r => r.id === row.id ? {
+                                  ...r,
+                                  type: val,
+                                  title: val === '1-on-1' ? 'PT Session' : (scheduleSettings.classes[0]?.name || 'Group Class'),
+                                  capacity: val === '1-on-1' ? 1 : 10
+                                } : r));
+                              }}
+                              className="w-full bg-white border border-gray-200 rounded-xl py-2 px-2.5 text-xs font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                            >
+                              <option value="1-on-1">1-on-1</option>
+                              <option value="Group Class">Group Class</option>
+                            </select>
+                          </div>
+
+                          {/* Class / Title */}
+                          <div className="md:col-span-2">
+                            <label className="text-[11px] uppercase tracking-wider font-bold text-[#898A8D] mb-1 block">Title / Class</label>
+                            {row.type === '1-on-1' ? (
+                              <input
+                                type="text"
+                                value={row.title}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, title: val } : r));
+                                }}
+                                className="w-full bg-white border border-gray-200 rounded-xl py-2 px-2.5 text-xs font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                                placeholder="PT Session"
+                              />
+                            ) : (
+                              <select
+                                value={row.title}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, title: val } : r));
+                                }}
+                                className="w-full bg-white border border-gray-200 rounded-xl py-2 px-2 text-xs font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                              >
+                                {scheduleSettings.classes.map(c => (
+                                  <option key={c.name} value={c.name}>{c.name}</option>
+                                ))}
+                              </select>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* ROW SECOND LINE: COACH, LOCATION & ASSIGN CLIENTS */}
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-3 pt-1">
+                          {/* Coach */}
+                          <div className="md:col-span-3">
+                            <label className="text-[11px] uppercase tracking-wider font-bold text-[#898A8D] mb-1 block">Coach</label>
+                            <select
+                              value={row.coach}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, coach: val } : r));
+                              }}
+                              className="w-full bg-white border border-gray-200 rounded-xl py-2 px-2.5 text-xs font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                            >
+                              <option value="">-- No Coach --</option>
+                              {scheduleSettings.coaches.map(co => (
+                                <option key={co} value={co}>{co}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Location */}
+                          <div className="md:col-span-3">
+                            <label className="text-[11px] uppercase tracking-wider font-bold text-[#898A8D] mb-1 block">Location</label>
+                            <select
+                              value={row.location}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, location: val } : r));
+                              }}
+                              className="w-full bg-white border border-gray-200 rounded-xl py-2 px-2.5 text-xs font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                            >
+                              {scheduleSettings.locations.map(loc => (
+                                <option key={loc} value={loc}>{loc}</option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Client Assignment Button & Dropdown */}
+                          <div className="md:col-span-6 relative">
+                            <label className="text-[11px] uppercase tracking-wider font-bold text-[#898A8D] mb-1 block">
+                              Assigned Client{row.type === '1-on-1' ? ' (1-on-1)' : '(s)'}
+                            </label>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (isClientDropdownOpen) {
+                                  setActiveBulkClientRowId(null);
+                                } else {
+                                  setActiveBulkClientRowId(row.id);
+                                  setBulkClientSearchQuery('');
+                                }
+                              }}
+                              className="w-full bg-white border border-gray-200 rounded-xl py-2 px-3 text-xs font-bold text-[#0B4550] flex items-center justify-between hover:border-[#0B4550] transition-colors cursor-pointer"
+                            >
+                              <span className="truncate">
+                                {assignedClientsCount === 0 ? (
+                                  <span className="text-gray-400 font-normal">Choose client(s)...</span>
+                                ) : (
+                                  (() => {
+                                    const names = (row.assignedClients || [])
+                                      .map(id => clients.find(c => c.id === id)?.name)
+                                      .filter(Boolean);
+                                    return names.join(', ');
+                                  })()
+                                )}
+                              </span>
+                              <ChevronDown size={14} className={`shrink-0 transition-transform ${isClientDropdownOpen ? 'rotate-180' : ''}`} />
+                            </button>
+
+                            {/* DROPDOWN POPUP */}
+                            {isClientDropdownOpen && (
+                              <div className="absolute left-0 right-0 top-full mt-1.5 bg-white border border-gray-200 rounded-2xl shadow-2xl z-50 p-3 max-h-64 flex flex-col animate-in fade-in zoom-in-95 duration-150">
+                                <div className="relative mb-2 shrink-0">
+                                  <input
+                                    type="text"
+                                    placeholder="Search client name..."
+                                    value={bulkClientSearchQuery}
+                                    onChange={(e) => setBulkClientSearchQuery(e.target.value)}
+                                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-lg py-1.5 pl-7 pr-6 text-xs font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
+                                  />
+                                  <Search className="absolute left-2 top-2 text-gray-400" size={13} />
+                                  {bulkClientSearchQuery && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setBulkClientSearchQuery('')}
+                                      className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0B4550]"
+                                    >
+                                      <X size={13} />
+                                    </button>
+                                  )}
+                                </div>
+
+                                <div className="overflow-y-auto flex-1 space-y-1 pr-1">
+                                  {(() => {
+                                    const filtered = clients
+                                      .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(bulkClientSearchQuery.toLowerCase()))
+                                      .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+
+                                    if (filtered.length === 0) {
+                                      return <p className="text-xs text-gray-400 text-center py-2">No clients found</p>;
+                                    }
+
+                                    return filtered.map(c => {
+                                      const isSelected = (row.assignedClients || []).includes(c.id);
+                                      return (
+                                        <label
+                                          key={c.id}
+                                          className="flex items-center gap-2 p-1.5 rounded-lg transition-all cursor-pointer hover:bg-[#F9F7F2]"
+                                        >
+                                          <input
+                                            type={row.type === '1-on-1' ? 'radio' : 'checkbox'}
+                                            name={`bulk-client-${row.id}`}
+                                            checked={isSelected}
+                                            onChange={() => {
+                                              if (row.type === '1-on-1') {
+                                                setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, assignedClients: [c.id] } : r));
+                                                setActiveBulkClientRowId(null);
+                                              } else {
+                                                setBulkRows(prev => prev.map(r => {
+                                                  if (r.id !== row.id) return r;
+                                                  const curr = r.assignedClients || [];
+                                                  const next = curr.includes(c.id) ? curr.filter(id => id !== c.id) : [...curr, c.id];
+                                                  return { ...r, assignedClients: next };
+                                                }));
+                                              }
+                                            }}
+                                            className="w-4 h-4 text-[#0B4550] border-gray-300 rounded focus:ring-[#0B4550] cursor-pointer"
+                                          />
+                                          <div className="flex-1 min-w-0">
+                                            <div className="text-xs font-bold text-[#0B4550] truncate">{c.name}</div>
+                                            <div className="text-[10px] text-gray-400 truncate">
+                                              {c.package || 'No package'} • {c.unlimited ? 'Unlimited' : `${c.remaining_package || 0} left`}
+                                            </div>
+                                          </div>
+                                        </label>
+                                      );
+                                    });
+                                  })()}
+                                </div>
+
+                                <div className="pt-2 border-t border-gray-100 flex justify-between items-center mt-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, assignedClients: [] } : r));
+                                    }}
+                                    className="text-[11px] font-bold text-gray-400 hover:text-red-500 transition-colors"
+                                  >
+                                    Clear
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveBulkClientRowId(null)}
+                                    className="text-[11px] font-bold text-[#0B4550] bg-[#E6FF2B] px-3 py-1 rounded-lg hover:brightness-95 transition-all"
+                                  >
+                                    Done
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* BOTTOM ACTION BAR */}
+                <div className="flex items-center justify-between gap-4 pt-4 border-t border-gray-100">
                   <button
                     type="button"
                     onClick={() => {
-                      setShowEventClientsDropdown(!showEventClientsDropdown);
-                      setSearchEventClientsQuery('');
+                      const newRow = {
+                        id: `bulk-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+                        date: bulkRows.length > 0 ? bulkRows[bulkRows.length - 1].date : new Date().toISOString().split('T')[0],
+                        time: '10:00 AM',
+                        duration: '60 min',
+                        type: '1-on-1',
+                        title: 'PT Session',
+                        location: scheduleSettings.locations[0] || 'Main Floor',
+                        coach: scheduleSettings.coaches[0] || '',
+                        capacity: 1,
+                        assignedClients: []
+                      };
+                      setBulkRows(prev => [...prev, newRow]);
                     }}
-                    className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl px-5 py-3 text-lg text-[#0B4550] font-medium flex justify-between items-center outline-none focus:border-[#E6FF2B] cursor-pointer"
+                    className="border-2 border-dashed border-[#0B4550]/30 hover:border-[#0B4550] text-[#0B4550] font-bold text-sm px-4 py-3 rounded-2xl flex items-center gap-2 transition-all cursor-pointer"
                   >
-                    <span className="truncate">
-                      {eventAssignedClients.length === 0
-                        ? 'Select clients to book...'
-                        : `${eventAssignedClients.length} client(s) selected`}
-                    </span>
-                    <ChevronDown size={18} className={`transition-transform duration-200 ${showEventClientsDropdown ? 'rotate-180' : ''}`} />
+                    <Plus size={18} /> Add Another Appointment
                   </button>
 
-                  {showEventClientsDropdown && (
-                    <div className="absolute left-0 right-0 mt-2 bg-white border border-gray-150 rounded-2xl shadow-xl z-50 p-4 animate-in fade-in slide-in-from-top-2 duration-200 max-h-80 flex flex-col">
-                      {/* SEARCH BAR */}
-                      <div className="relative mb-3 shrink-0">
-                        <input
-                          type="text"
-                          placeholder="Search clients..."
-                          value={searchEventClientsQuery}
-                          onChange={(e) => setSearchEventClientsQuery(e.target.value)}
-                          className="w-full bg-[#F9F7F2] border border-gray-100 rounded-xl py-2.5 pl-9 pr-8 text-sm font-semibold text-[#0B4550] outline-none focus:border-[#0B4550]"
-                        />
-                        <Search className="absolute left-3 top-3 text-gray-400" size={16} />
-                        {searchEventClientsQuery && (
-                          <button
-                            type="button"
-                            onClick={() => setSearchEventClientsQuery('')}
-                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#0B4550] transition-colors"
-                          >
-                            <X size={16} />
-                          </button>
-                        )}
-                      </div>
-
-                      {/* CLIENTS CHECKBOX LIST */}
-                      <div className="overflow-y-auto flex-1 space-y-1.5 pr-1">
-                        {(() => {
-                          const filtered = clients
-                            .filter(c => c.status !== 'Archived' && (c.name || '').toLowerCase().includes(searchEventClientsQuery.toLowerCase()))
-                            .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
-
-                          if (filtered.length === 0) {
-                            return <p className="text-sm text-gray-400 text-center py-4">No clients found.</p>;
-                          }
-
-                          return filtered.map(c => {
-                            const isSelected = eventAssignedClients.includes(c.id);
-
-                            return (
-                              <label
-                                key={c.id}
-                                className="flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer hover:bg-[#F9F7F2]"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={isSelected}
-                                  onChange={() => {
-                                    setEventAssignedClients(prev =>
-                                      prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
-                                    );
-                                  }}
-                                  className="w-5 h-5 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550] cursor-pointer"
-                                />
-                                <div className="flex flex-col text-left">
-                                  <span className="font-bold text-[#0B4550] text-sm">{c.name}</span>
-                                  <span className="text-[11px] text-[#898A8D] font-medium">
-                                    {c.package || 'No package'} • {c.unlimited ? 'Unlimited' : `${c.remaining_package || 0} left`}
-                                  </span>
-                                </div>
-                              </label>
-                            );
-                          });
-                        })()}
-                      </div>
-                    </div>
-                  )}
+                  <button
+                    type="submit"
+                    disabled={isAddingEvent || bulkRows.length === 0}
+                    className="bg-[#0B4550] text-[#E6FF2B] px-8 py-4 rounded-2xl font-bold text-lg hover:bg-[#0B4550]/90 transition-all shadow-md flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {isAddingEvent ? <RotateCw className="animate-spin" size={24} /> : `Save All (${bulkRows.length}) to Schedule`}
+                  </button>
                 </div>
-              )}
-
-              <button type="submit" disabled={isAddingEvent} className="w-full bg-[#0B4550] text-[#E6FF2B] py-4 rounded-2xl font-medium text-xl hover:bg-[#0B4550]/90 transition-all shadow-md mt-4 flex justify-center">
-                {isAddingEvent ? <RotateCw className="animate-spin" size={28} /> : 'Save to Schedule'}
-              </button>
-            </form>
+              </form>
+            )}
           </div>
         </div>
       )}
