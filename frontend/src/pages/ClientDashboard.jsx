@@ -6,22 +6,72 @@ import {
   Target, Flame, ChevronDown, X, Clock, MapPin, Scale, Users,
   Zap, Trophy, ChevronLeft, ChevronRight, Package, CheckCircle2, RefreshCw,
   Trash2, Dumbbell, PlayCircle, Timer, CalendarPlus, CalendarCheck,
-  CreditCard, ShieldCheck, TrendingUp, Award, User, Bell, FileText, Camera, Loader2, Printer
+  CreditCard, ShieldCheck, TrendingUp, Award, User, Bell, FileText, Camera, Loader2, Printer,
+  Filter, Sparkles, Check
 } from 'lucide-react';
 import newLogo from '../assets/logo.svg';
 
-// --- MOCK CONSTANTS ---
+// --- COMPREHENSIVE EXERCISE LIBRARY ---
 const EXERCISE_DB = {
-  "Chest": { "Bodyweight": ["Push-ups", "Wide Push-ups", "Diamond Push-ups"], "Dumbbell": ["Dumbbell Bench Press", "Flat Dumbbell Flyes"], "Barbell": ["Barbell Bench Press", "Incline Barbell Press"] },
-  "Back": { "Bodyweight": ["Superman Holds", "Inverted Rows"], "Dumbbell": ["Single Arm Dumbbell Row", "Renegade Rows"], "Barbell": ["Barbell Bent-Over Row", "Pendlay Row"], "Pull-up bar": ["Pull-ups", "Chin-ups"] },
-  "Shoulders": { "Bodyweight": ["Pike Push-ups", "Wall Walks"], "Dumbbell": ["Dumbbell Overhead Press", "Dumbbell Lateral Raises"], "Barbell": ["Overhead Press (OHP)", "Push Press"] },
-  "Arms": { "Bodyweight": ["Tricep Dips", "Diamond Push-ups"], "Dumbbell": ["Dumbbell Bicep Curls", "Hammer Curls"], "Barbell": ["Barbell Bicep Curls", "EZ Bar Curls"] },
-  "Legs": { "Bodyweight": ["Air Squats", "Walking Lunges", "Jump Squats"], "Dumbbell": ["Dumbbell Goblet Squats", "Dumbbell Lunges"], "Barbell": ["Barbell Back Squat", "Barbell RDLs"] },
-  "Core": { "Bodyweight": ["Plank", "Bicycle Crunches", "Leg Raises"], "Dumbbell": ["Dumbbell Russian Twists", "Weighted Crunches"], "Barbell": ["Barbell Rollouts"] }
+  "Chest": {
+    "Bodyweight": ["Push-ups", "Wide Push-ups", "Diamond Push-ups", "Decline Push-ups", "Incline Push-ups", "Chest Dips"],
+    "Dumbbell": ["Flat Dumbbell Bench Press", "Incline Dumbbell Press", "Decline Dumbbell Press", "Flat Dumbbell Flyes", "Incline Dumbbell Flyes", "Dumbbell Pullover"],
+    "Barbell": ["Barbell Bench Press", "Incline Barbell Bench Press", "Decline Barbell Press", "Close Grip Bench Press"],
+    "Cable": ["Cable Chest Flyes (High to Low)", "Cable Chest Flyes (Low to High)", "Middle Cable Crossover", "Single Arm Cable Press"],
+    "Machine": ["Seated Chest Press Machine", "Pec Deck Machine", "Incline Chest Press Machine"],
+    "Band": ["Banded Push-ups", "Banded Chest Flyes", "Banded Chest Press"]
+  },
+  "Back": {
+    "Bodyweight": ["Pull-ups", "Chin-ups", "Inverted Rows", "Superman Holds", "Scapular Pull-ups"],
+    "Dumbbell": ["Single Arm Dumbbell Row", "Dumbbell Chest Supported Row", "Renegade Rows", "Dumbbell Pullover"],
+    "Barbell": ["Conventional Deadlift", "Barbell Bent-Over Row", "Pendlay Row", "T-Bar Row", "Barbell Shrugs"],
+    "Cable": ["Lat Pulldown (Wide Grip)", "Lat Pulldown (Close Grip)", "Seated Cable Row", "Straight Arm Cable Pulldown", "Face Pulls", "Single Arm Cable Lat Pulldown"],
+    "Machine": ["Assisted Pull-up Machine", "Machine High Row", "Seated Cable Lat Row Machine", "Back Extension Machine"],
+    "Band": ["Banded Pull-aparts", "Banded Lat Pulldowns", "Banded Rows"]
+  },
+  "Shoulders": {
+    "Bodyweight": ["Pike Push-ups", "Elevated Pike Push-ups", "Wall Walks", "Handstand Push-ups"],
+    "Dumbbell": ["Seated Dumbbell Shoulder Press", "Standing Dumbbell Overhead Press", "Dumbbell Lateral Raises", "Dumbbell Front Raises", "Dumbbell Rear Delt Flyes", "Arnold Press"],
+    "Barbell": ["Standing Overhead Press (OHP)", "Seated Military Press", "Push Press", "Barbell Upright Row"],
+    "Cable": ["Cable Lateral Raises", "Cable Face Pulls", "Cable Front Raises", "Cable Rear Delt Flyes"],
+    "Machine": ["Machine Shoulder Press", "Reverse Pec Deck (Rear Delts)", "Lateral Raise Machine"],
+    "Kettlebell": ["Kettlebell Overhead Press", "Kettlebell Clean and Press"],
+    "Band": ["Banded Lateral Raises", "Banded Face Pulls", "Banded Overhead Press"]
+  },
+  "Arms": {
+    "Bodyweight": ["Tricep Dips on Bench", "Parallel Bar Dips", "Diamond Push-ups", "Chin-ups"],
+    "Dumbbell": ["Dumbbell Bicep Curls", "Hammer Curls", "Incline Dumbbell Curls", "Concentration Curls", "Dumbbell Overhead Tricep Extension", "Dumbbell Tricep Kickbacks"],
+    "Barbell": ["Standing Barbell Curl", "EZ-Bar Preacher Curl", "Close Grip Barbell Bench Press", "Skull Crushers (Lying Tricep Ext)"],
+    "Cable": ["Cable Tricep Rope Pushdown", "Straight Bar Tricep Pushdown", "Cable Bicep Curl", "Overhead Cable Tricep Extension", "Cable Hammer Curls with Rope"],
+    "Machine": ["Preacher Curl Machine", "Tricep Dip Machine", "Bicep Curl Machine"],
+    "Band": ["Banded Bicep Curls", "Banded Tricep Extensions"]
+  },
+  "Legs": {
+    "Bodyweight": ["Bodyweight Air Squats", "Walking Lunges", "Reverse Lunges", "Bulgarian Split Squats", "Jump Squats", "Single Leg Calf Raises", "Glute Bridges", "Step-ups"],
+    "Dumbbell": ["Dumbbell Goblet Squat", "Dumbbell Romanian Deadlift (RDL)", "Dumbbell Walking Lunges", "Dumbbell Bulgarian Split Squats", "Dumbbell Step-ups", "Dumbbell Calf Raises"],
+    "Barbell": ["Barbell Back Squat", "Barbell Front Squat", "Barbell Romanian Deadlift (RDL)", "Barbell Hip Thrust", "Barbell Good Mornings", "Barbell Box Squats"],
+    "Cable": ["Cable Pull-throughs", "Cable Glute Kickbacks", "Cable Hip Abductions"],
+    "Machine": ["Leg Press Machine", "Leg Extension Machine", "Lying Hamstring Curl Machine", "Seated Leg Curl Machine", "Standing Calf Raise Machine", "Seated Calf Raise Machine", "Hip Abductor Machine", "Hip Adductor Machine", "Hack Squat"],
+    "Kettlebell": ["Kettlebell Goblet Squat", "Kettlebell Swing", "Kettlebell Sumo Deadlift"]
+  },
+  "Core": {
+    "Bodyweight": ["Plank", "Side Plank", "Bicycle Crunches", "Hanging Leg Raises", "Lying Leg Raises", "Deadbug", "Bird-Dog", "Mountain Climbers", "Hollow Body Hold"],
+    "Dumbbell": ["Dumbbell Russian Twists", "Weighted Crunches", "Dumbbell Side Bends"],
+    "Barbell": ["Barbell Rollouts", "Suitcase Deadlifts"],
+    "Cable": ["Cable Woodchoppers (High to Low)", "Cable Woodchoppers (Low to High)", "Cable Kneeling Crunch", "Pallof Press"],
+    "Machine": ["Abdominal Crunch Machine", "Captain's Chair Leg Raise Machine", "Rotary Torso Machine"]
+  },
+  "Full Body & Conditioning": {
+    "Bodyweight": ["Burpees", "Mountain Climbers", "Jumping Jacks", "High Knees", "Bear Crawls"],
+    "Kettlebell": ["Kettlebell Swings", "Kettlebell Snatch", "Kettlebell Clean", "Turkish Get-up"],
+    "Barbell": ["Barbell Clean and Press", "Barbell Thrusters", "Power Cleans"],
+    "Dumbbell": ["Dumbbell Thrusters", "Dumbbell Renegade Row to Push-up", "Dumbbell Snatch"],
+    "Conditioning": ["Rowing Machine Sprints", "Assault Bike Intervals", "Ski-Erg Intervals", "Box Jumps", "Battle Ropes", "Sled Push / Prowler"]
+  }
 };
 
-const EQUIPMENT_OPTIONS = ["Bodyweight", "Dumbbell", "Barbell", "Kettlebell", "Band", "Plate", "Pull-up bar", "Bench"];
-const MUSCLE_OPTIONS = ["Chest", "Back", "Shoulders", "Arms", "Legs", "Core"];
+const EQUIPMENT_OPTIONS = ["Bodyweight", "Dumbbell", "Barbell", "Cable", "Machine", "Kettlebell", "Band", "Plate", "Pull-up bar", "Bench"];
+const MUSCLE_OPTIONS = ["Chest", "Back", "Shoulders", "Arms", "Legs", "Core", "Full Body & Conditioning"];
 const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
 
 const EQUIPMENT_IMAGES = {
@@ -318,6 +368,12 @@ export default function ClientDashboard() {
   const [tempGoal, setTempGoal] = useState(62);
   const [tempDate, setTempDate] = useState(localDateTime);
   const [tempFeeling, setTempFeeling] = useState('🙂');
+  const [librarySearchQuery, setLibrarySearchQuery] = useState('');
+  const [librarySelectedMuscle, setLibrarySelectedMuscle] = useState('All');
+  const [isExercisePickerOpen, setIsExercisePickerOpen] = useState(false);
+  const [customExerciseInput, setCustomExerciseInput] = useState('');
+  const [customExerciseMuscle, setCustomExerciseMuscle] = useState('Chest');
+  const [workoutSessionName, setWorkoutSessionName] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
@@ -540,18 +596,20 @@ export default function ClientDashboard() {
     fetchPackages();
   }, []);
 
-  useEffect(() => {
-    let interval;
-    if (isTrackerOpen) interval = setInterval(() => setWorkoutTime(t => t + 1), 1000);
-    else setWorkoutTime(0);
-    return () => clearInterval(interval);
-  }, [isTrackerOpen]);
+  const isTrackingActive = isTrackerOpen || (activeNav === 'Workout' && generatedWorkout && generatedWorkout.length > 0);
 
   useEffect(() => {
     let interval;
-    if (restTime > 0 && isTrackerOpen) interval = setInterval(() => setRestTime(t => t - 1), 1000);
+    if (isTrackingActive) interval = setInterval(() => setWorkoutTime(t => t + 1), 1000);
+    else setWorkoutTime(0);
     return () => clearInterval(interval);
-  }, [restTime, isTrackerOpen]);
+  }, [isTrackingActive]);
+
+  useEffect(() => {
+    let interval;
+    if (restTime > 0 && isTrackingActive) interval = setInterval(() => setRestTime(t => t - 1), 1000);
+    return () => clearInterval(interval);
+  }, [restTime, isTrackingActive]);
 
   if (isLoading) {
     return (
@@ -1189,10 +1247,51 @@ Client Special Requests: ${customPrompt || 'None'}
       setRestTime(0);
     }
   };
+
   const updateSetWeight = (exIndex, setIndex, val) => {
     const updated = [...generatedWorkout];
     updated[exIndex].sets[setIndex].weight = val;
     setGeneratedWorkout(updated);
+  };
+
+  const addSetToExercise = (exIndex) => {
+    const updated = [...generatedWorkout];
+    const ex = updated[exIndex];
+    const lastSet = ex.sets[ex.sets.length - 1];
+    updated[exIndex].sets.push({
+      targetReps: lastSet ? lastSet.targetReps : '10',
+      completed: false,
+      weight: lastSet ? lastSet.weight : ''
+    });
+    setGeneratedWorkout(updated);
+  };
+
+  const removeSetFromExercise = (exIndex, setIndex) => {
+    const updated = [...generatedWorkout];
+    if (updated[exIndex].sets.length > 1) {
+      updated[exIndex].sets = updated[exIndex].sets.filter((_, idx) => idx !== setIndex);
+      setGeneratedWorkout(updated);
+    }
+  };
+
+  const updateSetReps = (exIndex, setIndex, val) => {
+    const updated = [...generatedWorkout];
+    updated[exIndex].sets[setIndex].targetReps = val;
+    setGeneratedWorkout(updated);
+  };
+
+  const addExerciseToRoutine = (exerciseName, muscle = 'General') => {
+    const newEx = {
+      muscle: muscle,
+      name: exerciseName,
+      sets: [
+        { targetReps: '10', completed: false, weight: '' },
+        { targetReps: '10', completed: false, weight: '' },
+        { targetReps: '10', completed: false, weight: '' }
+      ],
+      restDuration: 60
+    };
+    setGeneratedWorkout(prev => prev ? [...prev, newEx] : [newEx]);
   };
 
   return (
@@ -1205,6 +1304,7 @@ Client Special Requests: ${customPrompt || 'None'}
         </div>
         <nav className="bg-white rounded-full py-6 flex flex-col items-center gap-4 shadow-sm border border-gray-100">
           <NavIcon icon={<Home size={24} />} isActive={activeNav === 'Home'} onClick={() => setActiveNav('Home')} />
+          <NavIcon icon={<Dumbbell size={24} />} isActive={activeNav === 'Workout'} onClick={() => setActiveNav('Workout')} />
           <NavIcon icon={<TrendingUp size={24} />} isActive={activeNav === 'Progress'} onClick={() => setActiveNav('Progress')} />
           <NavIcon icon={<FileText size={24} />} isActive={activeNav === 'History'} onClick={() => setActiveNav('History')} />
         </nav>
@@ -1220,6 +1320,10 @@ Client Special Requests: ${customPrompt || 'None'}
         <button onClick={() => setActiveNav('Home')} className={`flex flex-col items-center gap-1 ${activeNav === 'Home' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>
           <Home size={24} />
           <span className="text-[10px] font-bold mt-1">Home</span>
+        </button>
+        <button onClick={() => setActiveNav('Workout')} className={`flex flex-col items-center gap-1 ${activeNav === 'Workout' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>
+          <Dumbbell size={24} />
+          <span className="text-[10px] font-bold mt-1">Workout</span>
         </button>
         <button onClick={() => setActiveNav('Progress')} className={`flex flex-col items-center gap-1 ${activeNav === 'Progress' ? 'text-[#0B4550]' : 'text-[#898A8D]'}`}>
           <TrendingUp size={24} />
@@ -1251,12 +1355,13 @@ Client Special Requests: ${customPrompt || 'None'}
 
           <div className="px-2">
             <h1 className="text-3xl font-black text-[#0B4550] mb-1">
-              {activeNav === 'Progress' ? 'Your Progress' :
+              {activeNav === 'Workout' ? 'Workout Tracker' :
+                activeNav === 'Progress' ? 'Your Progress' :
                 activeNav === 'History' ? 'Activity Ledger' :
                   `${getGreeting()}, ${clientData.name.split(' ')[0]}!`}
             </h1>
             <p className="text-xs font-bold text-gray-500 italic max-w-[85%] leading-relaxed">
-              {activeNav === 'Home' && dailyQuote}
+              {activeNav === 'Workout' ? 'Track your active sets, build routines, and log personal bests.' : (activeNav === 'Home' && dailyQuote)}
             </p>
           </div>
         </header>
@@ -1265,11 +1370,14 @@ Client Special Requests: ${customPrompt || 'None'}
         <header className="hidden md:flex justify-between items-center mb-8 px-2">
           <div>
             <h1 className="text-3xl md:text-5xl font-medium text-[#0B4550] mb-2 leading-tight">
-              {activeNav === 'Progress' ? 'Your Progress' :
+              {activeNav === 'Workout' ? 'Workout Tracker' :
+                activeNav === 'Progress' ? 'Your Progress' :
                 activeNav === 'History' ? 'Activity Ledger' :
                   `${getGreeting()}, ${clientData.name.split(' ')[0]}!`}
             </h1>
-            <p className="text-lg text-[#898A8D] font-medium italic mt-1">{dailyQuote}</p>
+            <p className="text-lg text-[#898A8D] font-medium italic mt-1">
+              {activeNav === 'Workout' ? 'Execute your session, track sets & weights, or add exercises from the library.' : dailyQuote}
+            </p>
           </div>
           <button onClick={() => {
             const hasBookingPrivilege = clientData?.unlimited || (clientData?.remaining_package !== undefined ? clientData.remaining_package > 0 : clientData?.remainingSessions > 0);
@@ -1462,7 +1570,7 @@ Client Special Requests: ${customPrompt || 'None'}
                     <h3 className="font-medium text-2xl text-[#0B4550] mb-1">{generatedWorkout ? "Today's Plan" : "Workout Builder"}</h3>
                     <p className="text-[#898A8D] font-medium text-sm mb-4">{generatedWorkout ? "Ready to crush it?" : "Generate your session"}</p>
                     <div className="flex gap-2">
-                      <button onClick={() => { if (generatedWorkout) setIsTrackerOpen(true); else { setStep(1); setIsBuilderOpen(true); } }} className="flex items-center gap-2 text-[#0B4550] font-medium bg-[#E6FF2B] px-5 py-2.5 rounded-full hover:scale-105 transition-all text-sm z-20 relative">{generatedWorkout ? "Start Workout" : "Start Building"} <Plus size={16} /></button>
+                      <button onClick={() => { if (generatedWorkout) setActiveNav('Workout'); else { setStep(1); setIsBuilderOpen(true); } }} className="flex items-center gap-2 text-[#0B4550] font-medium bg-[#E6FF2B] px-5 py-2.5 rounded-full hover:scale-105 transition-all text-sm z-20 relative">{generatedWorkout ? "Go to Tracker" : "Start Building"} <Plus size={16} /></button>
                       {generatedWorkout && <button onClick={() => { setGeneratedWorkout(null); setStep(1); setIsBuilderOpen(true); }} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-red-50 hover:text-red-500 text-[#0B4550] transition-all z-20 relative"><RefreshCw size={16} /></button>}
                     </div>
                   </div>
@@ -1649,8 +1757,8 @@ Client Special Requests: ${customPrompt || 'None'}
                   <h3 className="font-black text-lg text-[#0B4550] mb-1">{generatedWorkout ? "Today's Plan" : "Workout Builder"}</h3>
                   <p className="text-[#898A8D] font-bold text-xs mb-3">{generatedWorkout ? "Ready to crush it?" : "Generate your session"}</p>
                   <div className="flex gap-2">
-                    <button onClick={() => { if (generatedWorkout) setIsTrackerOpen(true); else { setStep(1); setIsBuilderOpen(true); } }} className="flex items-center gap-2 text-[#E6FF2B] font-black bg-[#0B4550] px-4 py-2.5 rounded-full text-xs shadow-sm z-20 relative">
-                      {generatedWorkout ? "Start Workout" : "Start Building"} <Plus size={14} />
+                    <button onClick={() => { if (generatedWorkout) setActiveNav('Workout'); else { setStep(1); setIsBuilderOpen(true); } }} className="flex items-center gap-2 text-[#E6FF2B] font-black bg-[#0B4550] px-4 py-2.5 rounded-full text-xs shadow-sm z-20 relative">
+                      {generatedWorkout ? "Go to Tracker" : "Start Building"} <Plus size={14} />
                     </button>
                     {generatedWorkout && (
                       <button onClick={() => { setGeneratedWorkout(null); setStep(1); setIsBuilderOpen(true); }} className="w-9 h-9 rounded-xl bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] hover:bg-gray-100 transition-all z-20 relative">
@@ -1990,6 +2098,280 @@ Client Special Requests: ${customPrompt || 'None'}
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* --- WORKOUT TRACKER VIEW --- */}
+        {activeNav === 'Workout' && (
+          <div className="flex-1 flex flex-col space-y-6 pb-8 animate-in fade-in duration-500">
+            {/* Top Toolbar / Status Bar */}
+            <div className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="flex items-center gap-4 flex-wrap">
+                <div className="flex items-center gap-2 bg-[#0B4550] text-[#E6FF2B] px-4 py-2 rounded-2xl font-bold text-sm shadow-sm">
+                  <Timer size={18} className="animate-pulse" />
+                  <span>Session: {formatTime(workoutTime)}</span>
+                </div>
+                {restTime > 0 && (
+                  <div className="flex items-center gap-2 bg-blue-50 text-blue-600 px-4 py-2 rounded-2xl font-bold text-sm border border-blue-100 animate-pulse">
+                    <Clock size={18} />
+                    <span>Rest Timer: {formatTime(restTime)}</span>
+                  </div>
+                )}
+                {generatedWorkout && generatedWorkout.length > 0 && (
+                  <span className="text-xs font-bold text-[#898A8D] uppercase tracking-wider">
+                    {generatedWorkout.length} {generatedWorkout.length === 1 ? 'Exercise' : 'Exercises'} • {generatedWorkout.reduce((acc, ex) => acc + (ex.sets?.length || 0), 0)} Total Sets
+                  </span>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2.5 flex-wrap">
+                <button
+                  onClick={() => setIsExercisePickerOpen(true)}
+                  className="flex items-center gap-2 bg-[#F9F7F2] hover:bg-gray-200 text-[#0B4550] px-4 py-2.5 rounded-full font-bold text-xs md:text-sm border border-gray-200 transition-all active:scale-95"
+                >
+                  <Plus size={16} /> Add Exercise
+                </button>
+                <button
+                  onClick={() => { setStep(1); setIsBuilderOpen(true); }}
+                  className="flex items-center gap-2 bg-purple-50 hover:bg-purple-100 text-purple-700 px-4 py-2.5 rounded-full font-bold text-xs md:text-sm border border-purple-200 transition-all active:scale-95"
+                >
+                  <Sparkles size={16} /> AI Generator
+                </button>
+                {generatedWorkout && generatedWorkout.length > 0 && (
+                  <button
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to clear this routine?")) {
+                        setGeneratedWorkout(null);
+                        setWorkoutTime(0);
+                        setRestTime(0);
+                      }
+                    }}
+                    className="p-2.5 rounded-full text-red-500 hover:bg-red-50 transition-colors"
+                    title="Clear Routine"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Main Content Area: Active Workout vs Empty State */}
+            {(!generatedWorkout || generatedWorkout.length === 0) ? (
+              <div className="bg-white rounded-[2.5rem] p-8 md:p-12 border border-gray-100 shadow-sm flex flex-col items-center justify-center text-center my-auto">
+                <div className="w-20 h-20 bg-[#F9F7F2] rounded-3xl flex items-center justify-center text-[#0B4550] mb-6 shadow-inner">
+                  <Dumbbell size={40} />
+                </div>
+                <h3 className="text-2xl md:text-3xl font-bold text-[#0B4550] mb-2">No Active Workout Right Now</h3>
+                <p className="text-[#898A8D] font-medium text-sm md:text-base max-w-md mb-8">
+                  Get started by generating a routine with the AI coach, or manually choose exercises from the comprehensive movement library.
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 w-full max-w-lg">
+                  <div
+                    onClick={() => { setStep(1); setIsBuilderOpen(true); }}
+                    className="p-6 rounded-[2rem] bg-[#F9F7F2] border-2 border-transparent hover:border-[#0B4550] cursor-pointer transition-all flex flex-col items-center text-center group hover:scale-[1.02]"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center mb-3 group-hover:rotate-6 transition-transform">
+                      <Sparkles size={24} />
+                    </div>
+                    <h4 className="font-bold text-lg text-[#0B4550] mb-1">Generate with AI</h4>
+                    <p className="text-xs text-[#898A8D] font-medium leading-relaxed">
+                      Custom tailored workout sent straight into this tracker based on your goals.
+                    </p>
+                  </div>
+
+                  <div
+                    onClick={() => setIsExercisePickerOpen(true)}
+                    className="p-6 rounded-[2rem] bg-[#0B4550] text-white border-2 border-transparent hover:border-[#E6FF2B] cursor-pointer transition-all flex flex-col items-center text-center group hover:scale-[1.02]"
+                  >
+                    <div className="w-12 h-12 rounded-2xl bg-white/10 text-[#E6FF2B] flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                      <Plus size={24} />
+                    </div>
+                    <h4 className="font-bold text-lg text-[#E6FF2B] mb-1">Build Custom Routine</h4>
+                    <p className="text-xs text-white/70 font-medium leading-relaxed">
+                      Pick movements from the extensive exercise library or enter your coach's plan.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-6">
+                {/* Exercise Cards */}
+                <div className="space-y-5">
+                  {generatedWorkout.map((ex, exIdx) => (
+                    <div
+                      key={exIdx}
+                      className="bg-white rounded-[2rem] md:rounded-[2.5rem] p-5 md:p-8 border border-gray-100 shadow-sm transition-all hover:shadow-md"
+                    >
+                      {/* Exercise Header */}
+                      <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-6 pb-4 border-b border-gray-100">
+                        <div className="flex items-center gap-3">
+                          <div className="w-11 h-11 bg-[#F9F7F2] rounded-2xl flex items-center justify-center font-bold text-[#0B4550] text-sm shrink-0">
+                            {exIdx + 1}
+                          </div>
+                          <div>
+                            <span className="inline-block text-[10px] font-bold text-[#898A8D] uppercase tracking-wider mb-0.5">
+                              {ex.muscle || 'Strength'}
+                            </span>
+                            <h4 className="text-xl md:text-2xl font-bold text-[#0B4550] leading-snug">
+                              {ex.name}
+                            </h4>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-2 self-end sm:self-auto flex-wrap">
+                          <a
+                            href={`https://www.youtube.com/results?search_query=how+to+do+${encodeURIComponent(ex.name)}+exercise`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="flex items-center gap-1.5 text-xs font-bold text-red-500 hover:text-red-600 bg-red-50 px-3 py-1.5 rounded-xl transition-colors"
+                          >
+                            <PlayCircle size={15} /> Tutorial
+                          </a>
+                          {selectedEquip && selectedEquip.length > 0 && EXERCISE_DB[ex.muscle] && (
+                            <button
+                              onClick={() => shuffleExercise(exIdx)}
+                              className="flex items-center gap-1.5 text-xs font-bold text-blue-500 hover:text-blue-600 bg-blue-50 px-3 py-1.5 rounded-xl transition-colors"
+                            >
+                              <RefreshCw size={14} /> Swap
+                            </button>
+                          )}
+                          <button
+                            onClick={() => removeExercise(exIdx)}
+                            className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Remove exercise"
+                          >
+                            <Trash2 size={17} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Sets Table */}
+                      <div className="overflow-x-auto no-scrollbar">
+                        <div className="min-w-[420px]">
+                          <div className="grid grid-cols-12 gap-2 px-3 pb-2 text-[10px] font-bold text-[#898A8D] uppercase tracking-widest text-center">
+                            <div className="col-span-2 text-left">Set</div>
+                            <div className="col-span-3">Target Reps</div>
+                            <div className="col-span-4">Weight (kg)</div>
+                            <div className="col-span-2">Completed</div>
+                            <div className="col-span-1"></div>
+                          </div>
+
+                          <div className="space-y-2">
+                            {ex.sets.map((set, setIdx) => (
+                              <div
+                                key={setIdx}
+                                className={`grid grid-cols-12 gap-2 items-center p-2.5 rounded-2xl transition-all border ${
+                                  set.completed
+                                    ? 'bg-emerald-50/70 border-emerald-200'
+                                    : 'bg-[#F9F7F2] border-transparent'
+                                }`}
+                              >
+                                <div className="col-span-2 font-bold text-sm text-[#0B4550] pl-2 flex items-center gap-1.5">
+                                  <span className="w-5 h-5 rounded-full bg-white flex items-center justify-center text-xs shadow-sm">
+                                    {setIdx + 1}
+                                  </span>
+                                </div>
+
+                                <div className="col-span-3 text-center">
+                                  <input
+                                    type="text"
+                                    value={set.targetReps}
+                                    onChange={(e) => updateSetReps(exIdx, setIdx, e.target.value)}
+                                    className="w-full text-center font-bold text-xs bg-white py-2 rounded-xl border border-gray-100 text-[#0B4550] shadow-sm outline-none focus:border-[#0B4550]"
+                                    placeholder="10"
+                                  />
+                                </div>
+
+                                <div className="col-span-4">
+                                  <div className="relative flex items-center">
+                                    <input
+                                      type="number"
+                                      step="0.5"
+                                      placeholder="0"
+                                      value={set.weight || ''}
+                                      onChange={(e) => updateSetWeight(exIdx, setIdx, e.target.value)}
+                                      className={`w-full py-2 px-3 rounded-xl text-center font-bold text-sm outline-none transition-all ${
+                                        set.completed
+                                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-300'
+                                          : 'bg-white text-[#0B4550] border border-gray-200 shadow-sm focus:border-[#0B4550]'
+                                      }`}
+                                    />
+                                    <span className="absolute right-2 text-[10px] font-bold text-[#898A8D] pointer-events-none">kg</span>
+                                  </div>
+                                </div>
+
+                                <div className="col-span-2 flex justify-center">
+                                  <button
+                                    onClick={() => toggleSetComplete(exIdx, setIdx)}
+                                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all ${
+                                      set.completed
+                                        ? 'bg-emerald-500 text-white shadow-md scale-105'
+                                        : 'bg-white text-gray-300 hover:text-emerald-500 border border-gray-200 shadow-sm'
+                                    }`}
+                                  >
+                                    <CheckCircle2 size={22} />
+                                  </button>
+                                </div>
+
+                                <div className="col-span-1 flex justify-center">
+                                  {ex.sets.length > 1 && (
+                                    <button
+                                      onClick={() => removeSetFromExercise(exIdx, setIdx)}
+                                      className="text-gray-300 hover:text-red-400 p-1"
+                                      title="Delete set"
+                                    >
+                                      <X size={14} />
+                                    </button>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Set Footer */}
+                      <div className="mt-4 pt-3 flex justify-between items-center border-t border-gray-100">
+                        <button
+                          onClick={() => addSetToExercise(exIdx)}
+                          className="flex items-center gap-1.5 text-xs font-bold text-[#0B4550] hover:text-emerald-600 bg-gray-50 hover:bg-emerald-50 px-3.5 py-2 rounded-xl transition-all"
+                        >
+                          <Plus size={14} /> Add Set
+                        </button>
+                        <span className="text-[11px] font-medium text-[#898A8D]">
+                          Rest: {ex.restDuration || 60}s
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Bottom Tracker Action Panel */}
+                <div className="bg-white rounded-[2.5rem] p-6 md:p-8 border border-gray-100 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h4 className="font-bold text-xl text-[#0B4550]">Finished your workout?</h4>
+                    <p className="text-xs md:text-sm font-medium text-[#898A8D] mt-0.5">
+                      Save all completed sets to your activity history and update your personal records.
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <button
+                      onClick={() => setIsExercisePickerOpen(true)}
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#F9F7F2] text-[#0B4550] px-5 py-4 rounded-2xl font-bold text-sm hover:bg-gray-200 transition-all"
+                    >
+                      <Plus size={18} /> Add More
+                    </button>
+                    <button
+                      onClick={finishWorkoutSession}
+                      className="flex-1 sm:flex-initial flex items-center justify-center gap-2 bg-[#0B4550] text-[#E6FF2B] px-8 py-4 rounded-2xl font-bold text-base shadow-lg hover:scale-105 transition-all active:scale-95"
+                    >
+                      <CheckCircle2 size={20} /> Finish & Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -3047,6 +3429,7 @@ Client Special Requests: ${customPrompt || 'None'}
                       generateWorkout();
                     } else if (step === 4) {
                       setIsBuilderOpen(false);
+                      setActiveNav('Workout');
                     } else {
                       setStep(step + 1);
                     }
@@ -3059,7 +3442,7 @@ Client Special Requests: ${customPrompt || 'None'}
                       Generating...
                     </>
                   ) : (
-                    step === 3 ? 'Generate Workout' : step === 4 ? 'Save to Dashboard' : 'Continue'
+                    step === 3 ? 'Generate Workout' : step === 4 ? 'Save & Go to Tracker' : 'Continue'
                   )}
                 </button>
               </div>
@@ -3249,6 +3632,190 @@ Client Special Requests: ${customPrompt || 'None'}
             </div>
           </div>
         )}
+
+        {/* EXERCISE LIBRARY PICKER MODAL / DRAWER */}
+        {isExercisePickerOpen && (
+          <div
+            className="fixed inset-0 bg-black/30 backdrop-blur-sm z-[160] transition-opacity"
+            onClick={() => setIsExercisePickerOpen(false)}
+          />
+        )}
+        <div
+          className={`fixed top-0 right-0 h-full w-full sm:w-[480px] bg-white z-[170] shadow-2xl transition-transform duration-500 ease-out p-6 sm:p-8 flex flex-col ${
+            isExercisePickerOpen ? 'translate-x-0' : 'translate-x-full'
+          }`}
+        >
+          {/* Header */}
+          <div className="flex justify-between items-center mb-6 shrink-0">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-[#0B4550]">Exercise Library</h2>
+              <p className="text-xs font-bold text-[#898A8D] mt-0.5">Select a movement or create a custom exercise</p>
+            </div>
+            <button
+              onClick={() => setIsExercisePickerOpen(false)}
+              className="w-10 h-10 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] hover:bg-gray-200 transition-colors"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          {/* Search & Category Filter */}
+          <div className="space-y-3 mb-5 shrink-0">
+            <div className="relative">
+              <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                placeholder="Search exercises by name..."
+                value={librarySearchQuery}
+                onChange={(e) => setLibrarySearchQuery(e.target.value)}
+                className="w-full bg-[#F9F7F2] border border-gray-100 rounded-2xl pl-11 pr-4 py-3.5 text-sm font-bold text-[#0B4550] outline-none focus:border-[#0B4550] transition-all"
+              />
+              {librarySearchQuery && (
+                <button
+                  onClick={() => setLibrarySearchQuery('')}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-bold bg-white px-2 py-1 rounded-md"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+
+            {/* Muscle Group Filter Chips */}
+            <div className="flex gap-1.5 overflow-x-auto no-scrollbar pb-1">
+              {['All', 'Chest', 'Back', 'Shoulders', 'Arms', 'Legs', 'Core', 'Full Body & Conditioning'].map((cat) => (
+                <button
+                  key={cat}
+                  onClick={() => setLibrarySelectedMuscle(cat)}
+                  className={`px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all ${
+                    librarySelectedMuscle === cat
+                      ? 'bg-[#0B4550] text-[#E6FF2B] shadow-sm scale-105'
+                      : 'bg-[#F9F7F2] text-[#898A8D] hover:text-[#0B4550]'
+                  }`}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Custom Exercise Quick Add */}
+          <div className="bg-[#F9F7F2] p-3.5 rounded-2xl border border-gray-100 mb-4 shrink-0">
+            <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-wider mb-2">
+              Add Custom / Coach Assigned Exercise
+            </p>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="e.g., Coach Incline Press, Sprint 100m"
+                value={customExerciseInput}
+                onChange={(e) => setCustomExerciseInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && customExerciseInput.trim()) {
+                    addExerciseToRoutine(customExerciseInput.trim(), customExerciseMuscle);
+                    setCustomExerciseInput('');
+                    setIsExercisePickerOpen(false);
+                  }
+                }}
+                className="flex-1 bg-white border border-gray-200 rounded-xl px-3 py-2 text-xs font-bold text-[#0B4550] outline-none focus:border-[#0B4550]"
+              />
+              <button
+                onClick={() => {
+                  if (customExerciseInput.trim()) {
+                    addExerciseToRoutine(customExerciseInput.trim(), customExerciseMuscle);
+                    setCustomExerciseInput('');
+                    setIsExercisePickerOpen(false);
+                  }
+                }}
+                disabled={!customExerciseInput.trim()}
+                className="bg-[#0B4550] text-[#E6FF2B] px-4 py-2 rounded-xl text-xs font-bold hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100 shrink-0"
+              >
+                Add
+              </button>
+            </div>
+          </div>
+
+          {/* Filtered Exercise List */}
+          <div className="flex-1 overflow-y-auto no-scrollbar space-y-2 pr-1 pb-4">
+            {(() => {
+              // Flatten and filter exercises
+              const items = [];
+              Object.entries(EXERCISE_DB).forEach(([muscleName, equipMap]) => {
+                if (librarySelectedMuscle !== 'All' && librarySelectedMuscle !== muscleName) return;
+                Object.entries(equipMap).forEach(([equipType, exList]) => {
+                  exList.forEach((exName) => {
+                    if (
+                      librarySearchQuery.trim() === '' ||
+                      exName.toLowerCase().includes(librarySearchQuery.toLowerCase()) ||
+                      muscleName.toLowerCase().includes(librarySearchQuery.toLowerCase()) ||
+                      equipType.toLowerCase().includes(librarySearchQuery.toLowerCase())
+                    ) {
+                      // Avoid exact duplicate names in the list view
+                      if (!items.some((it) => it.name === exName)) {
+                        items.push({ name: exName, muscle: muscleName, equipment: equipType });
+                      }
+                    }
+                  });
+                });
+              });
+
+              if (items.length === 0) {
+                return (
+                  <div className="py-12 text-center text-gray-400">
+                    <Dumbbell size={32} className="mx-auto mb-2 opacity-50" />
+                    <p className="font-bold text-sm">No exercises found.</p>
+                    <p className="text-xs mt-1">Try a different search term or add it above as a custom exercise.</p>
+                  </div>
+                );
+              }
+
+              return items.map((item, idx) => {
+                const isAlreadyInWorkout = generatedWorkout?.some((ex) => ex.name.toLowerCase() === item.name.toLowerCase());
+                return (
+                  <div
+                    key={idx}
+                    className="p-3.5 rounded-2xl bg-white border border-gray-100 hover:border-[#0B4550] transition-all flex items-center justify-between group shadow-sm"
+                  >
+                    <div className="flex-1 pr-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-bold text-[#898A8D] uppercase tracking-wider">
+                          {item.muscle}
+                        </span>
+                        <span className="text-[9px] font-bold bg-gray-100 text-gray-600 px-2 py-0.5 rounded-md">
+                          {item.equipment}
+                        </span>
+                      </div>
+                      <h4 className="text-sm font-bold text-[#0B4550] group-hover:text-[#0B4550] mt-0.5">
+                        {item.name}
+                      </h4>
+                    </div>
+
+                    <button
+                      onClick={() => {
+                        addExerciseToRoutine(item.name, item.muscle);
+                        setIsExercisePickerOpen(false);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all flex items-center gap-1 shrink-0 ${
+                        isAlreadyInWorkout
+                          ? 'bg-emerald-50 text-emerald-600 border border-emerald-200 hover:bg-emerald-100'
+                          : 'bg-[#0B4550] text-[#E6FF2B] hover:scale-105 active:scale-95'
+                      }`}
+                    >
+                      {isAlreadyInWorkout ? (
+                        <>
+                          <Check size={14} /> Added
+                        </>
+                      ) : (
+                        <>
+                          <Plus size={14} /> Add
+                        </>
+                      )}
+                    </button>
+                  </div>
+                );
+              });
+            })()}
+          </div>
+        </div>
 
       </main>
     </div>
