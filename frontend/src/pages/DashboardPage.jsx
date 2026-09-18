@@ -2288,7 +2288,8 @@ export default function Dashboard({ session }) {
         duration: editEventData.duration,
         type: editEventData.type,
         location: fullLocation,
-        capacity: capacityVal
+        capacity: capacityVal,
+        attendees: selectedSession?.attendees || []
       });
 
       // Update local state
@@ -3831,15 +3832,18 @@ export default function Dashboard({ session }) {
       setSessions(updatedSessions);
       setSelectedSession({ ...selectedSession, attendees: updatedCurrentAttendees });
 
-      // Update Google Calendar for both events
-      syncToGoogleCalendar('UPDATE', {
+      // Update Google Calendar for both events sequentially and await
+      await syncToGoogleCalendar('UPDATE', {
         ...selectedSession,
         attendees: updatedCurrentAttendees
       });
-      syncToGoogleCalendar('UPDATE', {
+      await syncToGoogleCalendar('UPDATE', {
         ...targetSession,
         attendees: updatedTargetAttendees
       });
+
+      // Refresh sessions from database to sync all views and state cleanly
+      await fetchSessions();
 
       setShowMoveModal(false);
       setMovingAttendee(null);
