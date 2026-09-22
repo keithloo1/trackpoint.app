@@ -2063,7 +2063,7 @@ export default function Dashboard({ session }) {
       if (insertedData && insertedData.length > 0) {
         const assignedAttendees = (eventAssignedClients || []).map(cId => {
           const matched = clients.find(c => c.id === cId);
-          return matched ? { client_id: matched.id, name: matched.name } : null;
+          return matched ? { client_id: matched.id, name: matched.name, status: 'Booked' } : null;
         }).filter(Boolean);
 
         insertedData.forEach(session => {
@@ -2072,6 +2072,16 @@ export default function Dashboard({ session }) {
             attendees: assignedAttendees
           });
         });
+
+        // Optimistically update sessions list immediately
+        const newFormatted = insertedData.map(session => ({
+          ...session,
+          attendees: assignedAttendees
+        }));
+        setSessions(prev => [...newFormatted, ...prev]);
+        if (newFormatted.length > 0) {
+          setSelectedSession(newFormatted[0]);
+        }
       }
       setShowEventModal(false);
       setNewEventData({
@@ -2090,7 +2100,7 @@ export default function Dashboard({ session }) {
       setEventAssignedClients([]);
       setSearchEventClientsQuery('');
       setShowEventClientsDropdown(false);
-      fetchSessions();
+      await fetchSessions();
       alert(`Successfully scheduled ${sessionsToInsert.length} session(s)!`);
     } catch (error) {
       alert("Error adding event: " + error.message);
@@ -2358,7 +2368,7 @@ export default function Dashboard({ session }) {
           const assignedIds = rowConfig?.assignedClients || [];
           const attendees = assignedIds.map(cId => {
             const matched = clients.find(c => c.id === cId);
-            return matched ? { client_id: matched.id, name: matched.name } : null;
+            return matched ? { client_id: matched.id, name: matched.name, status: 'Booked' } : null;
           }).filter(Boolean);
 
           syncToGoogleCalendar('CREATE', {
@@ -2366,6 +2376,24 @@ export default function Dashboard({ session }) {
             attendees: attendees
           });
         });
+
+        // Optimistically update sessions list immediately
+        const newFormattedBulk = insertedData.map((session, idx) => {
+          const rowConfig = bulkRows[idx];
+          const assignedIds = rowConfig?.assignedClients || [];
+          const attendees = assignedIds.map(cId => {
+            const matched = clients.find(c => c.id === cId);
+            return matched ? { client_id: matched.id, name: matched.name, status: 'Booked' } : null;
+          }).filter(Boolean);
+          return {
+            ...session,
+            attendees: attendees
+          };
+        });
+        setSessions(prev => [...newFormattedBulk, ...prev]);
+        if (newFormattedBulk.length > 0) {
+          setSelectedSession(newFormattedBulk[0]);
+        }
       }
 
       setShowEventModal(false);
@@ -2384,7 +2412,7 @@ export default function Dashboard({ session }) {
         }
       ]);
       setActiveBulkClientRowId(null);
-      fetchSessions();
+      await fetchSessions();
       alert(`Successfully bulk scheduled ${insertedData.length} appointment(s)!`);
     } catch (error) {
       alert("Error bulk adding appointments: " + error.message);
@@ -3293,12 +3321,15 @@ export default function Dashboard({ session }) {
         const sessionBookings = (bookingsData || []).filter(b => b.session_id === session.id);
         return {
           ...session,
-          attendees: sessionBookings.map(b => ({
-            booking_id: b.id,
-            client_id: b.client_id,
-            name: b.clients?.name || 'Unknown',
-            status: b.status || 'Booked'
-          }))
+          attendees: sessionBookings.map(b => {
+            const matchedClient = clients.find(c => c.id === b.client_id);
+            return {
+              booking_id: b.id,
+              client_id: b.client_id,
+              name: b.clients?.name || matchedClient?.name || 'Unknown',
+              status: b.status || 'Booked'
+            };
+          })
         };
       });
       setSessions(formattedSessions);
