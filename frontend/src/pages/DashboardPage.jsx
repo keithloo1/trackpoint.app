@@ -316,10 +316,16 @@ const getSessionDisplayTitle = (s) => {
   if (!s) return '';
   const type = (s.type || '').toLowerCase();
   const title = (s.title || '').toLowerCase();
-  const is1on1 = type === '1-on-1' || title.includes('1-on-1') || title.includes('1 on 1') || title.includes('personal training') || title.includes('pt session');
+  const is1on1 = type === '1-on-1' || type.includes('1-on-1') || type.includes('1 on 1') ||
+                 title.includes('1-on-1') || title.includes('1 on 1') ||
+                 title.includes('personal training') || title.includes('pt session') ||
+                 (s.capacity === 1 && s.type !== 'Blocked');
 
-  if (is1on1 && s.attendees && s.attendees.length > 0) {
-    return s.attendees.map(a => a.name).join(', ');
+  if (s.attendees && s.attendees.length > 0) {
+    const attendeeNames = s.attendees.map(a => a.name).filter(Boolean);
+    if (attendeeNames.length > 0 && (is1on1 || title === 'pt session' || title.includes('1 on 1') || title.includes('1-on-1'))) {
+      return attendeeNames.join(', ');
+    }
   }
   return s.title;
 };
@@ -1796,18 +1802,20 @@ export default function Dashboard({ session }) {
       const { data: todosData } = await supabase.from('todos').select('*').eq('trainer_id', user.id).order('created_at', { ascending: true });
       if (todosData) setTodos(todosData);
 
-      fetchLiveSchedule(user.id);
-
       // Fetch Clients
       setIsLoadingClients(true);
       const { data: clientData } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
+      let processedClients = [];
       if (clientData) {
         await loadSystemSettings(clientData);
         const normalClients = clientData.filter(c => c.email !== 'system_settings@trackpoint.app');
-        setClients(normalClients.map(mapClientWithAddress));
+        processedClients = normalClients.map(mapClientWithAddress);
+        setClients(processedClients);
         cleanUpAccidentalPackages(normalClients);
       }
       setIsLoadingClients(false);
+
+      fetchLiveSchedule(user.id, processedClients);
     };
     fetchInitialData();
   }, []);
@@ -2033,9 +2041,11 @@ export default function Dashboard({ session }) {
         });
 
         // Insert all bookings in a single query!
+        let insertedBookings = [];
         if (bookingsToInsert.length > 0) {
-          const { error: bookingsErr } = await supabase.from('bookings').insert(bookingsToInsert);
+          const { data: bData, error: bookingsErr } = await supabase.from('bookings').insert(bookingsToInsert).select();
           if (bookingsErr) console.error("Error inserting pre-assigned client bookings:", bookingsErr);
+          if (bData) insertedBookings = bData;
         }
 
         // Apply all client package updates in database
@@ -2061,23 +2071,40 @@ export default function Dashboard({ session }) {
 
       // Direct Google Calendar Live Sync push (NEW!)
       if (insertedData && insertedData.length > 0) {
-        const assignedAttendees = (eventAssignedClients || []).map(cId => {
-          const matched = clients.find(c => c.id === cId);
-          return matched ? { client_id: matched.id, name: matched.name, status: 'Booked' } : null;
-        }).filter(Boolean);
-
         insertedData.forEach(session => {
+          const sessionAttendees = (eventAssignedClients || []).map((cId, bIdx) => {
+            const matched = clients.find(c => c.id === cId);
+            return matched ? {
+              booking_id: `temp-${session.id}-${matched.id}`,
+              client_id: matched.id,
+              name: matched.name,
+              status: 'Booked'
+            } : null;
+          }).filter(Boolean);
+
           syncToGoogleCalendar('CREATE', {
             ...session,
-            attendees: assignedAttendees
+            attendees: sessionAttendees
           });
         });
 
         // Optimistically update sessions list immediately
-        const newFormatted = insertedData.map(session => ({
-          ...session,
-          attendees: assignedAttendees
-        }));
+        const newFormatted = insertedData.map(session => {
+          const sessionAttendees = (eventAssignedClients || []).map((cId) => {
+            const matched = clients.find(c => c.id === cId);
+            return matched ? {
+              booking_id: `temp-${session.id}-${matched.id}`,
+              client_id: matched.id,
+              name: matched.name,
+              status: 'Booked'
+            } : null;
+          }).filter(Boolean);
+
+          return {
+            ...session,
+            attendees: sessionAttendees
+          };
+        });
         setSessions(prev => [...newFormatted, ...prev]);
         if (newFormatted.length > 0) {
           setSelectedSession(newFormatted[0]);
@@ -2338,7 +2365,7 @@ export default function Dashboard({ session }) {
         });
 
         if (bookingsToInsert.length > 0) {
-          const { error: bookingsErr } = await supabase.from('bookings').insert(bookingsToInsert);
+          const { data: bData, error: bookingsErr } = await supabase.from('bookings').insert(bookingsToInsert).select();
           if (bookingsErr) console.error("Error inserting bulk bookings:", bookingsErr);
         }
 
@@ -2368,7 +2395,12 @@ export default function Dashboard({ session }) {
           const assignedIds = rowConfig?.assignedClients || [];
           const attendees = assignedIds.map(cId => {
             const matched = clients.find(c => c.id === cId);
-            return matched ? { client_id: matched.id, name: matched.name, status: 'Booked' } : null;
+            return matched ? {
+              booking_id: `temp-${session.id}-${matched.id}`,
+              client_id: matched.id,
+              name: matched.name,
+              status: 'Booked'
+            } : null;
           }).filter(Boolean);
 
           syncToGoogleCalendar('CREATE', {
@@ -2383,7 +2415,12 @@ export default function Dashboard({ session }) {
           const assignedIds = rowConfig?.assignedClients || [];
           const attendees = assignedIds.map(cId => {
             const matched = clients.find(c => c.id === cId);
-            return matched ? { client_id: matched.id, name: matched.name, status: 'Booked' } : null;
+            return matched ? {
+              booking_id: `temp-${session.id}-${matched.id}`,
+              client_id: matched.id,
+              name: matched.name,
+              status: 'Booked'
+            } : null;
           }).filter(Boolean);
           return {
             ...session,
@@ -3310,11 +3347,20 @@ export default function Dashboard({ session }) {
 
   const handleLogout = async () => await supabase.auth.signOut();
 
-  const fetchLiveSchedule = async (trainerId) => {
+  const fetchLiveSchedule = async (trainerId, passedClients = null) => {
     // Fetch Sessions
     const { data: sessionsData } = await supabase.from('sessions').select('*').eq('trainer_id', trainerId).order('date', { ascending: true }).order('time', { ascending: true });
-    // Fetch Bookings joined with Client Names
-    const { data: bookingsData } = await supabase.from('bookings').select('*, clients(name)');
+    // Fetch Bookings
+    const { data: bookingsData } = await supabase.from('bookings').select('*');
+
+    // Ensure we have client records to resolve names reliably
+    let clientList = passedClients || clients;
+    if (!clientList || clientList.length === 0) {
+      const { data: clientData } = await supabase.from('clients').select('*');
+      if (clientData) {
+        clientList = clientData;
+      }
+    }
 
     if (sessionsData) {
       const formattedSessions = sessionsData.map(session => {
@@ -3322,11 +3368,11 @@ export default function Dashboard({ session }) {
         return {
           ...session,
           attendees: sessionBookings.map(b => {
-            const matchedClient = clients.find(c => c.id === b.client_id);
+            const matchedClient = (clientList || []).find(c => c.id === b.client_id);
             return {
               booking_id: b.id,
               client_id: b.client_id,
-              name: b.clients?.name || matchedClient?.name || 'Unknown',
+              name: matchedClient?.name || 'Unknown',
               status: b.status || 'Booked'
             };
           })
@@ -4929,8 +4975,8 @@ export default function Dashboard({ session }) {
                       </div>
                     ) : (
                       <div className="space-y-3 max-h-[35vh] overflow-y-auto pr-1 no-scrollbar">
-                        {selectedSession.attendees.map((attendee) => (
-                          <div key={attendee.booking_id} className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#F9F7F2] border border-gray-100">
+                        {selectedSession.attendees.map((attendee, attIdx) => (
+                          <div key={attendee.booking_id || `mob-att-${attendee.client_id}-${attIdx}`} className="flex items-center gap-3 p-3.5 rounded-2xl bg-[#F9F7F2] border border-gray-100">
                             <div className="w-10 h-10 rounded-full bg-white text-[#0B4550] border border-gray-150 flex items-center justify-center text-xs font-bold shrink-0">
                               {getInitials(attendee.name)}
                             </div>
@@ -7663,9 +7709,21 @@ export default function Dashboard({ session }) {
                                 {!isBlocked && (
                                   <div className="flex flex-col items-end justify-between">
                                     <div className="flex -space-x-3 mb-2">
-                                      <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium border-2 ${is1on1 ? 'bg-white text-[#0B4550] border-[#0B4550]' : 'bg-[#F9F7F2] text-[#0B4550] border-white'}`}>
-                                        ?
-                                      </div>
+                                      {session.attendees && session.attendees.length > 0 ? (
+                                        session.attendees.slice(0, 3).map((a, aIdx) => (
+                                          <div
+                                            key={a.booking_id || aIdx}
+                                            className={`w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold border-2 ${is1on1 ? 'bg-white text-[#0B4550] border-[#0B4550]' : 'bg-[#F9F7F2] text-[#0B4550] border-white'}`}
+                                            title={a.name}
+                                          >
+                                            {getInitials(a.name)}
+                                          </div>
+                                        ))
+                                      ) : (
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium border-2 ${is1on1 ? 'bg-white text-[#0B4550] border-[#0B4550]' : 'bg-[#F9F7F2] text-[#0B4550] border-white'}`}>
+                                          ?
+                                        </div>
+                                      )}
                                     </div>
                                     <span className={`text-sm font-medium ${is1on1 ? 'text-[#E6FF2B]' : 'text-[#898A8D]'}`}>{session.attendees ? session.attendees.length : 0} / {session.capacity} Booked</span>
                                   </div>
@@ -7851,8 +7909,8 @@ export default function Dashboard({ session }) {
                             ) : (
                               <>
                                 <div className="space-y-3 mb-4">
-                                  {selectedSession.attendees.map((attendee) => (
-                                    <div key={attendee.booking_id} className="flex items-center gap-4 p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-[#0B4550] transition-colors">
+                                  {selectedSession.attendees.map((attendee, attIdx) => (
+                                    <div key={attendee.booking_id || `att-${attendee.client_id}-${attIdx}`} className="flex items-center gap-4 p-3 rounded-2xl bg-gray-50 border border-gray-100 hover:border-[#0B4550] transition-colors">
                                       <div className="w-12 h-12 rounded-full bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center text-lg font-medium">
                                         {getInitials(attendee.name)}
                                       </div>
