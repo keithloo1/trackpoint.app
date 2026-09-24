@@ -408,10 +408,27 @@ export default function ClientDashboard() {
 
         // FETCH LIVE SESSIONS FOR THIS TRAINER
         const { data: sessionsData } = await supabase.from('sessions').select('*').eq('trainer_id', TRAINER_ID).neq('type', 'Blocked').order('date', { ascending: true }).order('time', { ascending: true });
-        // FETCH BOOKINGS JOINED WITH CLIENT NAMES
-        const { data: bookingsData, error: bookingError } = await supabase.from('bookings').select('*, clients(name)');
-        console.log("SUPABASE BOOKING DATA:", bookingsData);
-        console.log("SUPABASE ERROR:", bookingError);
+        // FETCH BOOKINGS JOINED WITH CLIENT NAMES (Paginated to handle >1000 bookings)
+        let bookingsData = [];
+        let bFrom = 0;
+        const bPageSize = 1000;
+        while (true) {
+          const { data: bChunk, error: bErr } = await supabase
+            .from('bookings')
+            .select('*, clients(name)')
+            .range(bFrom, bFrom + bPageSize - 1);
+          if (bErr) {
+            console.error("SUPABASE BOOKING ERROR:", bErr);
+            break;
+          }
+          if (bChunk && bChunk.length > 0) {
+            bookingsData = bookingsData.concat(bChunk);
+            if (bChunk.length < bPageSize) break;
+            bFrom += bPageSize;
+          } else {
+            break;
+          }
+        }
 
         let clientUpcoming = [];
 

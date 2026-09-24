@@ -2092,8 +2092,9 @@ export default function Dashboard({ session }) {
         const newFormatted = insertedData.map(session => {
           const sessionAttendees = (eventAssignedClients || []).map((cId) => {
             const matched = clients.find(c => c.id === cId);
+            const realBooking = insertedBookings.find(b => b.session_id === session.id && b.client_id === cId);
             return matched ? {
-              booking_id: `temp-${session.id}-${matched.id}`,
+              booking_id: realBooking?.id || `temp-${session.id}-${matched.id}`,
               client_id: matched.id,
               name: matched.name,
               status: 'Booked'
@@ -2364,9 +2365,11 @@ export default function Dashboard({ session }) {
           });
         });
 
+        let insertedBookings = [];
         if (bookingsToInsert.length > 0) {
           const { data: bData, error: bookingsErr } = await supabase.from('bookings').insert(bookingsToInsert).select();
           if (bookingsErr) console.error("Error inserting bulk bookings:", bookingsErr);
+          if (bData) insertedBookings = bData;
         }
 
         for (const clientId of Object.keys(clientUpdates)) {
@@ -2415,8 +2418,9 @@ export default function Dashboard({ session }) {
           const assignedIds = rowConfig?.assignedClients || [];
           const attendees = assignedIds.map(cId => {
             const matched = clients.find(c => c.id === cId);
+            const realBooking = insertedBookings.find(b => b.session_id === session.id && b.client_id === cId);
             return matched ? {
-              booking_id: `temp-${session.id}-${matched.id}`,
+              booking_id: realBooking?.id || `temp-${session.id}-${matched.id}`,
               client_id: matched.id,
               name: matched.name,
               status: 'Booked'
@@ -3348,10 +3352,52 @@ export default function Dashboard({ session }) {
   const handleLogout = async () => await supabase.auth.signOut();
 
   const fetchLiveSchedule = async (trainerId, passedClients = null) => {
-    // Fetch Sessions
-    const { data: sessionsData } = await supabase.from('sessions').select('*').eq('trainer_id', trainerId).order('date', { ascending: true }).order('time', { ascending: true });
-    // Fetch Bookings
-    const { data: bookingsData } = await supabase.from('bookings').select('*');
+    const pageSize = 1000;
+
+    // 1. Fetch Sessions (paginated so sessions never cap at PostgREST limit)
+    let sessionsData = [];
+    let sFrom = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('sessions')
+        .select('*')
+        .eq('trainer_id', trainerId)
+        .order('date', { ascending: true })
+        .order('time', { ascending: true })
+        .range(sFrom, sFrom + pageSize - 1);
+      if (error) {
+        console.error("Error fetching sessions:", error);
+        break;
+      }
+      if (data && data.length > 0) {
+        sessionsData = sessionsData.concat(data);
+        if (data.length < pageSize) break;
+        sFrom += pageSize;
+      } else {
+        break;
+      }
+    }
+
+    // 2. Fetch Bookings (paginated so all bookings > 1000 rows are fetched completely)
+    let bookingsData = [];
+    let bFrom = 0;
+    while (true) {
+      const { data, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .range(bFrom, bFrom + pageSize - 1);
+      if (error) {
+        console.error("Error fetching bookings:", error);
+        break;
+      }
+      if (data && data.length > 0) {
+        bookingsData = bookingsData.concat(data);
+        if (data.length < pageSize) break;
+        bFrom += pageSize;
+      } else {
+        break;
+      }
+    }
 
     // Ensure we have client records to resolve names reliably
     let clientList = passedClients || clients;
