@@ -272,6 +272,22 @@ const getLiveClientStatus = (client) => {
   return 'Active';
 };
 
+const isClientBookingEligible = (client) => {
+  if (!client) return { eligible: false, reason: 'Client not found' };
+  if (client.status === 'Archived') {
+    return { eligible: false, reason: 'Client is archived' };
+  }
+  const status = getLiveClientStatus(client);
+  if (status === 'Expired') {
+    return { eligible: false, reason: `${client.name}'s membership has expired.` };
+  }
+  const remaining = Number(client.remaining_package ?? 0);
+  if (!client.unlimited && remaining <= 0) {
+    return { eligible: false, reason: `${client.name} has 0 session credits remaining.` };
+  }
+  return { eligible: true };
+};
+
 const parseTimeToMinutes = (timeString) => {
   if (!timeString) return 0;
   const match = timeString.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
@@ -1924,6 +1940,19 @@ export default function Dashboard({ session }) {
   // --- SCHEDULE HANDLERS (NEW!) ---
   const handleAddEvent = async (e) => {
     e.preventDefault();
+
+    // Prevent booking expired clients or clients with 0 remaining sessions
+    if (eventAssignedClients && eventAssignedClients.length > 0) {
+      for (const clientId of eventAssignedClients) {
+        const client = clients.find(c => c.id === clientId);
+        const check = isClientBookingEligible(client);
+        if (!check.eligible) {
+          alert(`Cannot schedule: ${check.reason}`);
+          return;
+        }
+      }
+    }
+
     setIsAddingEvent(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -2161,6 +2190,13 @@ export default function Dashboard({ session }) {
       matchedClient = clients.find(c => trimmed.toLowerCase().includes(c.name.toLowerCase()));
     }
 
+    if (matchedClient) {
+      const check = isClientBookingEligible(matchedClient);
+      if (!check.eligible) {
+        return { error: `Cannot book for ${matchedClient.name}: ${check.reason}` };
+      }
+    }
+
     // 2. Detect Location
     let matchedLocation = scheduleSettings.locations[0] || 'Main Floor';
     const locPattern = /(?:at|location:?|in)\s+([A-Za-z0-9\s]+?)(?:,|\s+at\s+\d|\s+for\s+|\s+on\s+|$)/i;
@@ -2304,6 +2340,14 @@ export default function Dashboard({ session }) {
       if (!row.date) {
         alert(`Please specify a date for row #${i + 1}.`);
         return;
+      }
+      for (const clientId of (row.assignedClients || [])) {
+        const client = clients.find(c => c.id === clientId);
+        const check = isClientBookingEligible(client);
+        if (!check.eligible) {
+          alert(`Cannot schedule row #${i + 1}: ${check.reason}`);
+          return;
+        }
       }
     }
 
@@ -3821,6 +3865,12 @@ export default function Dashboard({ session }) {
     const client = clients.find(c => c.id === clientId);
     if (!client) return;
 
+    const check = isClientBookingEligible(client);
+    if (!check.eligible) {
+      alert(`Cannot assign client: ${check.reason}`);
+      return;
+    }
+
     try {
       const { data, error } = await supabase.from('bookings').insert([{
         client_id: clientId,
@@ -3954,6 +4004,12 @@ export default function Dashboard({ session }) {
 
         const client = updatedClients.find(c => c.id === clientId);
         if (!client) continue;
+
+        const check = isClientBookingEligible(client);
+        if (!check.eligible) {
+          alert(`Cannot assign ${client.name}: ${check.reason}`);
+          continue;
+        }
 
         const { data, error } = await supabase.from('bookings').insert([{
           client_id: clientId,
@@ -4949,26 +5005,37 @@ export default function Dashboard({ session }) {
                             return filtered.map(c => {
                               const isSelected = selectedStudentIds.includes(c.id);
                               const isAlreadyRostered = selectedSession.attendees?.some(a => a.client_id === c.id);
+                              const check = isClientBookingEligible(c);
+                              const isEligible = check.eligible;
+                              const isDisabled = isAlreadyRostered || !isEligible;
 
                               return (
                                 <label
                                   key={c.id}
-                                  className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-40 cursor-not-allowed bg-[#F9F7F2]' : 'hover:bg-[#F9F7F2]'}`}
+                                  className={`flex items-center gap-3 p-2.5 rounded-xl transition-all ${isDisabled ? 'opacity-40 cursor-not-allowed bg-[#F9F7F2]' : 'cursor-pointer hover:bg-[#F9F7F2]'}`}
+                                  title={isAlreadyRostered ? 'Already booked' : !isEligible ? check.reason : ''}
                                 >
                                   <input
                                     type="checkbox"
-                                    disabled={isAlreadyRostered}
+                                    disabled={isDisabled}
                                     checked={isAlreadyRostered || isSelected}
                                     onChange={() => {
-                                      if (isAlreadyRostered) return;
+                                      if (isDisabled) return;
                                       setSelectedStudentIds(prev =>
                                         prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
                                       );
                                     }}
-                                    className="w-5 h-5 text-[#0B4550] bg-white border-gray-300 rounded focus:ring-[#0B4550] focus:ring-offset-white"
+                                    className="w-5 h-5 text-[#0B4550] bg-white border-gray-300 rounded focus:ring-[#0B4550] focus:ring-offset-white disabled:cursor-not-allowed"
                                   />
                                   <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-bold text-[#0B4550] truncate">{c.name}</p>
+                                    <div className="flex items-center gap-2">
+                                      <p className="text-sm font-bold text-[#0B4550] truncate">{c.name}</p>
+                                      {!isEligible && (
+                                        <span className="text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-1.5 py-0.2 rounded uppercase tracking-wider shrink-0">
+                                          {getLiveClientStatus(c) === 'Expired' ? 'Expired' : '0 Credits'}
+                                        </span>
+                                      )}
+                                    </div>
                                     <p className="text-[10px] text-[#898A8D] font-bold uppercase tracking-wider mt-0.5">
                                       {c.unlimited
                                         ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}`
@@ -7887,26 +7954,37 @@ export default function Dashboard({ session }) {
                                         return filtered.map(c => {
                                           const isSelected = selectedStudentIds.includes(c.id);
                                           const isAlreadyRostered = selectedSession.attendees?.some(a => a.client_id === c.id);
+                                          const check = isClientBookingEligible(c);
+                                          const isEligible = check.eligible;
+                                          const isDisabled = isAlreadyRostered || !isEligible;
 
                                           return (
                                             <label
                                               key={c.id}
-                                              className={`flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer ${isAlreadyRostered ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'hover:bg-[#F9F7F2]'}`}
+                                              className={`flex items-center gap-3 p-2.5 rounded-xl transition-all ${isDisabled ? 'opacity-50 cursor-not-allowed bg-gray-50' : 'cursor-pointer hover:bg-[#F9F7F2]'}`}
+                                              title={isAlreadyRostered ? 'Already booked' : !isEligible ? check.reason : ''}
                                             >
                                               <input
                                                 type="checkbox"
-                                                disabled={isAlreadyRostered}
+                                                disabled={isDisabled}
                                                 checked={isAlreadyRostered || isSelected}
                                                 onChange={() => {
-                                                  if (isAlreadyRostered) return;
+                                                  if (isDisabled) return;
                                                   setSelectedStudentIds(prev =>
                                                     prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
                                                   );
                                                 }}
-                                                className="w-5 h-5 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550] cursor-pointer"
+                                                className="w-5 h-5 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550] cursor-pointer disabled:cursor-not-allowed"
                                               />
                                               <div className="flex-1 min-w-0">
-                                                <p className="text-sm font-bold text-[#0B4550] truncate">{c.name}</p>
+                                                <div className="flex items-center gap-2">
+                                                  <p className="text-sm font-bold text-[#0B4550] truncate">{c.name}</p>
+                                                  {!isEligible && (
+                                                    <span className="text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-1.5 py-0.2 rounded uppercase tracking-wider shrink-0">
+                                                      {getLiveClientStatus(c) === 'Expired' ? 'Expired' : '0 Credits'}
+                                                    </span>
+                                                  )}
+                                                </div>
                                                 <p className="text-[11px] text-[#898A8D] font-medium">
                                                   {c.unlimited
                                                     ? `Unlimited - Exp: ${formatExpiryDate(c.expiry)}`
@@ -10148,24 +10226,36 @@ export default function Dashboard({ session }) {
 
                             return filtered.map(c => {
                               const isSelected = eventAssignedClients.includes(c.id);
+                              const check = isClientBookingEligible(c);
+                              const isEligible = check.eligible;
 
                               return (
                                 <label
                                   key={c.id}
-                                  className="flex items-center gap-3 p-2.5 rounded-xl transition-all cursor-pointer hover:bg-[#F9F7F2]"
+                                  className={`flex items-center gap-3 p-2.5 rounded-xl transition-all ${isEligible ? 'cursor-pointer hover:bg-[#F9F7F2]' : 'opacity-50 cursor-not-allowed bg-gray-50/50'}`}
+                                  title={!isEligible ? check.reason : ''}
                                 >
                                   <input
                                     type="checkbox"
                                     checked={isSelected}
+                                    disabled={!isEligible}
                                     onChange={() => {
+                                      if (!isEligible) return;
                                       setEventAssignedClients(prev =>
                                         prev.includes(c.id) ? prev.filter(id => id !== c.id) : [...prev, c.id]
                                       );
                                     }}
-                                    className="w-5 h-5 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550] cursor-pointer"
+                                    className="w-5 h-5 text-[#0B4550] border-gray-200 rounded focus:ring-[#0B4550] cursor-pointer disabled:cursor-not-allowed"
                                   />
-                                  <div className="flex flex-col text-left">
-                                    <span className="font-bold text-[#0B4550] text-sm">{c.name}</span>
+                                  <div className="flex flex-col text-left flex-1 min-w-0">
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-bold text-[#0B4550] text-sm truncate">{c.name}</span>
+                                      {!isEligible && (
+                                        <span className="text-[10px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-1.5 py-0.5 rounded uppercase tracking-wider shrink-0">
+                                          {getLiveClientStatus(c) === 'Expired' ? 'Expired' : '0 Credits'}
+                                        </span>
+                                      )}
+                                    </div>
                                     <span className="text-[11px] text-[#898A8D] font-medium">
                                       {c.package || 'No package'} • {c.unlimited ? 'Unlimited' : `${c.remaining_package || 0} left`}
                                     </span>
@@ -10591,16 +10681,21 @@ export default function Dashboard({ session }) {
 
                                     return filtered.map(c => {
                                       const isSelected = (row.assignedClients || []).includes(c.id);
+                                      const check = isClientBookingEligible(c);
+                                      const isEligible = check.eligible;
                                       return (
                                         <label
                                           key={c.id}
-                                          className="flex items-center gap-2 p-1.5 rounded-lg transition-all cursor-pointer hover:bg-[#F9F7F2]"
+                                          className={`flex items-center gap-2 p-1.5 rounded-lg transition-all ${isEligible ? 'cursor-pointer hover:bg-[#F9F7F2]' : 'opacity-50 cursor-not-allowed bg-gray-50/50'}`}
+                                          title={!isEligible ? check.reason : ''}
                                         >
                                           <input
                                             type={row.type === '1-on-1' ? 'radio' : 'checkbox'}
                                             name={`bulk-client-${row.id}`}
                                             checked={isSelected}
+                                            disabled={!isEligible}
                                             onChange={() => {
+                                              if (!isEligible) return;
                                               if (row.type === '1-on-1') {
                                                 setBulkRows(prev => prev.map(r => r.id === row.id ? { ...r, assignedClients: [c.id] } : r));
                                                 setActiveBulkClientRowId(null);
@@ -10613,10 +10708,17 @@ export default function Dashboard({ session }) {
                                                 }));
                                               }
                                             }}
-                                            className="w-4 h-4 text-[#0B4550] border-gray-300 rounded focus:ring-[#0B4550] cursor-pointer"
+                                            className="w-4 h-4 text-[#0B4550] border-gray-300 rounded focus:ring-[#0B4550] cursor-pointer disabled:cursor-not-allowed"
                                           />
                                           <div className="flex-1 min-w-0">
-                                            <div className="text-xs font-bold text-[#0B4550] truncate">{c.name}</div>
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-xs font-bold text-[#0B4550] truncate">{c.name}</span>
+                                              {!isEligible && (
+                                                <span className="text-[9px] font-black text-rose-600 bg-rose-50 border border-rose-100 px-1 py-0.5 rounded uppercase tracking-wider shrink-0">
+                                                  {getLiveClientStatus(c) === 'Expired' ? 'Expired' : '0 Credits'}
+                                                </span>
+                                              )}
+                                            </div>
                                             <div className="text-[10px] text-gray-400 truncate">
                                               {c.package || 'No package'} • {c.unlimited ? 'Unlimited' : `${c.remaining_package || 0} left`}
                                             </div>

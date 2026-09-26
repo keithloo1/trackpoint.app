@@ -646,8 +646,9 @@ export default function ClientDashboard() {
     );
   }
 
+  const isClientMembershipExpired = calculateRemainingDays(clientData?.expiry) !== null && calculateRemainingDays(clientData?.expiry) < 0;
   const remaining = clientData.remaining_package !== undefined ? clientData.remaining_package : (clientData.remainingSessions || 0);
-  const hasBookingPrivilege = !!clientData?.unlimited || remaining > 0;
+  const hasBookingPrivilege = !isClientMembershipExpired && (!!clientData?.unlimited || remaining > 0);
   const remainingSessions = clientData?.unlimited ? 9999 : remaining;
   const weightProgress = Math.max(0, Math.min(100, ((clientData.startWeight - clientData.currentWeight) / (clientData.startWeight - clientData.goalWeight)) * 100));
   const getDaysInMonth = (month, year = 2026) => new Date(year, month + 1, 0).getDate();
@@ -668,9 +669,17 @@ export default function ClientDashboard() {
     if (session.attendees?.length >= session.capacity) return alert("Sorry, this class is full!");
     if (session.isBookedByMe) return alert("You are already booked for this class!");
 
+    // Check if membership is expired
+    if (calculateRemainingDays(clientData?.expiry) !== null && calculateRemainingDays(clientData?.expiry) < 0) {
+      alert("Your membership has expired. Please renew your package to book sessions.");
+      setIsTopUpOpen(true);
+      return;
+    }
+
     // Check if client has package sessions left
     const remaining = clientData.remaining_package !== undefined ? clientData.remaining_package : clientData.remainingSessions;
     if (!clientData?.unlimited && remaining <= 0) {
+      alert("You have 0 session credits remaining. Please top up to book sessions.");
       setIsTopUpOpen(true);
       return;
     }
@@ -781,8 +790,18 @@ export default function ClientDashboard() {
     if (selectedLiveSession.attendees?.length >= selectedLiveSession.capacity) return alert("Sorry, this class is full!");
     if (selectedLiveSession.isBookedByMe) return alert("You are already booked for this class!");
 
+    // Check if membership is expired
+    if (calculateRemainingDays(clientData?.expiry) !== null && calculateRemainingDays(clientData?.expiry) < 0) {
+      alert("Your membership has expired. Please renew your package to book sessions.");
+      setIsBookingOpen(false);
+      setIsTopUpOpen(true);
+      return;
+    }
+
     // Only deduct if not unlimited
-    if (!clientData?.unlimited && clientData?.remainingSessions <= 0) {
+    const remainingCount = clientData?.remaining_package !== undefined ? clientData.remaining_package : clientData?.remainingSessions;
+    if (!clientData?.unlimited && (remainingCount <= 0 || clientData?.remainingSessions <= 0)) {
+      alert("You have 0 session credits remaining. Please top up to book sessions.");
       setIsBookingOpen(false);
       setIsTopUpOpen(true);
       return;
