@@ -4313,6 +4313,40 @@ export default function Dashboard({ session }) {
     const expiryDate = new Date(c.expiry);
     return expiryDate >= today && expiryDate <= fourteenDaysFromNow;
   });
+  const clientTabCounts = useMemo(() => {
+    const baseClients = clients.filter(c => {
+      const isArchived = c.status === 'Archived';
+      if (isArchiveMode && !isArchived) return false;
+      if (!isArchiveMode && isArchived) return false;
+      return true;
+    });
+
+    let counts = {
+      'All Clients': baseClients.length,
+      'Active': 0,
+      'Expiring Soon': 0,
+      'Expired': 0,
+      'Trial Clients': 0,
+      'Follow Up': 0
+    };
+
+    baseClients.forEach(c => {
+      if (c.member_status === 'Trial') {
+        counts['Trial Clients']++;
+        return;
+      }
+      if (c.member_status === 'Follow Up') {
+        counts['Follow Up']++;
+        return;
+      }
+      const status = getLiveClientStatus(c);
+      if (counts[status] !== undefined) {
+        counts[status]++;
+      }
+    });
+
+    return counts;
+  }, [clients, isArchiveMode]);
 
   const filteredClients = clients.filter(c => {
     const isArchived = c.status === 'Archived';
@@ -6364,7 +6398,7 @@ export default function Dashboard({ session }) {
                     <div className="flex bg-white rounded-[1.5rem] p-1.5 shadow-sm border border-gray-150 overflow-x-auto no-scrollbar">
                       {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}>
-                          {tab}
+                          {tab} <span className={activeTab === tab ? 'text-[#E6FF2B]/90' : 'text-[#898A8D]/80 font-normal'}>({clientTabCounts[tab] ?? 0})</span>
                         </button>
                       ))}
                     </div>
@@ -6410,7 +6444,7 @@ export default function Dashboard({ session }) {
                     <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 shrink-0 overflow-x-auto no-scrollbar max-w-full">
                       {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
-                          {tab}
+                          {tab} <span className={activeTab === tab ? 'text-white/90 font-medium' : 'text-[#898A8D]/80 font-normal'}>({clientTabCounts[tab] ?? 0})</span>
                         </button>
                       ))}
                     </div>
