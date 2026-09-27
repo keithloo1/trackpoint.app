@@ -4327,10 +4327,23 @@ export default function Dashboard({ session }) {
       'Expiring Soon': 0,
       'Expired': 0,
       'Trial Clients': 0,
-      'Follow Up': 0
+      'Follow Up': 0,
+      'Group': 0,
+      'PT': 0
     };
 
     baseClients.forEach(c => {
+      // Client type counts
+      const type = c.client_type || 'Group';
+      if (type === 'Group') {
+        counts['Group']++;
+      } else if (type === 'PT') {
+        counts['PT']++;
+      } else if (type === 'Group & PT') {
+        counts['Group']++;
+        counts['PT']++;
+      }
+
       if (c.member_status === 'Trial') {
         counts['Trial Clients']++;
         return;
@@ -4361,6 +4374,16 @@ export default function Dashboard({ session }) {
         (c.email || '').toLowerCase().includes(q) ||
         (c.phone || '').toLowerCase().includes(q);
       if (!matchesSearch) return false;
+    }
+
+    if (activeTab === 'Group') {
+      const type = c.client_type || 'Group';
+      return type === 'Group' || type === 'Group & PT';
+    }
+
+    if (activeTab === 'PT') {
+      const type = c.client_type || 'Group';
+      return type === 'PT' || type === 'Group & PT';
     }
 
     if (activeTab === 'Trial Clients') {
@@ -6396,7 +6419,7 @@ export default function Dashboard({ session }) {
                   {/* MOBILE CONTROLS (HIGH FIDELITY) */}
                   <div className="md:hidden flex flex-col gap-4 mb-6">
                     <div className="flex bg-white rounded-[1.5rem] p-1.5 shadow-sm border border-gray-150 overflow-x-auto no-scrollbar">
-                      {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
+                      {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up', 'Group', 'PT'].map((tab) => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}>
                           {tab} <span className={activeTab === tab ? 'text-[#E6FF2B]/90' : 'text-[#898A8D]/80 font-normal'}>({clientTabCounts[tab] ?? 0})</span>
                         </button>
@@ -6442,7 +6465,7 @@ export default function Dashboard({ session }) {
                   {/* DESKTOP CONTROLS */}
                   <div className="hidden md:flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
                     <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 shrink-0 overflow-x-auto no-scrollbar max-w-full">
-                      {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up'].map((tab) => (
+                      {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up', 'Group', 'PT'].map((tab) => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
                           {tab} <span className={activeTab === tab ? 'text-white/90 font-medium' : 'text-[#898A8D]/80 font-normal'}>({clientTabCounts[tab] ?? 0})</span>
                         </button>
