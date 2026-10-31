@@ -914,6 +914,10 @@ export default function Dashboard({ session }) {
   const [moveTargetDate, setMoveTargetDate] = useState(new Date().toISOString().split('T')[0]);
   const [moveTargetSessionId, setMoveTargetSessionId] = useState('');
 
+  // REPEAT PREVIOUS WEEK PT SESSIONS STATES
+  const [showCopyWeekModal, setShowCopyWeekModal] = useState(false);
+  const [isCopyingWeek, setIsCopyingWeek] = useState(false);
+
   // ATTENDANCE TAB STATE
   const [expandedDates, setExpandedDates] = useState({});
 
@@ -2642,6 +2646,302 @@ export default function Dashboard({ session }) {
       ...prev,
       classes: prev.classes.filter(c => c.name !== className)
     }));
+  };
+
+  // --- REPEAT PREVIOUS WEEK PT SESSIONS HANDLER ---
+  // Calculates previous week (Monday - Sunday) based strictly on calendar week of selectedScheduleDate
+  const previousWeekRangeInfo = useMemo(() => {
+    // Current viewed week days (Monday = index 0, Sunday = index 6)
+    const currentWeekDays = getWeekDays(selectedScheduleDate);
+    const targetMonday = currentWeekDays[0];
+    const targetSunday = currentWeekDays[6];
+
+    const prevMonday = new Date(targetMonday);
+    prevMonday.setDate(prevMonday.getDate() - 7);
+    const prevSunday = new Date(targetSunday);
+    prevSunday.setDate(prevSunday.getDate() - 7);
+
+    const prevWeekDays = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(prevMonday);
+      d.setDate(prevMonday.getDate() + i);
+      prevWeekDays.push(d);
+    }
+
+    const prevDateStrings = prevWeekDays.map(d => {
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    });
+
+    const formatWeekLabel = (mon, sun) => {
+      const mStr = mon.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const sStr = sun.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      return `${mStr} – ${sStr}`;
+    };
+
+    return {
+      prevMonday,
+      prevSunday,
+      targetMonday,
+      targetSunday,
+      prevDateStrings,
+      prevLabel: formatWeekLabel(prevMonday, prevSunday),
+      targetLabel: formatWeekLabel(targetMonday, targetSunday)
+    };
+  }, [selectedScheduleDate]);
+
+  const getPreviousWeekPTSessions = useMemo(() => {
+    const { prevDateStrings } = previousWeekRangeInfo;
+
+    // Filter sessions matching dates and PT type (excluding Group & Blocked)
+    const prevPTSessions = sessions.filter(s => {
+      if (!s.date || !prevDateStrings.includes(s.date)) return false;
+      const type = (s.type || '').toLowerCase();
+      const title = (s.title || '').toLowerCase();
+      const isPT = type === '1-on-1' || type.includes('1-on-1') || type.includes('1 on 1') ||
+                   title.includes('1-on-1') || title.includes('1 on 1') ||
+                   title.includes('personal training') || title.includes('pt session') ||
+                   (s.capacity === 1 && s.type !== 'Blocked');
+      return isPT;
+    }).sort((a, b) => {
+      if (a.date !== b.date) return a.date.localeCompare(b.date);
+      return parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time);
+    });
+
+    // Check each session against current target week for duplicates
+    return prevPTSessions.map(prevSession => {
+      const [yr, mo, dy] = prevSession.date.split('-').map(num => parseInt(num, 10));
+      const targetDateObj = new Date(yr, mo - 1, dy);
+      targetDateObj.setDate(targetDateObj.getDate() + 7);
+      const nextYr = targetDateObj.getFullYear();
+      const nextMo = String(targetDateObj.getMonth() + 1).padStart(2, '0');
+      const nextDy = String(targetDateObj.getDate()).padStart(2, '0');
+      const targetDateStr = `${nextYr}-${nextMo}-${nextDy}`;
+
+      const attendeeClientIds = (prevSession.attendees || []).map(a => a.client_id).filter(Boolean);
+      const attendeeNames = (prevSession.attendees || []).map(a => (a.name || '').toLowerCase().trim()).filter(Boolean);
+
+      // Check if an existing session already exists on targetDateStr with any of these clients
+      const existingMatch = sessions.find(existingSession => {
+        if (existingSession.date !== targetDateStr) return false;
+        if (existingSession.type === 'Blocked') return false;
+
+        // Check matching client ID in attendees
+        const existingClientIds = (existingSession.attendees || []).map(a => a.client_id).filter(Boolean);
+        const hasMatchingClientId = attendeeClientIds.some(cId => existingClientIds.includes(cId));
+        if (hasMatchingClientId) return true;
+
+        // Check matching client name in title or attendees (e.g. "Tristan (Kean son)")
+        const existingNames = (existingSession.attendees || []).map(a => (a.name || '').toLowerCase().trim());
+        const hasMatchingName = attendeeNames.some(name => {
+          if (!name) return false;
+          return existingNames.some(en => en.includes(name) || name.includes(en)) ||
+                 (existingSession.title || '').toLowerCase().includes(name);
+        });
+        if (hasMatchingName) return true;
+
+        // Same time slot with 1-on-1
+        if (existingSession.time === prevSession.time && existingSession.type === '1-on-1' && attendeeClientIds.length === 0) {
+          return true;
+        }
+
+        return false;
+      });
+
+      return {
+        ...prevSession,
+        targetDateStr,
+        isAlreadyScheduled: !!existingMatch,
+        existingMatchTitle: existingMatch ? (existingMatch.title || 'Existing session') : null,
+        existingMatchTime: existingMatch ? existingMatch.time : null
+      };
+    });
+  }, [sessions, previousWeekRangeInfo]);
+
+  const handleCopyPreviousWeekPTSessions = async () => {
+    const sessionsToCopy = getPreviousWeekPTSessions.filter(s => !s.isAlreadyScheduled);
+    const skippedCount = getPreviousWeekPTSessions.length - sessionsToCopy.length;
+
+    if (sessionsToCopy.length === 0) {
+      alert(`All ${getPreviousWeekPTSessions.length} personal training session(s) from the previous week are already scheduled in the target week! Nothing new to duplicate.`);
+      return;
+    }
+
+    setIsCopyingWeek(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error("Not authenticated");
+
+      // Map sessions to new dates (+7 days)
+      const sessionsToInsert = [];
+      const sessionClientAssignments = []; // Maps index to client list
+
+      // Track credits updates
+      const clientUpdates = {};
+
+      for (let i = 0; i < sessionsToCopy.length; i++) {
+        const prevSession = sessionsToCopy[i];
+        
+        // Calculate new date = prevSession.date + 7 days
+        const [yr, mo, dy] = prevSession.date.split('-').map(num => parseInt(num, 10));
+        const prevDateObj = new Date(yr, mo - 1, dy);
+        prevDateObj.setDate(prevDateObj.getDate() + 7);
+        const nextYr = prevDateObj.getFullYear();
+        const nextMo = String(prevDateObj.getMonth() + 1).padStart(2, '0');
+        const nextDy = String(prevDateObj.getDate()).padStart(2, '0');
+        const nextDateStr = `${nextYr}-${nextMo}-${nextDy}`;
+
+        sessionsToInsert.push({
+          trainer_id: user.id,
+          title: prevSession.title || 'PT Session',
+          date: nextDateStr,
+          time: prevSession.time || '09:00 AM',
+          duration: prevSession.duration || '60 min',
+          type: prevSession.type || '1-on-1',
+          location: prevSession.location || 'Main Floor',
+          capacity: prevSession.capacity || 1
+        });
+
+        // Collect attendees from previous session
+        const attendeeClientIds = (prevSession.attendees || []).map(a => a.client_id).filter(Boolean);
+        sessionClientAssignments.push({
+          date: nextDateStr,
+          time: prevSession.time || '09:00 AM',
+          title: prevSession.title || 'PT Session',
+          clientIds: attendeeClientIds
+        });
+
+        // Calculate package credit deduction
+        attendeeClientIds.forEach(clientId => {
+          const client = clients.find(c => c.id === clientId);
+          if (client && !client.unlimited) {
+            const creditCost = getClassCreditCost(prevSession.title);
+            if (!clientUpdates[clientId]) {
+              clientUpdates[clientId] = {
+                remaining: client.remaining_package || 0,
+                used: client.used_sessions || 0
+              };
+            }
+            clientUpdates[clientId].remaining = Math.max(0, clientUpdates[clientId].remaining - creditCost);
+            clientUpdates[clientId].used = clientUpdates[clientId].used + creditCost;
+          }
+        });
+      }
+
+      // 1. Insert sessions into DB
+      const { data: insertedSessions, error: sessionErr } = await supabase
+        .from('sessions')
+        .insert(sessionsToInsert)
+        .select();
+
+      if (sessionErr) throw sessionErr;
+
+      // 2. Insert bookings for the new sessions
+      let insertedBookings = [];
+      if (insertedSessions && insertedSessions.length > 0) {
+        const bookingsToInsert = [];
+        insertedSessions.forEach((newSession, idx) => {
+          const assignment = sessionClientAssignments[idx];
+          if (assignment && assignment.clientIds) {
+            assignment.clientIds.forEach(cId => {
+              bookingsToInsert.push({
+                client_id: cId,
+                session_id: newSession.id,
+                session_date: newSession.date,
+                time_slot: newSession.time,
+                status: 'Booked'
+              });
+            });
+          }
+        });
+
+        if (bookingsToInsert.length > 0) {
+          const { data: bData, error: bErr } = await supabase
+            .from('bookings')
+            .insert(bookingsToInsert)
+            .select();
+          if (bErr) console.error("Error creating bookings during copy week:", bErr);
+          if (bData) insertedBookings = bData;
+        }
+
+        // 3. Deduct client package credits
+        for (const clientId of Object.keys(clientUpdates)) {
+          const update = clientUpdates[clientId];
+          await supabase.from('clients')
+            .update({ remaining_package: update.remaining, used_sessions: update.used })
+            .eq('id', clientId);
+        }
+
+        // Update local clients state
+        if (Object.keys(clientUpdates).length > 0) {
+          setClients(prev => prev.map(c => {
+            if (clientUpdates[c.id]) {
+              return {
+                ...c,
+                remaining_package: clientUpdates[c.id].remaining,
+                used_sessions: clientUpdates[c.id].used
+              };
+            }
+            return c;
+          }));
+        }
+
+        // 4. Sync each new session to Google Calendar if enabled
+        insertedSessions.forEach((session, idx) => {
+          const assignment = sessionClientAssignments[idx];
+          const attendees = (assignment?.clientIds || []).map(cId => {
+            const matched = clients.find(c => c.id === cId);
+            return matched ? {
+              booking_id: `temp-${session.id}-${matched.id}`,
+              client_id: matched.id,
+              name: matched.name,
+              status: 'Booked'
+            } : null;
+          }).filter(Boolean);
+
+          syncToGoogleCalendar('CREATE', {
+            ...session,
+            attendees
+          });
+        });
+
+        // 5. Optimistically update local sessions state
+        const newFormatted = insertedSessions.map((session, idx) => {
+          const assignment = sessionClientAssignments[idx];
+          const attendees = (assignment?.clientIds || []).map(cId => {
+            const matched = clients.find(c => c.id === cId);
+            const realBooking = insertedBookings.find(b => b.session_id === session.id && b.client_id === cId);
+            return matched ? {
+              booking_id: realBooking?.id || `temp-${session.id}-${matched.id}`,
+              client_id: matched.id,
+              name: matched.name,
+              status: 'Booked'
+            } : null;
+          }).filter(Boolean);
+
+          return {
+            ...session,
+            attendees
+          };
+        });
+
+        setSessions(prev => [...newFormatted, ...prev]);
+        if (newFormatted.length > 0) {
+          setSelectedSession(newFormatted[0]);
+        }
+      }
+
+      setShowCopyWeekModal(false);
+      await fetchSessions();
+      const skipNote = skippedCount > 0 ? ` (${skippedCount} already scheduled session${skippedCount > 1 ? 's were' : ' was'} skipped)` : '';
+      alert(`🎉 Successfully copied ${insertedSessions?.length || 0} Personal Training session(s) into the current week!${skipNote}`);
+    } catch (err) {
+      alert("Error copying previous week sessions: " + err.message);
+    } finally {
+      setIsCopyingWeek(false);
+    }
   };
 
   const handleSaveSettings = async (e) => {
@@ -7704,6 +8004,14 @@ export default function Dashboard({ session }) {
                 </div>
                 <div className="flex gap-2">
                   <button
+                    onClick={() => setShowCopyWeekModal(true)}
+                    title="Repeat Previous Week PT Sessions"
+                    className="px-2.5 py-1.5 bg-[#0B4550] text-[#E6FF2B] rounded-xl font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+                  >
+                    <RotateCw size={13} />
+                    <span>Copy PT</span>
+                  </button>
+                  <button
                     onClick={() => setSelectedScheduleDate(new Date())}
                     className="px-3 py-1.5 bg-[#F9F7F2] text-[#0B4550] border border-gray-150 rounded-xl font-black text-xs uppercase tracking-widest shadow-sm active:scale-95 transition-all"
                   >
@@ -7787,7 +8095,14 @@ export default function Dashboard({ session }) {
                   );
                 })}
               </div>
-              <div className="px-4">
+              <div className="px-4 flex items-center gap-3">
+                <button 
+                  onClick={() => setShowCopyWeekModal(true)} 
+                  className="bg-[#F9F7F2] text-[#0B4550] hover:bg-[#0B4550] hover:text-[#E6FF2B] px-4 py-3 rounded-xl font-bold text-sm flex items-center gap-2 border border-gray-200/60 transition-all shadow-xs"
+                  title="Copy previous week's 1-on-1 PT sessions into this week"
+                >
+                  <RotateCw size={18} /> Same as Previous Week
+                </button>
                 <button onClick={() => setShowEventModal(true)} className="bg-[#E6FF2B] text-[#0B4550] px-4 md:px-6 py-3 rounded-xl font-medium text-lg flex items-center gap-2 hover:brightness-95 transition-all shadow-sm">
                   <Plus size={24} /> New Event
                 </button>
@@ -11675,6 +11990,135 @@ export default function Dashboard({ session }) {
                   Save Note
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL: REPEAT PREVIOUS WEEK PT SESSIONS CONFIRMATION --- */}
+      {showCopyWeekModal && (
+        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
+          <div className="bg-white rounded-[2.5rem] max-w-lg w-full p-6 md:p-8 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+            <button
+              onClick={() => setShowCopyWeekModal(false)}
+              className="absolute top-6 right-6 text-[#898A8D] hover:text-[#0B4550] bg-gray-100 p-2 rounded-full transition-colors"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-3 bg-[#F9F7F2] text-[#0B4550] rounded-2xl">
+                <RotateCw size={24} className="stroke-[2.5]" />
+              </div>
+              <div>
+                <h2 className="text-xl md:text-2xl font-black text-[#0B4550]">Same as Previous Week</h2>
+                <p className="text-xs text-[#898A8D] font-medium">Duplicate 1-on-1 PT sessions from Monday – Sunday</p>
+              </div>
+            </div>
+
+            {/* Clear Week-to-Week Date Ranges */}
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              <div className="bg-[#F9F7F2] p-3 rounded-2xl border border-gray-100">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#898A8D] block">Source Week (Mon–Sun)</span>
+                <span className="text-xs font-black text-[#0B4550] mt-0.5 block">{previousWeekRangeInfo.prevLabel}</span>
+              </div>
+              <div className="bg-[#0B4550]/5 p-3 rounded-2xl border border-[#0B4550]/10">
+                <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#0B4550]/70 block">Target Week (Mon–Sun)</span>
+                <span className="text-xs font-black text-[#0B4550] mt-0.5 block">{previousWeekRangeInfo.targetLabel}</span>
+              </div>
+            </div>
+
+            <div className="bg-[#F9F7F2] rounded-2xl p-4 mb-6 border border-gray-150/60">
+              <div className="flex justify-between items-center text-xs font-bold text-[#898A8D] uppercase tracking-wider mb-2">
+                <span>PT Sessions in Source Week</span>
+                <span className="text-[#0B4550] bg-white px-2 py-0.5 rounded-full border border-gray-100 shadow-2xs">
+                  {getPreviousWeekPTSessions.length} Session(s)
+                </span>
+              </div>
+
+              {getPreviousWeekPTSessions.length === 0 ? (
+                <div className="py-6 text-center">
+                  <p className="text-sm font-semibold text-gray-500">No personal training sessions found between {previousWeekRangeInfo.prevLabel}.</p>
+                  <p className="text-xs text-gray-400 mt-1">Group classes and blocked times are excluded automatically.</p>
+                </div>
+              ) : (
+                <div className="max-h-52 overflow-y-auto space-y-2 pr-1">
+                  {getPreviousWeekPTSessions.map((session, idx) => {
+                    const clientNames = (session.attendees || []).map(a => a.name).join(', ') || '1-on-1 Client';
+                    const isDuplicate = session.isAlreadyScheduled;
+
+                    return (
+                      <div 
+                        key={session.id || idx} 
+                        className={`p-3 rounded-xl border flex items-center justify-between text-xs transition-all ${
+                          isDuplicate 
+                            ? 'bg-amber-50/60 border-amber-200/80 opacity-80' 
+                            : 'bg-white border-gray-100'
+                        }`}
+                      >
+                        <div className="truncate mr-2">
+                          <div className="flex items-center gap-1.5">
+                            <p className="font-bold text-[#0B4550] truncate">{session.title} — {clientNames}</p>
+                          </div>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                            Source: {session.date} • {session.time} → Target: {session.targetDateStr}
+                          </p>
+                          {isDuplicate && (
+                            <p className="text-[10px] text-amber-700 font-bold mt-0.5 flex items-center gap-1">
+                              <span>⚠️ Already scheduled in target week (Will be skipped)</span>
+                            </p>
+                          )}
+                        </div>
+                        <span className={`shrink-0 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                          isDuplicate 
+                            ? 'bg-amber-100 text-amber-800' 
+                            : 'bg-[#E6FF2B]/20 text-[#0B4550]'
+                        }`}>
+                          {isDuplicate ? 'Skipped' : '+7 Days'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-3 text-xs text-[#898A8D] mb-6">
+              <div className="flex items-start gap-2">
+                <Check size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <span><strong>Smart Duplicate Protection:</strong> If a client is already scheduled on that target day, it will automatically be skipped to prevent double booking.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Check size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <span>Only <strong>1-on-1 Personal Training</strong> slots are duplicated; Group classes will remain untouched.</span>
+              </div>
+              <div className="flex items-start gap-2">
+                <Check size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                <span>Client package session balances will be deducted normally as if booked manually.</span>
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <button
+                type="button"
+                onClick={() => setShowCopyWeekModal(false)}
+                className="flex-1 bg-gray-100 text-[#0B4550] py-3.5 rounded-2xl font-bold text-sm hover:bg-gray-200 transition-all"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyPreviousWeekPTSessions}
+                disabled={isCopyingWeek || getPreviousWeekPTSessions.filter(s => !s.isAlreadyScheduled).length === 0}
+                className="flex-1 bg-[#0B4550] text-[#E6FF2B] py-3.5 rounded-2xl font-bold text-sm hover:brightness-110 active:scale-[0.98] transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50 disabled:pointer-events-none"
+              >
+                {isCopyingWeek ? <RotateCw className="animate-spin" size={18} /> : <RotateCw size={18} />}
+                <span>
+                  {isCopyingWeek 
+                    ? 'Copying...' 
+                    : `Confirm & Copy (${getPreviousWeekPTSessions.filter(s => !s.isAlreadyScheduled).length})`}
+                </span>
+              </button>
             </div>
           </div>
         </div>
