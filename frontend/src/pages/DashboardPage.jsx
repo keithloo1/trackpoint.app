@@ -932,6 +932,7 @@ export default function Dashboard({ session }) {
   const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '1036495166418-fallbacksynthesizerdefault.apps.googleusercontent.com';
   const [isLinkingGoogle, setIsLinkingGoogle] = useState(false);
   const [copiedFeedLink, setCopiedFeedLink] = useState(false);
+  const [isSyncingWeekToGcal, setIsSyncingWeekToGcal] = useState(false);
 
   const isGcalConnected = useMemo(() => {
     return !!trainerProfile?.gcal_refresh_token;
@@ -1011,7 +1012,13 @@ export default function Dashboard({ session }) {
   const syncToGoogleCalendar = async (action, sessionData) => {
     if (!isGcalConnected) {
       console.warn("Google Calendar direct sync skipped: Calendar is not connected.");
-      return;
+      return false;
+    }
+
+    let currentTrainerId = userId;
+    if (!currentTrainerId || currentTrainerId === 'trainer_default') {
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      currentTrainerId = currentSession?.user?.id;
     }
 
     // Dynamic 1-on-1 title resolution for Google Calendar integration
@@ -1028,7 +1035,7 @@ export default function Dashboard({ session }) {
         body: JSON.stringify({
           action,
           sessionData: enrichedSessionData,
-          trainer_id: userId
+          trainer_id: currentTrainerId
         })
       });
 
@@ -1038,8 +1045,10 @@ export default function Dashboard({ session }) {
       }
 
       console.log(`Successfully processed ${data.action} sync for Google Calendar event.`);
+      return true;
     } catch (err) {
       console.error("Failed to sync to Google Calendar: ", err);
+      return false;
     }
   };
 
@@ -1089,6 +1098,36 @@ export default function Dashboard({ session }) {
     navigator.clipboard.writeText(feedUrl);
     setCopiedFeedLink(true);
     setTimeout(() => setCopiedFeedLink(false), 2000);
+  };
+
+  const handleSyncActiveWeekToGcal = async () => {
+    if (!isGcalConnected) {
+      alert("Please connect Google Calendar first.");
+      return;
+    }
+    const currentWeekDays = getWeekDays(selectedScheduleDate);
+    const startStr = `${currentWeekDays[0].getFullYear()}-${String(currentWeekDays[0].getMonth() + 1).padStart(2, '0')}-${String(currentWeekDays[0].getDate()).padStart(2, '0')}`;
+    const endStr = `${currentWeekDays[6].getFullYear()}-${String(currentWeekDays[6].getMonth() + 1).padStart(2, '0')}-${String(currentWeekDays[6].getDate()).padStart(2, '0')}`;
+
+    const weekSessions = sessions.filter(s => s.date >= startStr && s.date <= endStr && s.type !== 'Blocked');
+    if (weekSessions.length === 0) {
+      alert(`No active sessions found for the current week (${startStr} to ${endStr}) to sync.`);
+      return;
+    }
+
+    setIsSyncingWeekToGcal(true);
+    let successCount = 0;
+    try {
+      for (const s of weekSessions) {
+        const ok = await syncToGoogleCalendar('CREATE', s);
+        if (ok) successCount++;
+      }
+      alert(`🎉 Successfully synced ${successCount} session(s) for the week (${startStr} to ${endStr}) directly to your Google Calendar!`);
+    } catch (err) {
+      alert("Error syncing to Google Calendar: " + err.message);
+    } finally {
+      setIsSyncingWeekToGcal(false);
+    }
   };
 
   const analyticsData = useMemo(() => {
@@ -2888,24 +2927,29 @@ export default function Dashboard({ session }) {
           }));
         }
 
-        // 4. Sync each new session to Google Calendar if enabled
-        insertedSessions.forEach((session, idx) => {
-          const assignment = sessionClientAssignments[idx];
-          const attendees = (assignment?.clientIds || []).map(cId => {
-            const matched = clients.find(c => c.id === cId);
-            return matched ? {
-              booking_id: `temp-${session.id}-${matched.id}`,
-              client_id: matched.id,
-              name: matched.name,
-              status: 'Booked'
-            } : null;
-          }).filter(Boolean);
+        // 4. Sequentially sync each new session to Google Calendar if enabled
+        let gcalSuccessCount = 0;
+        if (isGcalConnected && insertedSessions.length > 0) {
+          for (let i = 0; i < insertedSessions.length; i++) {
+            const session = insertedSessions[i];
+            const assignment = sessionClientAssignments[i];
+            const attendees = (assignment?.clientIds || []).map(cId => {
+              const matched = clients.find(c => c.id === cId);
+              return matched ? {
+                booking_id: `temp-${session.id}-${matched.id}`,
+                client_id: matched.id,
+                name: matched.name,
+                status: 'Booked'
+              } : null;
+            }).filter(Boolean);
 
-          syncToGoogleCalendar('CREATE', {
-            ...session,
-            attendees
-          });
-        });
+            const synced = await syncToGoogleCalendar('CREATE', {
+              ...session,
+              attendees
+            });
+            if (synced) gcalSuccessCount++;
+          }
+        }
 
         // 5. Optimistically update local sessions state
         const newFormatted = insertedSessions.map((session, idx) => {
@@ -2936,7 +2980,10 @@ export default function Dashboard({ session }) {
       setShowCopyWeekModal(false);
       await fetchSessions();
       const skipNote = skippedCount > 0 ? ` (${skippedCount} already scheduled session${skippedCount > 1 ? 's were' : ' was'} skipped)` : '';
-      alert(`🎉 Successfully copied ${insertedSessions?.length || 0} Personal Training session(s) into the current week!${skipNote}`);
+      const gcalNote = isGcalConnected
+        ? `\n\n📅 Synced ${gcalSuccessCount} session(s) directly to your Google Calendar.`
+        : '';
+      alert(`🎉 Successfully copied ${insertedSessions?.length || 0} Personal Training session(s) into the current week!${skipNote}${gcalNote}`);
     } catch (err) {
       alert("Error copying previous week sessions: " + err.message);
     } finally {
@@ -11549,6 +11596,24 @@ export default function Dashboard({ session }) {
                     </>
                   )}
                 </button>
+
+                {isGcalConnected && (
+                  <button
+                    onClick={handleSyncActiveWeekToGcal}
+                    disabled={isSyncingWeekToGcal}
+                    className="w-full mt-2.5 py-3.5 rounded-xl font-bold transition-all flex items-center justify-center gap-2 bg-[#0B4550] text-[#E6FF2B] hover:bg-[#08333c] shadow-sm"
+                  >
+                    {isSyncingWeekToGcal ? (
+                      <>
+                        <RotateCw size={18} className="animate-spin text-[#E6FF2B]" /> Syncing Week to Calendar...
+                      </>
+                    ) : (
+                      <>
+                        <Calendar size={18} /> Sync Current Week to Google Calendar
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
 
               {/* Option B: iCal Live Feed */}
