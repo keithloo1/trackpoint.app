@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import newLogo from '../assets/logo.svg';
 import Papa from 'papaparse';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { AreaChart, Area, BarChart, Bar, Legend, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
 // --- Helper Functions ---
 const getGreeting = () => {
@@ -8474,41 +8474,62 @@ export default function Dashboard({ session }) {
               {/* MIDDLE ROW BENTO GRID */}
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 
-                {/* 4. Sales Volume Line Chart (Wide) */}
+                {/* 4. Monthly Sales Bar Chart (Wide) */}
                 <div className="lg:col-span-2 bg-white border border-gray-100 rounded-3xl p-6 shadow-sm flex flex-col justify-between">
-                  <div className="flex items-center justify-between mb-6">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
                     <div>
-                      <h3 className="text-lg font-black text-[#0B4550]">Sales volume</h3>
-                      <p className="text-xs text-[#898A8D] mt-0.5">Monthly revenue comparison (This Year vs Last Year)</p>
+                      <h3 className="text-lg font-black text-[#0B4550]">Monthly Sales</h3>
+                      <p className="text-xs text-[#898A8D] mt-0.5">Revenue comparison: This Year vs Last Year</p>
                     </div>
                     
-                    <div className="flex items-center gap-3">
-                      <select className="bg-gray-50 border border-gray-100 text-xs font-bold text-[#0B4550] rounded-xl px-3 py-1.5 outline-none focus:border-gray-200">
-                        <option>Sales Volume</option>
-                      </select>
-                      <button className="p-2 bg-gray-50 border border-gray-100 text-[#0B4550] hover:bg-gray-100 rounded-xl transition-all">
-                        <Calendar className="w-4 h-4" />
-                      </button>
+                    <div className="flex items-center gap-4">
+                      {/* Legend indicators */}
+                      <div className="flex items-center gap-3 text-xs font-bold">
+                        <div className="flex items-center gap-1.5 text-[#0B4550]">
+                          <span className="w-3 h-3 rounded-md bg-[#0B4550]"></span>
+                          <span>This Year</span>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[#898A8D]">
+                          <span className="w-3 h-3 rounded-md bg-[#E2E8F0]"></span>
+                          <span>Last Year</span>
+                        </div>
+                      </div>
                     </div>
                   </div>
 
-                  {/* Recharts Area Chart */}
-                  <div className="h-64 w-full mt-4">
+                  {/* Recharts Bar Chart */}
+                  <div className="h-64 w-full mt-2">
                     <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={salesVolumeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorThisYear" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#0B4550" stopOpacity={0.2}/>
-                            <stop offset="95%" stopColor="#0B4550" stopOpacity={0.01}/>
-                          </linearGradient>
-                        </defs>
+                      <BarChart data={salesVolumeData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }} barGap={6}>
                         <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#F1F3F5" />
-                        <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fill: '#898A8D', fontSize: 11, fontWeight: 500 }} />
-                        <YAxis axisLine={false} tickLine={false} tick={{ fill: '#898A8D', fontSize: 11, fontWeight: 500 }} tickFormatter={(val) => val >= 1000 ? `RM ${val/1000}k` : `RM ${val}`} />
-                        <Tooltip content={<CustomChartTooltip />} />
-                        <Area type="monotone" dataKey="thisYear" name="This Year" stroke="#0B4550" strokeWidth={3} fillOpacity={1} fill="url(#colorThisYear)" dot={false} activeDot={{ r: 6, fill: '#0B4550', stroke: '#fff', strokeWidth: 2 }} />
-                        <Area type="monotone" dataKey="lastYear" name="Last Year" stroke="#898A8D" strokeWidth={2} strokeDasharray="4 4" fill="none" dot={false} activeDot={{ r: 4, fill: '#898A8D' }} />
-                      </AreaChart>
+                        <XAxis 
+                          dataKey="name" 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#898A8D', fontSize: 11, fontWeight: 600 }} 
+                        />
+                        <YAxis 
+                          axisLine={false} 
+                          tickLine={false} 
+                          tick={{ fill: '#898A8D', fontSize: 11, fontWeight: 500 }} 
+                          tickFormatter={(val) => val >= 1000 ? `RM ${val/1000}k` : `RM ${val}`} 
+                        />
+                        <Tooltip content={<CustomChartTooltip />} cursor={{ fill: 'rgba(11, 69, 80, 0.04)', radius: 8 }} />
+                        <Bar 
+                          dataKey="thisYear" 
+                          name="This Year" 
+                          fill="#0B4550" 
+                          radius={[6, 6, 0, 0]} 
+                          maxBarSize={22}
+                        />
+                        <Bar 
+                          dataKey="lastYear" 
+                          name="Last Year" 
+                          fill="#CBD5E1" 
+                          radius={[6, 6, 0, 0]} 
+                          maxBarSize={22}
+                        />
+                      </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
