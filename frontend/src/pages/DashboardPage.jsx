@@ -5885,11 +5885,11 @@ export default function Dashboard({ session }) {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-screen w-full bg-[#F9F7F2] font-sans text-[#0B4550] overflow-hidden">
+    <div className="tablet-outer-wrapper flex flex-col xl:flex-row h-screen w-full bg-[#F9F7F2] font-sans text-[#0B4550] overflow-hidden">
 
       {/* SIDEBAR - Hidden when in ClassMode or on mobile/tablet */}
       {activePage !== 'ClassMode' && (
-        <aside className="hidden lg:flex w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <aside className="desktop-sidebar hidden xl:flex w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
           <div className="flex items-center px-4 md:px-6 py-5 md:py-8">
             <button
               onClick={() => {
@@ -5927,9 +5927,9 @@ export default function Dashboard({ session }) {
         </aside>
       )}
 
-      {/* MOBILE & TABLET BOTTOM NAVIGATION - Sticky bottom on all screens < 1024px */}
+      {/* MOBILE & TABLET BOTTOM NAVIGATION - Sticky bottom on all screens < 1280px / Tablets */}
       {activePage !== 'ClassMode' && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 flex justify-around items-center py-4 px-2 z-[50] pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <div className="tablet-bottom-nav xl:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 flex justify-around items-center py-4 px-2 z-[50] pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
           <button onClick={() => setActivePage('Dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Dashboard' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
             <Home size={24} strokeWidth={activePage === 'Dashboard' ? 2.5 : 2} />
             <span className="text-[10px] font-bold">Home</span>
@@ -5954,14 +5954,14 @@ export default function Dashboard({ session }) {
       )}
 
       {/* MAIN CONTENT AREA */}
-      {/* pb-36 ensures content isn't hidden behind the mobile bottom nav on small screens, lg:pb-8 removes the gap on desktop */}
-      <main className="flex-1 h-full overflow-y-auto p-4 md:p-6 lg:p-8 pb-36 lg:pb-8 relative">
+      {/* pb-36 ensures content isn't hidden behind the mobile bottom nav on small screens, xl:pb-8 removes the gap on desktop */}
+      <main className="tablet-main-content flex-1 h-full overflow-y-auto p-4 md:p-6 lg:p-8 pb-36 xl:pb-8 relative">
 
         {/* UNIVERSAL DYNAMIC HEADER - Hidden in ClassMode */}
         {activePage !== 'ClassMode' && (
           <>
-            {/* MOBILE & TABLET HEADER (< 1024px) */}
-            <header className="lg:hidden flex items-center justify-between mb-6 gap-2 bg-white p-4 rounded-3xl shadow-sm border border-gray-150">
+            {/* MOBILE & TABLET HEADER (< 1280px / Tablets) */}
+            <header className="tablet-mobile-header xl:hidden flex items-center justify-between mb-6 gap-2 bg-white p-4 rounded-3xl shadow-sm border border-gray-150">
               <div className="flex items-center gap-3">
                 <img src={companyLogo || newLogo} alt={companyName} className="h-10 w-auto object-contain max-h-[40px]" />
                 <div>
@@ -5996,8 +5996,8 @@ export default function Dashboard({ session }) {
               </div>
             </header>
 
-            {/* DESKTOP HEADER (>= 1024px) */}
-            <header className="hidden lg:flex flex-col lg:flex-row lg:justify-between lg:items-start mb-8 gap-4 md:gap-6">
+            {/* DESKTOP HEADER (>= 1280px) */}
+            <header className="desktop-header hidden xl:flex flex-col xl:flex-row xl:justify-between xl:items-start mb-8 gap-4 md:gap-6">
               <div className="flex-1">
                 {/* DASHBOARD HEADER */}
                 {activePage === 'Dashboard' && (
@@ -7048,8 +7048,8 @@ export default function Dashboard({ session }) {
             <div className="animate-in fade-in duration-500">
               {!selectedClient && (
                 <>
-                  {/* MOBILE & TABLET CONTROLS (< 1024px) */}
-                  <div className="lg:hidden flex flex-col gap-4 mb-6">
+                  {/* MOBILE & TABLET CONTROLS (< 1280px / Tablets) */}
+                  <div className="tablet-clients-mobile xl:hidden flex flex-col gap-4 mb-6">
                     <div className="flex bg-white rounded-[1.5rem] p-1.5 shadow-sm border border-gray-150 overflow-x-auto no-scrollbar">
                       {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up', 'Group', 'PT'].map((tab) => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}>
@@ -7094,8 +7094,8 @@ export default function Dashboard({ session }) {
                     </div>
                   </div>
 
-                  {/* DESKTOP CONTROLS (>= 1024px) */}
-                  <div className="hidden lg:flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
+                  {/* DESKTOP CONTROLS (>= 1280px) */}
+                  <div className="desktop-clients-controls hidden xl:flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
                     <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 shrink-0 overflow-x-auto no-scrollbar max-w-full">
                       {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up', 'Group', 'PT'].map((tab) => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
@@ -7153,8 +7153,8 @@ export default function Dashboard({ session }) {
                     </div>
                   ) : (
                     <>
-                      {/* MOBILE & TABLET CLIENT CARDS (< 1024px) */}
-                      <div className="lg:hidden space-y-4">
+                      {/* MOBILE & TABLET CLIENT CARDS (< 1280px / Tablets) */}
+                      <div className="tablet-clients-mobile-cards xl:hidden grid grid-cols-1 md:grid-cols-2 gap-4">
                         {sortedAndFilteredClients.map(client => (
                           <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm relative overflow-hidden group active:scale-[0.98] transition-all cursor-pointer">
                             <div className="flex items-center gap-4 mb-4 relative z-10">
@@ -7192,8 +7192,8 @@ export default function Dashboard({ session }) {
                         ))}
                       </div>
 
-                      {/* DESKTOP CLIENTS (LIST / GRID) (>= 1024px) */}
-                      <div className="hidden lg:block">
+                      {/* DESKTOP CLIENTS (LIST / GRID) (>= 1280px) */}
+                      <div className="desktop-clients-view hidden xl:block">
                         {viewMode === 'list' ? (
                           <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 overflow-hidden">
                             <table className="w-full text-left border-collapse">
@@ -7322,8 +7322,8 @@ export default function Dashboard({ session }) {
                     <ArrowLeft size={24} /> Back to Roster
                   </button>
 
-                  <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 md:gap-8">
-                    <div className="lg:col-span-2 space-y-6">
+                  <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 md:gap-8">
+                    <div className="xl:col-span-2 space-y-6">
                       <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 text-center">
                         <div className="w-24 h-24 rounded-full bg-[#F9F7F2] text-[#0B4550] flex items-center justify-center text-2xl md:text-3xl font-medium mx-auto mb-4 border-4 border-white shadow-sm">
                           {getInitials(selectedClient.name)}
@@ -7632,7 +7632,7 @@ export default function Dashboard({ session }) {
                       )}
                     </div>
 
-                    <div className="lg:col-span-3 flex flex-col gap-4 md:gap-6">
+                    <div className="xl:col-span-3 flex flex-col gap-4 md:gap-6">
                       <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col relative h-[440px] shrink-0 overflow-hidden">
                         {/* Tabs Header */}
                         <div className="flex border-b border-gray-100 mb-6 gap-6 shrink-0">
@@ -8385,8 +8385,8 @@ export default function Dashboard({ session }) {
         {/* VIEW: SCHEDULE (NOW LIVE!) */}
         {activePage === 'Schedule' && (
           <div className="animate-in fade-in duration-500 flex flex-col h-full">
-            {/* MOBILE & TABLET SCHEDULE CONTROLS (< 1024px) */}
-            <div className="lg:hidden flex flex-col gap-4 mb-6">
+            {/* MOBILE & TABLET SCHEDULE CONTROLS (< 1280px / Tablets) */}
+            <div className="tablet-schedule-mobile xl:hidden flex flex-col gap-4 mb-6">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-1 sm:gap-2">
                   <button
@@ -8460,8 +8460,8 @@ export default function Dashboard({ session }) {
               </div>
             </div>
 
-            {/* DESKTOP SCHEDULE CONTROLS */}
-            <div className="hidden lg:flex flex-row justify-between items-center mb-8 bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
+            {/* DESKTOP SCHEDULE CONTROLS (>= 1280px) */}
+            <div className="desktop-schedule-controls hidden xl:flex flex-row justify-between items-center mb-8 bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center gap-4 md:gap-6 px-4">
                 <ChevronLeft
                   size={28}
@@ -8522,8 +8522,8 @@ export default function Dashboard({ session }) {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 md:gap-8 flex-1 pb-10">
-              <div className="lg:col-span-2 space-y-6">
+            <div className="tablet-schedule-grid grid grid-cols-1 xl:grid-cols-3 gap-4 md:gap-8 flex-1 pb-10">
+              <div className="tablet-schedule-sessions xl:col-span-2 space-y-6">
                 <h3 className="font-medium text-2xl text-[#0B4550] mb-4">
                   Sessions on {selectedScheduleDate.toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' })}
                 </h3>
@@ -8559,10 +8559,10 @@ export default function Dashboard({ session }) {
                       const displayCoach = locationParts[1] || '';
 
                       return (
-                        <div key={session.id} onClick={() => { setSelectedSession(session); if (window.innerWidth < 1024) setShowMobileRosterDrawer(true); }}>
+                        <div key={session.id} onClick={() => { setSelectedSession(session); if (window.innerWidth < 1280 || (window.innerWidth <= 1366 && ('ontouchstart' in window || navigator.maxTouchPoints > 0))) setShowMobileRosterDrawer(true); }}>
 
-                          {/* MOBILE & TABLET SESSION CARD (< 1024px) */}
-                          <div className={`lg:hidden flex gap-4 items-center group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-60' : ''}`}>
+                          {/* MOBILE & TABLET SESSION CARD (< 1280px / Tablets) */}
+                          <div className={`tablet-schedule-card xl:hidden flex gap-4 items-center group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-60' : ''}`}>
                             <div className="w-16 text-right shrink-0">
                               <p className={`text-lg font-black ${isSelected ? 'text-[#0B4550]' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-50' : ''}`}>{session.time}</p>
                               <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">{session.duration}</p>
@@ -8586,8 +8586,8 @@ export default function Dashboard({ session }) {
                             </div>
                           </div>
 
-                          {/* DESKTOP SESSION CARD (>= 1024px) */}
-                          <div className={`hidden lg:flex gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-70 hover:opacity-100' : ''}`}>
+                          {/* DESKTOP SESSION CARD (>= 1280px) */}
+                          <div className={`desktop-schedule-card hidden xl:flex gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-70 hover:opacity-100' : ''}`}>
                             <div className="w-24 text-right shrink-0">
                               <p className={`text-xl font-medium ${isSelected ? 'text-[#0B4550]' : 'text-[#898A8D]'} ${isPast ? 'line-through opacity-60' : ''}`}>{session.time}</p>
                               <p className="text-sm font-medium text-[#898A8D]">{session.duration}</p>
@@ -8637,7 +8637,7 @@ export default function Dashboard({ session }) {
                 </div>
               </div>
 
-              <div className="hidden lg:block">
+              <div className="desktop-schedule-panel hidden xl:block">
                 {selectedSession && (
                   <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 sticky top-4">
                     <span className="inline-block px-4 py-1.5 rounded-xl bg-gray-100 text-[#898A8D] font-medium text-sm mb-4">{selectedSession.type}</span>
@@ -13250,7 +13250,7 @@ export default function Dashboard({ session }) {
       {/* --- AI COPILOT FLOATING BUTTON --- */}
       <button
         onClick={() => setShowAICopilot(true)}
-        className="fixed bottom-36 lg:bottom-8 right-8 w-16 h-16 bg-[#0B4550] text-[#E6FF2B] rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-40 group border-4 border-white"
+        className="tablet-copilot-btn fixed bottom-36 xl:bottom-8 right-8 w-16 h-16 bg-[#0B4550] text-[#E6FF2B] rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-40 group border-4 border-white"
       >
         <Sparkles size={28} className="group-hover:rotate-12 transition-transform" />
       </button>
@@ -13259,7 +13259,7 @@ export default function Dashboard({ session }) {
 
       {/* --- MORE FEATURES BOTTOM MENU SHEET --- */}
       {showMoreMenu && (
-        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-[100] flex items-end justify-center lg:hidden" onClick={() => setShowMoreMenu(false)}>
+        <div className="tablet-more-sheet fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-[100] flex items-end justify-center xl:hidden" onClick={() => setShowMoreMenu(false)}>
           <div className="bg-white rounded-t-[2.5rem] w-full p-8 shadow-2xl relative animate-in slide-in-from-bottom duration-300" onClick={(e) => e.stopPropagation()}>
             <div className="w-12 h-1 bg-gray-200 rounded-full mx-auto mb-6"></div>
             <h3 className="font-bold text-xl text-[#0B4550] mb-6 px-2">More Features</h3>

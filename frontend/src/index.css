@@ -31,8 +31,69 @@ html {
   font-size: 75%;
 }
 
+/* Tablet & iPad (both portrait and landscape, up to 1366px for iPad Pro 12.9") */
+@media (hover: none) and (pointer: coarse) and (max-width: 1366px) {
+  .tablet-outer-wrapper {
+    flex-direction: column !important;
+  }
+  .desktop-sidebar {
+    display: none !important;
+  }
+  .tablet-bottom-nav {
+    display: flex !important;
+  }
+  .tablet-mobile-header {
+    display: flex !important;
+  }
+  .desktop-header {
+    display: none !important;
+  }
+  .tablet-schedule-mobile {
+    display: flex !important;
+  }
+  .desktop-schedule-controls {
+    display: none !important;
+  }
+  .tablet-schedule-card {
+    display: flex !important;
+  }
+  .desktop-schedule-card {
+    display: none !important;
+  }
+  .desktop-schedule-panel {
+    display: none !important;
+  }
+  .tablet-schedule-grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+  .tablet-schedule-sessions {
+    grid-column: span 1 / span 1 !important;
+  }
+  .tablet-clients-mobile {
+    display: flex !important;
+  }
+  .tablet-clients-mobile-cards {
+    display: grid !important;
+  }
+  .desktop-clients-controls {
+    display: none !important;
+  }
+  .desktop-clients-view {
+    display: none !important;
+  }
+  .tablet-main-content {
+    padding-bottom: 9rem !important; /* pb-36 */
+  }
+  .tablet-copilot-btn {
+    bottom: 9rem !important; /* bottom-36 */
+  }
+  .tablet-more-sheet {
+    display: flex !important;
+  }
+}
+
 /* Prevent iOS / iPadOS Safari auto-zooming when focusing search bars and input fields */
-@media (max-width: 1024px) {
+@media (max-width: 1366px) {
   input,
   select,
   textarea {
