@@ -344,12 +344,12 @@ const isClientBookingEligible = (client) => {
 
 const parseTimeToMinutes = (timeString) => {
   if (!timeString) return 0;
-  const match = timeString.match(/^(\d+):(\d+)\s*(AM|PM)$/i);
+  const match = timeString.trim().match(/^(\d+):(\d+)\s*(AM|PM)?$/i);
   if (!match) return 0;
 
   let hours = parseInt(match[1], 10);
   const minutes = parseInt(match[2], 10);
-  const ampm = match[3].toUpperCase();
+  const ampm = match[3] ? match[3].toUpperCase() : null;
 
   if (ampm === 'PM' && hours !== 12) {
     hours += 12;
@@ -887,6 +887,7 @@ export default function Dashboard({ session }) {
       return [];
     }
   });
+  const [systemNotesClientId, setSystemNotesClientId] = useState(null);
   const [noteSearchQuery, setNoteSearchQuery] = useState('');
   const [noteFilter, setNoteFilter] = useState('all'); // 'all', 'reminders', 'clients', 'pinned'
   const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
@@ -911,6 +912,73 @@ export default function Dashboard({ session }) {
     }
   }, [notes, session?.user?.id]);
 
+  const syncNotesToCloud = async (updatedNotes, clientId = null) => {
+    try {
+      const targetId = clientId || systemNotesClientId;
+      if (targetId) {
+        await supabase.from('clients').update({
+          notes: JSON.stringify(updatedNotes)
+        }).eq('id', targetId);
+      } else {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: existing } = await supabase.from('clients').select('id').eq('email', 'system_notes@trackpoint.app').limit(1);
+        if (existing && existing[0]) {
+          setSystemNotesClientId(existing[0].id);
+          await supabase.from('clients').update({
+            notes: JSON.stringify(updatedNotes)
+          }).eq('id', existing[0].id);
+        } else {
+          const { data: ins } = await supabase.from('clients').insert([{
+            trainer_id: user.id,
+            name: "__SYSTEM_NOTES__",
+            email: "system_notes@trackpoint.app",
+            phone: "00000000",
+            notes: JSON.stringify(updatedNotes),
+            package: "System",
+            status: "Active",
+            initial_package: 0,
+            remaining_package: 0,
+            used_sessions: 0,
+            unlimited: true
+          }]).select('id');
+          if (ins && ins[0]) setSystemNotesClientId(ins[0].id);
+        }
+      }
+    } catch (err) {
+      console.error("Error syncing notes to Supabase:", err);
+    }
+  };
+
+  // Live cross-device sync listener for notes
+  useEffect(() => {
+    const notesChannel = supabase
+      .channel('live-notes-sync')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'clients' },
+        (payload) => {
+          if (payload.new && payload.new.email === 'system_notes@trackpoint.app') {
+            try {
+              const cloudNotes = JSON.parse(payload.new.notes || '[]');
+              if (Array.isArray(cloudNotes)) {
+                setNotes(cloudNotes);
+                const storageKey = `trackpoint_notes_${session?.user?.id || 'default'}`;
+                localStorage.setItem(storageKey, JSON.stringify(cloudNotes));
+              }
+            } catch (err) {
+              console.error("Error updating live notes:", err);
+            }
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(notesChannel);
+    };
+  }, [session?.user?.id]);
+
   const handleOpenNoteEditor = (note = null, prefillClientId = null) => {
     if (note) {
       setEditingNote(note);
@@ -927,7 +995,7 @@ export default function Dashboard({ session }) {
     } else {
       let matchedClient = null;
       if (prefillClientId) {
-        matchedClient = clients.find(c => c.id === prefillClientId);
+        matchedClient = (clients || []).find(c => c && c.id === prefillClientId);
       }
       setEditingNote(null);
       setNoteFormData({
@@ -952,17 +1020,18 @@ export default function Dashboard({ session }) {
     const nowIso = new Date().toISOString();
     let clientName = noteFormData.clientName;
     if (noteFormData.clientId && !clientName) {
-      const match = clients.find(c => c.id === noteFormData.clientId);
+      const match = (clients || []).find(c => c && c.id === noteFormData.clientId);
       if (match) clientName = match.name;
     }
 
+    let updatedNotes;
     if (editingNote) {
-      setNotes(prev => prev.map(n => n.id === editingNote.id ? {
+      updatedNotes = notes.map(n => n.id === editingNote.id ? {
         ...n,
         ...noteFormData,
         clientName,
         updatedAt: nowIso
-      } : n));
+      } : n);
     } else {
       const newNote = {
         id: `note-${Date.now()}`,
@@ -971,15 +1040,19 @@ export default function Dashboard({ session }) {
         createdAt: nowIso,
         updatedAt: nowIso
       };
-      setNotes(prev => [newNote, ...prev]);
+      updatedNotes = [newNote, ...notes];
     }
+    setNotes(updatedNotes);
+    syncNotesToCloud(updatedNotes);
     setIsNoteEditorOpen(false);
     setEditingNote(null);
   };
 
   const handleDeleteNote = (noteId) => {
     if (window.confirm("Are you sure you want to delete this note?")) {
-      setNotes(prev => prev.filter(n => n.id !== noteId));
+      const updatedNotes = notes.filter(n => n.id !== noteId);
+      setNotes(updatedNotes);
+      syncNotesToCloud(updatedNotes);
       if (editingNote?.id === noteId) {
         setIsNoteEditorOpen(false);
         setEditingNote(null);
@@ -989,7 +1062,9 @@ export default function Dashboard({ session }) {
 
   const handleTogglePinNote = (noteId, e = null) => {
     if (e) e.stopPropagation();
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, isPinned: !n.isPinned } : n));
+    const updatedNotes = notes.map(n => n.id === noteId ? { ...n, isPinned: !n.isPinned, updatedAt: new Date().toISOString() } : n);
+    setNotes(updatedNotes);
+    syncNotesToCloud(updatedNotes);
   };
 
   // --- NOTIFICATIONS & MORNING BRIEFING STATES ---
@@ -1001,33 +1076,71 @@ export default function Dashboard({ session }) {
     return 'default';
   });
 
+  const getMalaysiaTimeInfo = () => {
+    try {
+      const now = new Date();
+      const formatter = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Kuala_Lumpur',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+      });
+      const parts = formatter.formatToParts(now);
+      const getPart = (t) => parts.find(p => p.type === t)?.value;
+      const year = getPart('year');
+      const month = getPart('month');
+      const day = getPart('day');
+      const hour = parseInt(getPart('hour') || '0', 10);
+      const minute = parseInt(getPart('minute') || '0', 10);
+      const dateStr = `${year}-${month}-${day}`;
+      return { dateStr, hour, minute, currentMins: hour * 60 + minute };
+    } catch (e) {
+      const now = new Date();
+      const yr = now.getFullYear();
+      const mo = String(now.getMonth() + 1).padStart(2, '0');
+      const dy = String(now.getDate()).padStart(2, '0');
+      const hour = now.getHours();
+      const minute = now.getMinutes();
+      return { dateStr: `${yr}-${mo}-${dy}`, hour, minute, currentMins: hour * 60 + minute };
+    }
+  };
+
   const todayDateStr = useMemo(() => {
-    const now = new Date();
-    const yr = now.getFullYear();
-    const mo = String(now.getMonth() + 1).padStart(2, '0');
-    const dy = String(now.getDate()).padStart(2, '0');
-    return `${yr}-${mo}-${dy}`;
+    return getMalaysiaTimeInfo().dateStr;
   }, []);
 
+  // Filter out Archived and Trial clients from package & membership renewal alerts
+  const isExcludedFromRenewalAlerts = (c) => {
+    if (!c) return true;
+    if (c.status === 'Archived') return true;
+    if (c.member_status === 'Trial' || c.client_type === 'Trial') return true;
+    if (c.package && c.package.toLowerCase().includes('trial')) return true;
+    return false;
+  };
+
   const briefingSchedule = useMemo(() => {
-    return (sessions || []).filter(s => s && s.date === todayDateStr)
+    return (sessions || []).filter(s => s && s.date === todayDateStr && s.type !== 'Blocked')
       .sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
   }, [sessions, todayDateStr]);
 
   const briefingBirthdays = useMemo(() => {
-    return (clients || []).filter(c => c && isBirthdayToday(c.dob));
+    return (clients || []).filter(c => c && c.status !== 'Archived' && isBirthdayToday(c.dob));
   }, [clients]);
 
   const briefingLowPackages = useMemo(() => {
     return (clients || []).filter(c => {
-      if (!c || c.unlimited) return false;
+      if (!c || c.unlimited || isExcludedFromRenewalAlerts(c)) return false;
       const rem = c.remaining_package !== null && c.remaining_package !== undefined ? Number(c.remaining_package) : null;
       return rem !== null && rem <= 2 && rem >= 0;
     });
   }, [clients]);
 
   const briefingExpiringMemberships = useMemo(() => {
-    return (clients || []).filter(c => c && isMembershipExpiringWithin7Days(c.expiry));
+    return (clients || []).filter(c => c && !isExcludedFromRenewalAlerts(c) && isMembershipExpiringWithin7Days(c.expiry));
   }, [clients]);
 
   const briefingReminders = useMemo(() => {
@@ -1043,7 +1156,7 @@ export default function Dashboard({ session }) {
         setNotificationPermission(perm);
         if (perm === 'granted') {
           new Notification("TrackPoint Notifications Enabled! 🎉", {
-            body: "You will now receive morning briefings and timely client reminders.",
+            body: "You will now receive morning briefings at 8am and 30-min pre-session reminders.",
             icon: '/favicon.png'
           });
         }
@@ -1055,32 +1168,84 @@ export default function Dashboard({ session }) {
     }
   };
 
-  // Dispatch daily morning notification if permission granted and not sent today
+  // Schedule Automated Alerts: 8am MYT Morning Briefing + 30-min Pre-Session Reminders
   useEffect(() => {
-    if (notificationPermission === 'granted' && typeof window !== 'undefined' && 'Notification' in window) {
-      const lastNotifDate = localStorage.getItem('trackpoint_last_morning_notification');
-      if (lastNotifDate !== todayDateStr) {
-        const summaryAlerts = [];
-        if (briefingSchedule.length > 0) summaryAlerts.push(`📅 ${briefingSchedule.length} session(s) today`);
-        if (briefingBirthdays.length > 0) summaryAlerts.push(`🎂 ${briefingBirthdays.map(c => c.name).join(', ')} birthday`);
-        if (briefingLowPackages.length > 0) summaryAlerts.push(`⚠️ ${briefingLowPackages.length} package(s) ending soon`);
-        if (briefingExpiringMemberships.length > 0) summaryAlerts.push(`⏳ ${briefingExpiringMemberships.length} membership(s) expiring`);
-        if (briefingReminders.length > 0) summaryAlerts.push(`🔔 ${briefingReminders.length} reminder(s) due`);
+    if (notificationPermission !== 'granted' || typeof window === 'undefined' || !('Notification' in window)) return;
 
-        if (summaryAlerts.length > 0) {
-          try {
-            new Notification(`TrackPoint Morning Briefing • ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`, {
-              body: summaryAlerts.join(' • '),
-              icon: '/favicon.png'
-            });
-            localStorage.setItem('trackpoint_last_morning_notification', todayDateStr);
-          } catch (e) {
-            console.error("Error firing notification:", e);
+    const checkAndDispatchAlerts = () => {
+      const { dateStr, hour, currentMins } = getMalaysiaTimeInfo();
+
+      // 1. Morning Briefing: Trigger once per day at or after 8:00 AM Malaysia time
+      if (hour >= 8) {
+        const lastNotifDate = localStorage.getItem('trackpoint_last_morning_notification');
+        if (lastNotifDate !== dateStr) {
+          const summaryAlerts = [];
+          if (briefingSchedule.length > 0) summaryAlerts.push(`📅 ${briefingSchedule.length} session(s) today`);
+          if (briefingBirthdays.length > 0) summaryAlerts.push(`🎂 ${briefingBirthdays.map(c => c.name).join(', ')} birthday`);
+          if (briefingLowPackages.length > 0) summaryAlerts.push(`⚠️ ${briefingLowPackages.length} package(s) ending soon`);
+          if (briefingExpiringMemberships.length > 0) summaryAlerts.push(`⏳ ${briefingExpiringMemberships.length} membership(s) expiring`);
+          if (briefingReminders.length > 0) summaryAlerts.push(`🔔 ${briefingReminders.length} reminder(s) due`);
+
+          if (summaryAlerts.length > 0) {
+            try {
+              new Notification(`TrackPoint 8AM Briefing • ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`, {
+                body: summaryAlerts.join(' • '),
+                icon: '/favicon.png'
+              });
+              localStorage.setItem('trackpoint_last_morning_notification', dateStr);
+            } catch (e) {
+              console.error("Error firing morning notification:", e);
+            }
           }
         }
       }
-    }
-  }, [notificationPermission, todayDateStr, briefingSchedule.length, briefingBirthdays.length, briefingLowPackages.length, briefingExpiringMemberships.length, briefingReminders.length]);
+
+      // 2. Pre-Session Reminders: Trigger 30 minutes before each session
+      const todaySessions = (sessions || []).filter(s => s && s.date === dateStr && s.type !== 'Blocked');
+      todaySessions.forEach(session => {
+        if (!session.time) return;
+        const startMins = parseTimeToMinutes(session.time);
+        const diffMins = startMins - currentMins;
+
+        // When within the 30-minute window before start
+        if (diffMins <= 30 && diffMins >= 0) {
+          const reminderKey = `trackpoint_session_reminder_${session.id}_${dateStr}`;
+          if (!localStorage.getItem(reminderKey)) {
+            try {
+              const title = session.title || 'Training Session';
+              const attendeeCount = session.attendees ? session.attendees.length : 0;
+              const timeText = diffMins === 0 ? 'Starting now!' : `Starts in ${diffMins} min${diffMins > 1 ? 's' : ''}`;
+              const locationText = session.location ? ` • ${session.location.split(' | ')[0]}` : '';
+
+              new Notification(`Upcoming Session (${timeText}) ⏳`, {
+                body: `${title} at ${session.time}${locationText}${attendeeCount > 0 ? ` • ${attendeeCount} booked` : ''}`,
+                icon: '/favicon.png'
+              });
+              localStorage.setItem(reminderKey, 'sent');
+            } catch (e) {
+              console.error("Error firing session reminder:", e);
+            }
+          }
+        }
+      });
+    };
+
+    // Run check on mount and whenever dependencies update
+    checkAndDispatchAlerts();
+
+    // Check periodically every 30 seconds
+    const interval = setInterval(checkAndDispatchAlerts, 30000);
+    return () => clearInterval(interval);
+  }, [
+    notificationPermission,
+    todayDateStr,
+    briefingSchedule.length,
+    briefingBirthdays.length,
+    briefingLowPackages.length,
+    briefingExpiringMemberships.length,
+    briefingReminders.length,
+    sessions
+  ]);
 
   const handleSelectClientFromSearch = (client) => {
     setSelectedClient(client);
@@ -2125,7 +2290,8 @@ export default function Dashboard({ session }) {
       let processedClients = [];
       if (clientData) {
         await loadSystemSettings(clientData);
-        const normalClients = clientData.filter(c => c.email !== 'system_settings@trackpoint.app');
+        await loadSystemNotes(clientData);
+        const normalClients = clientData.filter(c => c.email !== 'system_settings@trackpoint.app' && c.email !== 'system_notes@trackpoint.app');
         processedClients = normalClients.map(mapClientWithAddress);
         setClients(processedClients);
         cleanUpAccidentalPackages(normalClients);
@@ -2197,6 +2363,88 @@ export default function Dashboard({ session }) {
     }
   };
 
+  const loadSystemNotes = async (allClients) => {
+    try {
+      const notesClient = allClients.find(c => c.email === 'system_notes@trackpoint.app');
+      const { data: { user } } = await supabase.auth.getUser();
+      const storageKey = `trackpoint_notes_${user?.id || session?.user?.id || 'default'}`;
+      const localNotes = (() => {
+        try {
+          const s = localStorage.getItem(storageKey);
+          return s ? JSON.parse(s) : [];
+        } catch(e) { return []; }
+      })();
+
+      if (notesClient) {
+        setSystemNotesClientId(notesClient.id);
+        let cloudNotes = [];
+        if (notesClient.notes) {
+          try {
+            cloudNotes = JSON.parse(notesClient.notes);
+          } catch(e) {}
+        }
+        // Merge cloud notes with local notes (preferring latest by updatedAt or createdAt)
+        const map = new Map();
+        if (Array.isArray(cloudNotes)) {
+          cloudNotes.forEach(n => {
+            if (n && n.id) map.set(n.id, n);
+          });
+        }
+        if (Array.isArray(localNotes)) {
+          localNotes.forEach(n => {
+            if (n && n.id) {
+              const existing = map.get(n.id);
+              if (!existing) {
+                map.set(n.id, n);
+              } else {
+                const exTime = new Date(existing.updatedAt || existing.createdAt || 0).getTime();
+                const locTime = new Date(n.updatedAt || n.createdAt || 0).getTime();
+                if (locTime > exTime) {
+                  map.set(n.id, n);
+                }
+              }
+            }
+          });
+        }
+        const merged = Array.from(map.values()).sort((a, b) => {
+          const timeA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+          const timeB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+          return timeB - timeA;
+        });
+
+        setNotes(merged);
+        localStorage.setItem(storageKey, JSON.stringify(merged));
+
+        // If cloud was empty but local had notes, sync them up immediately
+        if ((!cloudNotes || cloudNotes.length === 0) && merged.length > 0) {
+          await supabase.from('clients').update({ notes: JSON.stringify(merged) }).eq('id', notesClient.id);
+        }
+      } else if (user) {
+        const { data: ins, error: insErr } = await supabase.from('clients').insert([{
+          trainer_id: user.id,
+          name: "__SYSTEM_NOTES__",
+          email: "system_notes@trackpoint.app",
+          phone: "00000000",
+          notes: JSON.stringify(localNotes),
+          package: "System",
+          status: "Active",
+          initial_package: 0,
+          remaining_package: 0,
+          used_sessions: 0,
+          unlimited: true
+        }]).select('*');
+        if (ins && ins[0]) {
+          setSystemNotesClientId(ins[0].id);
+        }
+        if (insErr) {
+          console.error("Error creating system notes client:", insErr);
+        }
+      }
+    } catch(err) {
+      console.error("Error loading system notes:", err);
+    }
+  };
+
   const cleanUpAccidentalPackages = async (normalClients) => {
     try {
       const clientsWithBadDefault = normalClients.filter(c => c.package === '10 Class Pack');
@@ -2221,7 +2469,8 @@ export default function Dashboard({ session }) {
     const { data } = await supabase.from('clients').select('*').order('created_at', { ascending: false });
     if (data) {
       await loadSystemSettings(data);
-      const normalClients = data.filter(c => c.email !== 'system_settings@trackpoint.app');
+      await loadSystemNotes(data);
+      const normalClients = data.filter(c => c.email !== 'system_settings@trackpoint.app' && c.email !== 'system_notes@trackpoint.app');
       setClients(normalClients.map(mapClientWithAddress));
       cleanUpAccidentalPackages(normalClients);
     }
