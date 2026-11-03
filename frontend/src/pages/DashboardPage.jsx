@@ -4,7 +4,8 @@ import {
   Home, Users, Calendar, CalendarSearch, BarChart2, Package,
   Settings, LogOut, Search, Bell,
   ChevronLeft, ChevronRight, ChevronDown, TrendingUp, TrendingDown, ArrowUpRight, RotateCw,
-  DollarSign, Download, FileText, Plus, ArrowLeft, Copy, Check, Clock, MapPin, CheckSquare, X, Square, ArrowRight, Save, Trash2, Upload, Minus, LayoutGrid, List, Edit3, Lock, Monitor, Unlock, Sparkles, Send, Bot, MessageSquare, Award, Camera, CreditCard, Eye, EyeOff, User, Wand2
+  DollarSign, Download, FileText, Plus, ArrowLeft, Copy, Check, Clock, MapPin, CheckSquare, X, Square, ArrowRight, Save, Trash2, Upload, Minus, LayoutGrid, List, Edit3, Lock, Monitor, Unlock, Sparkles, Send, Bot, MessageSquare, Award, Camera, CreditCard, Eye, EyeOff, User, Wand2,
+  Pin, Cake, AlertCircle, CalendarCheck, Tag, StickyNote, BellRing, CheckCircle2
 } from 'lucide-react';
 import newLogo from '../assets/logo.svg';
 import Papa from 'papaparse';
@@ -119,6 +120,59 @@ const getBirthdayMonthDay = (dobStr) => {
   return '';
 };
 
+const isBirthdayToday = (dobStr) => {
+  if (!dobStr) return false;
+  try {
+    const parts = dobStr.split('-');
+    if (parts.length >= 3) {
+      const monthIdx = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const now = new Date();
+      return monthIdx === now.getMonth() && day === now.getDate();
+    }
+    const d = new Date(dobStr);
+    if (!isNaN(d.getTime())) {
+      const now = new Date();
+      return d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+    }
+  } catch (e) {
+    return false;
+  }
+  return false;
+};
+
+const isMembershipExpiringWithin7Days = (expiryStr) => {
+  if (!expiryStr) return false;
+  try {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const exp = new Date(expiryStr);
+    exp.setHours(0, 0, 0, 0);
+    const diffDays = Math.ceil((exp.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 && diffDays <= 7;
+  } catch (e) {
+    return false;
+  }
+};
+
+const formatNoteDate = (isoStr) => {
+  if (!isoStr) return '';
+  try {
+    const d = new Date(isoStr);
+    const now = new Date();
+    if (d.toDateString() === now.toDateString()) {
+      return `Today, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    if (d.toDateString() === yesterday.toDateString()) {
+      return `Yesterday, ${d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    }
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: d.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
+  } catch (e) {
+    return isoStr;
+  }
+};
 
 const getWeekDays = (date) => {
   const current = new Date(date);
@@ -520,6 +574,210 @@ export default function Dashboard({ session }) {
   ]);
   const [aiMessage, setAiMessage] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
+
+  // --- NOTES TAB STATES ---
+  const [notes, setNotes] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`trackpoint_notes_${session?.user?.id || 'default'}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [noteSearchQuery, setNoteSearchQuery] = useState('');
+  const [noteFilter, setNoteFilter] = useState('all'); // 'all', 'reminders', 'clients', 'pinned'
+  const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
+  const [noteFormData, setNoteFormData] = useState({
+    title: '',
+    body: '',
+    clientId: '',
+    clientName: '',
+    isReminder: false,
+    reminderDate: '',
+    reminderTime: '09:00 AM',
+    isPinned: false
+  });
+
+  // Sync notes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(`trackpoint_notes_${session?.user?.id || 'default'}`, JSON.stringify(notes));
+    } catch (e) {
+      console.error("Error saving notes to storage:", e);
+    }
+  }, [notes, session?.user?.id]);
+
+  const handleOpenNoteEditor = (note = null, prefillClientId = null) => {
+    if (note) {
+      setEditingNote(note);
+      setNoteFormData({
+        title: note.title || '',
+        body: note.body || '',
+        clientId: note.clientId || '',
+        clientName: note.clientName || '',
+        isReminder: !!note.isReminder,
+        reminderDate: note.reminderDate || '',
+        reminderTime: note.reminderTime || '09:00 AM',
+        isPinned: !!note.isPinned
+      });
+    } else {
+      let matchedClient = null;
+      if (prefillClientId) {
+        matchedClient = clients.find(c => c.id === prefillClientId);
+      }
+      setEditingNote(null);
+      setNoteFormData({
+        title: '',
+        body: '',
+        clientId: prefillClientId || '',
+        clientName: matchedClient?.name || '',
+        isReminder: false,
+        reminderDate: new Date().toISOString().split('T')[0],
+        reminderTime: '09:00 AM',
+        isPinned: false
+      });
+    }
+    setIsNoteEditorOpen(true);
+  };
+
+  const handleSaveNote = () => {
+    if (!noteFormData.title.trim() && !noteFormData.body.trim()) {
+      alert("Please enter a title or note text.");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    let clientName = noteFormData.clientName;
+    if (noteFormData.clientId && !clientName) {
+      const match = clients.find(c => c.id === noteFormData.clientId);
+      if (match) clientName = match.name;
+    }
+
+    if (editingNote) {
+      setNotes(prev => prev.map(n => n.id === editingNote.id ? {
+        ...n,
+        ...noteFormData,
+        clientName,
+        updatedAt: nowIso
+      } : n));
+    } else {
+      const newNote = {
+        id: `note-${Date.now()}`,
+        ...noteFormData,
+        clientName,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      };
+      setNotes(prev => [newNote, ...prev]);
+    }
+    setIsNoteEditorOpen(false);
+    setEditingNote(null);
+  };
+
+  const handleDeleteNote = (noteId) => {
+    if (window.confirm("Are you sure you want to delete this note?")) {
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+      if (editingNote?.id === noteId) {
+        setIsNoteEditorOpen(false);
+        setEditingNote(null);
+      }
+    }
+  };
+
+  const handleTogglePinNote = (noteId, e = null) => {
+    if (e) e.stopPropagation();
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, isPinned: !n.isPinned } : n));
+  };
+
+  // --- NOTIFICATIONS & MORNING BRIEFING STATES ---
+  const [showBriefingModal, setShowBriefingModal] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'default';
+  });
+
+  const todayDateStr = useMemo(() => {
+    const now = new Date();
+    const yr = now.getFullYear();
+    const mo = String(now.getMonth() + 1).padStart(2, '0');
+    const dy = String(now.getDate()).padStart(2, '0');
+    return `${yr}-${mo}-${dy}`;
+  }, []);
+
+  const briefingSchedule = useMemo(() => {
+    return sessions.filter(s => s.date === todayDateStr)
+      .sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
+  }, [sessions, todayDateStr]);
+
+  const briefingBirthdays = useMemo(() => {
+    return clients.filter(c => isBirthdayToday(c.dob));
+  }, [clients]);
+
+  const briefingLowPackages = useMemo(() => {
+    return clients.filter(c => {
+      if (c.unlimited) return false;
+      const rem = c.remaining_package !== null && c.remaining_package !== undefined ? Number(c.remaining_package) : null;
+      return rem !== null && rem <= 2 && rem >= 0;
+    });
+  }, [clients]);
+
+  const briefingExpiringMemberships = useMemo(() => {
+    return clients.filter(c => isMembershipExpiringWithin7Days(c.expiry));
+  }, [clients]);
+
+  const briefingReminders = useMemo(() => {
+    return notes.filter(n => n.isReminder && n.reminderDate && n.reminderDate <= todayDateStr);
+  }, [notes, todayDateStr]);
+
+  const totalBriefingAlerts = briefingSchedule.length + briefingBirthdays.length + briefingLowPackages.length + briefingExpiringMemberships.length + briefingReminders.length;
+
+  const requestNotificationAccess = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const perm = await Notification.requestPermission();
+        setNotificationPermission(perm);
+        if (perm === 'granted') {
+          new Notification("TrackPoint Notifications Enabled! 🎉", {
+            body: "You will now receive morning briefings and timely client reminders.",
+            icon: '/favicon.png'
+          });
+        }
+      } catch (err) {
+        console.error("Error requesting notifications:", err);
+      }
+    } else {
+      alert("Push notifications are not supported by this browser.");
+    }
+  };
+
+  // Dispatch daily morning notification if permission granted and not sent today
+  useEffect(() => {
+    if (notificationPermission === 'granted' && typeof window !== 'undefined' && 'Notification' in window) {
+      const lastNotifDate = localStorage.getItem('trackpoint_last_morning_notification');
+      if (lastNotifDate !== todayDateStr) {
+        const summaryAlerts = [];
+        if (briefingSchedule.length > 0) summaryAlerts.push(`📅 ${briefingSchedule.length} session(s) today`);
+        if (briefingBirthdays.length > 0) summaryAlerts.push(`🎂 ${briefingBirthdays.map(c => c.name).join(', ')} birthday`);
+        if (briefingLowPackages.length > 0) summaryAlerts.push(`⚠️ ${briefingLowPackages.length} package(s) ending soon`);
+        if (briefingExpiringMemberships.length > 0) summaryAlerts.push(`⏳ ${briefingExpiringMemberships.length} membership(s) expiring`);
+        if (briefingReminders.length > 0) summaryAlerts.push(`🔔 ${briefingReminders.length} reminder(s) due`);
+
+        if (summaryAlerts.length > 0) {
+          try {
+            new Notification(`TrackPoint Morning Briefing • ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`, {
+              body: summaryAlerts.join(' • '),
+              icon: '/favicon.png'
+            });
+            localStorage.setItem('trackpoint_last_morning_notification', todayDateStr);
+          } catch (e) {
+            console.error("Error firing notification:", e);
+          }
+        }
+      }
+    }
+  }, [notificationPermission, todayDateStr, briefingSchedule.length, briefingBirthdays.length, briefingLowPackages.length, briefingExpiringMemberships.length, briefingReminders.length]);
 
   const CLASS_PIN = '1234'; // Gym Owner PIN for Class Mode
 
@@ -5629,9 +5887,9 @@ export default function Dashboard({ session }) {
   return (
     <div className="flex flex-col lg:flex-row h-screen w-full bg-[#F9F7F2] font-sans text-[#0B4550] overflow-hidden">
 
-      {/* SIDEBAR - Hidden when in ClassMode or on mobile */}
+      {/* SIDEBAR - Hidden when in ClassMode or on mobile/tablet */}
       {activePage !== 'ClassMode' && (
-        <aside className="hidden md:flex w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
+        <aside className="hidden lg:flex w-[260px] bg-white h-full flex-col border-r border-gray-100 shrink-0 z-20 shadow-[4px_0_24px_rgba(0,0,0,0.02)]">
           <div className="flex items-center px-4 md:px-6 py-5 md:py-8">
             <button
               onClick={() => {
@@ -5656,6 +5914,7 @@ export default function Dashboard({ session }) {
             <NavItem icon={<CheckSquare size={28} />} label="Attendance" isActive={activePage === 'Attendance'} onClick={() => { handleNavigateToPage('Attendance'); setSelectedClient(null); }} />
             <NavItem icon={<CalendarSearch size={28} />} label="Schedule" isActive={activePage === 'Schedule'} onClick={() => { setActivePage('Schedule'); setSelectedClient(null); }} />
             <NavItem icon={<Calendar size={28} />} label="Calendar" isActive={activePage === 'Calendar'} onClick={() => { setActivePage('Calendar'); setSelectedClient(null); }} />
+            <NavItem icon={<FileText size={28} />} label="Notes" isActive={activePage === 'Notes'} onClick={() => { setActivePage('Notes'); setSelectedClient(null); }} />
             <NavItem icon={<BarChart2 size={28} />} label="Analytics" isActive={activePage === 'Analytics'} onClick={() => handleNavigateToPage('Analytics')} />
             <NavItem icon={<Package size={28} />} label="Packages" isActive={activePage === 'Packages'} onClick={() => setActivePage('Packages')} />
             <NavItem icon={<Monitor size={28} />} label="Class Mode" isActive={activePage === 'ClassMode'} onClick={() => setActivePage('ClassMode')} />
@@ -5668,9 +5927,9 @@ export default function Dashboard({ session }) {
         </aside>
       )}
 
-      {/* MOBILE BOTTOM NAVIGATION - Visible only on small screens, hidden in ClassMode */}
+      {/* MOBILE & TABLET BOTTOM NAVIGATION - Sticky bottom on all screens < 1024px */}
       {activePage !== 'ClassMode' && (
-        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 flex justify-around items-center py-4 px-2 z-[50] pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-150 flex justify-around items-center py-4 px-2 z-[50] pb-[calc(1rem+env(safe-area-inset-bottom))] shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
           <button onClick={() => setActivePage('Dashboard')} className={`flex flex-col items-center gap-1 transition-all ${activePage === 'Dashboard' ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
             <Home size={24} strokeWidth={activePage === 'Dashboard' ? 2.5 : 2} />
             <span className="text-[10px] font-bold">Home</span>
@@ -5687,22 +5946,22 @@ export default function Dashboard({ session }) {
             <Calendar size={24} strokeWidth={activePage === 'Schedule' ? 2.5 : 2} />
             <span className="text-[10px] font-bold">Schedule</span>
           </button>
-          <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 transition-all ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
-            <LayoutGrid size={24} strokeWidth={['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance'].includes(activePage) ? 2.5 : 2} />
+          <button onClick={() => setShowMoreMenu(true)} className={`flex flex-col items-center gap-1 transition-all ${['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance', 'Notes'].includes(activePage) ? 'text-[#0B4550] scale-110' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
+            <LayoutGrid size={24} strokeWidth={['Calendar', 'Analytics', 'Packages', 'ClassMode', 'Settings', 'Attendance', 'Notes'].includes(activePage) ? 2.5 : 2} />
             <span className="text-[10px] font-bold">More</span>
           </button>
         </div>
       )}
 
       {/* MAIN CONTENT AREA */}
-      {/* pb-36 ensures content isn't hidden behind the mobile bottom nav on small screens, md:pb-8 removes the gap on tablet/desktop */}
-      <main className="flex-1 h-full overflow-y-auto p-4 md:p-6 lg:p-8 pb-36 md:pb-8 relative">
+      {/* pb-36 ensures content isn't hidden behind the mobile bottom nav on small screens, lg:pb-8 removes the gap on desktop */}
+      <main className="flex-1 h-full overflow-y-auto p-4 md:p-6 lg:p-8 pb-36 lg:pb-8 relative">
 
         {/* UNIVERSAL DYNAMIC HEADER - Hidden in ClassMode */}
         {activePage !== 'ClassMode' && (
           <>
-            {/* MOBILE HEADER */}
-            <header className="md:hidden flex items-center justify-between mb-6 gap-2 bg-white p-4 rounded-3xl shadow-sm border border-gray-150">
+            {/* MOBILE & TABLET HEADER (< 1024px) */}
+            <header className="lg:hidden flex items-center justify-between mb-6 gap-2 bg-white p-4 rounded-3xl shadow-sm border border-gray-150">
               <div className="flex items-center gap-3">
                 <img src={companyLogo || newLogo} alt={companyName} className="h-10 w-auto object-contain max-h-[40px]" />
                 <div>
@@ -5713,6 +5972,18 @@ export default function Dashboard({ session }) {
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setShowBriefingModal(true)}
+                  className="w-10 h-10 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center relative hover:scale-105 active:scale-95 transition-all shadow-sm border border-gray-150 cursor-pointer"
+                  title="Daily Morning Briefing & Notifications"
+                >
+                  <Bell size={18} />
+                  {totalBriefingAlerts > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-500 text-white rounded-full text-[9px] font-black flex items-center justify-center border-2 border-white shadow-sm animate-pulse">
+                      {totalBriefingAlerts}
+                    </span>
+                  )}
+                </button>
                 <button
                   onClick={() => setShowAICopilot(true)}
                   className="w-10 h-10 bg-[#F9F7F2] text-[#0B4550] rounded-full flex items-center justify-center relative hover:scale-105 transition-all shadow-sm border border-gray-150"
@@ -5725,8 +5996,8 @@ export default function Dashboard({ session }) {
               </div>
             </header>
 
-            {/* DESKTOP HEADER */}
-            <header className="hidden md:flex flex-col lg:flex-row lg:justify-between lg:items-start mb-8 gap-4 md:gap-6">
+            {/* DESKTOP HEADER (>= 1024px) */}
+            <header className="hidden lg:flex flex-col lg:flex-row lg:justify-between lg:items-start mb-8 gap-4 md:gap-6">
               <div className="flex-1">
                 {/* DASHBOARD HEADER */}
                 {activePage === 'Dashboard' && (
@@ -5760,9 +6031,15 @@ export default function Dashboard({ session }) {
                   </>
                 )}
 
-                {/* ... (Repeat the same pattern for other activePage views: text-2xl md:text-3xl lg:text-5xl and text-base lg:text-xl) ... */}
+                {/* NOTES HEADER */}
+                {activePage === 'Notes' && (
+                  <>
+                    <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Notes & Reminders</h1>
+                    <p className="text-[#898A8D] font-medium text-base lg:text-xl">Apple-style notes, client follow-ups, and scheduled reminders.</p>
+                  </>
+                )}
 
-                {/* For example, for Settings: */}
+                {/* SETTINGS HEADER */}
                 {activePage === 'Settings' && (
                   <>
                     <h1 className="text-2xl md:text-3xl lg:text-5xl font-medium text-[#0B4550] mb-2">Settings</h1>
@@ -5850,9 +6127,17 @@ export default function Dashboard({ session }) {
                 </div>
 
                 {/* Notification Bell */}
-                <button className="relative p-2.5 lg:p-3 bg-white rounded-full shadow-sm text-[#898A8D] hover:text-[#0B4550] transition-colors shrink-0">
+                <button
+                  onClick={() => setShowBriefingModal(true)}
+                  className="relative p-2.5 lg:p-3 bg-white rounded-full shadow-sm text-[#898A8D] hover:text-[#0B4550] transition-colors shrink-0 cursor-pointer"
+                  title="Daily Morning Briefing & Notifications"
+                >
                   <Bell size={22} />
-                  <span className="absolute top-2 right-2 w-2.5 h-2.5 bg-red-500 rounded-full border border-white"></span>
+                  {totalBriefingAlerts > 0 && (
+                    <span className="absolute -top-1 -right-1 min-w-[20px] h-[20px] px-1 bg-red-500 text-white rounded-full text-[10px] font-black flex items-center justify-center border-2 border-white shadow-sm animate-pulse">
+                      {totalBriefingAlerts}
+                    </span>
+                  )}
                 </button>
 
                 {/* User Avatar */}
@@ -6763,8 +7048,8 @@ export default function Dashboard({ session }) {
             <div className="animate-in fade-in duration-500">
               {!selectedClient && (
                 <>
-                  {/* MOBILE CONTROLS (HIGH FIDELITY) */}
-                  <div className="md:hidden flex flex-col gap-4 mb-6">
+                  {/* MOBILE & TABLET CONTROLS (< 1024px) */}
+                  <div className="lg:hidden flex flex-col gap-4 mb-6">
                     <div className="flex bg-white rounded-[1.5rem] p-1.5 shadow-sm border border-gray-150 overflow-x-auto no-scrollbar">
                       {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up', 'Group', 'PT'].map((tab) => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md' : 'text-[#898A8D]'}`}>
@@ -6809,8 +7094,8 @@ export default function Dashboard({ session }) {
                     </div>
                   </div>
 
-                  {/* DESKTOP CONTROLS */}
-                  <div className="hidden md:flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
+                  {/* DESKTOP CONTROLS (>= 1024px) */}
+                  <div className="hidden lg:flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-8">
                     <div className="flex bg-white rounded-full p-1.5 shadow-sm border border-gray-100 shrink-0 overflow-x-auto no-scrollbar max-w-full">
                       {['All Clients', 'Active', 'Expiring Soon', 'Expired', 'Trial Clients', 'Follow Up', 'Group', 'PT'].map((tab) => (
                         <button key={tab} onClick={() => setActiveTab(tab)} className={`px-4 md:px-6 py-2 rounded-full text-lg font-medium transition-all whitespace-nowrap ${activeTab === tab ? 'bg-[#898A8D] text-white' : 'text-[#898A8D] hover:text-[#0B4550]'}`}>
@@ -6868,8 +7153,8 @@ export default function Dashboard({ session }) {
                     </div>
                   ) : (
                     <>
-                      {/* MOBILE CLIENT CARDS */}
-                      <div className="md:hidden space-y-4">
+                      {/* MOBILE & TABLET CLIENT CARDS (< 1024px) */}
+                      <div className="lg:hidden space-y-4">
                         {sortedAndFilteredClients.map(client => (
                           <div key={client.id} onClick={() => setSelectedClient(client)} className="bg-white rounded-[2rem] p-5 border border-gray-100 shadow-sm relative overflow-hidden group active:scale-[0.98] transition-all cursor-pointer">
                             <div className="flex items-center gap-4 mb-4 relative z-10">
@@ -6907,8 +7192,8 @@ export default function Dashboard({ session }) {
                         ))}
                       </div>
 
-                      {/* DESKTOP CLIENTS (LIST / GRID) */}
-                      <div className="hidden md:block">
+                      {/* DESKTOP CLIENTS (LIST / GRID) (>= 1024px) */}
+                      <div className="hidden lg:block">
                         {viewMode === 'list' ? (
                           <div className="bg-white rounded-3xl p-4 md:p-6 shadow-sm border border-gray-100 overflow-hidden">
                             <table className="w-full text-left border-collapse">
@@ -7482,6 +7767,65 @@ export default function Dashboard({ session }) {
                         )}
                       </div>
 
+                      {/* CLIENT NOTES & REMINDERS (APPLE NOTES INTEGRATION) */}
+                      <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex flex-col gap-4">
+                        <div className="flex justify-between items-center pb-3 border-b border-gray-100">
+                          <div>
+                            <h3 className="font-medium text-2xl text-[#0B4550] flex items-center gap-2">
+                              <FileText size={22} className="text-[#0B4550]" /> Notes & Reminders
+                            </h3>
+                            <p className="text-xs text-[#898A8D] font-bold mt-0.5">
+                              {notes.filter(n => n.clientId === selectedClient.id).length} note(s) linked to {selectedClient.name}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleOpenNoteEditor(null, selectedClient.id)}
+                            className="bg-[#0B4550] text-[#E6FF2B] px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 shadow-sm active:scale-95 transition-all cursor-pointer"
+                          >
+                            <Plus size={15} strokeWidth={3} /> Add Note
+                          </button>
+                        </div>
+
+                        {notes.filter(n => n.clientId === selectedClient.id).length === 0 ? (
+                          <div className="text-center py-6 bg-[#F9F7F2] rounded-2xl border border-dashed border-gray-200">
+                            <StickyNote size={28} className="mx-auto text-gray-300 mb-1.5" />
+                            <p className="text-xs font-bold text-[#898A8D]">No dedicated notes for this client yet.</p>
+                            <button
+                              onClick={() => handleOpenNoteEditor(null, selectedClient.id)}
+                              className="text-xs text-[#0B4550] font-black underline mt-1 cursor-pointer"
+                            >
+                              Create a note
+                            </button>
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            {notes.filter(n => n.clientId === selectedClient.id).map(note => (
+                              <div
+                                key={note.id}
+                                onClick={() => handleOpenNoteEditor(note)}
+                                className="bg-[#F9F7F2] hover:bg-gray-100 border border-gray-150 rounded-2xl p-4 transition-all cursor-pointer flex flex-col justify-between group"
+                              >
+                                <div>
+                                  <div className="flex justify-between items-start mb-1">
+                                    <h4 className="font-black text-sm text-[#0B4550] truncate">{note.title || 'Untitled Note'}</h4>
+                                    {note.isPinned && <Pin size={12} className="text-amber-500 fill-amber-500 shrink-0" />}
+                                  </div>
+                                  <p className="text-xs text-[#898A8D] font-medium line-clamp-2">{note.body || 'No text'}</p>
+                                </div>
+                                <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-200/50 text-[10px] text-[#898A8D] font-bold">
+                                  <span>{formatNoteDate(note.updatedAt)}</span>
+                                  {note.isReminder && note.reminderDate && (
+                                    <span className="flex items-center gap-1 text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full font-bold">
+                                      <Clock size={10} /> {note.reminderDate}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
                       <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 flex-1 flex flex-col overflow-hidden">
                         <div className="flex flex-col md:flex-row md:justify-between items-start md:items-center gap-4 md:gap-0 mb-6">
                           <h3 className="font-medium text-2xl text-[#0B4550]">Activity Ledger</h3>
@@ -8041,30 +8385,52 @@ export default function Dashboard({ session }) {
         {/* VIEW: SCHEDULE (NOW LIVE!) */}
         {activePage === 'Schedule' && (
           <div className="animate-in fade-in duration-500 flex flex-col h-full">
-            {/* MOBILE SCHEDULE CONTROLS */}
-            <div className="md:hidden flex flex-col gap-4 mb-6">
+            {/* MOBILE & TABLET SCHEDULE CONTROLS (< 1024px) */}
+            <div className="lg:hidden flex flex-col gap-4 mb-6">
               <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-2xl font-black text-[#0B4550]">
+                <div className="flex items-center gap-1 sm:gap-2">
+                  <button
+                    onClick={() => {
+                      const newDate = new Date(selectedScheduleDate);
+                      newDate.setDate(newDate.getDate() - 7);
+                      setSelectedScheduleDate(newDate);
+                    }}
+                    title="Previous Week"
+                    className="p-2 bg-white text-[#0B4550] rounded-xl hover:bg-gray-100 active:scale-95 transition-all border border-gray-150 shadow-sm flex items-center justify-center cursor-pointer"
+                  >
+                    <ChevronLeft size={18} />
+                  </button>
+                  <h2 className="text-xl sm:text-2xl font-black text-[#0B4550] px-1 truncate">
                     {selectedScheduleDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
                   </h2>
+                  <button
+                    onClick={() => {
+                      const newDate = new Date(selectedScheduleDate);
+                      newDate.setDate(newDate.getDate() + 7);
+                      setSelectedScheduleDate(newDate);
+                    }}
+                    title="Next Week"
+                    className="p-2 bg-white text-[#0B4550] rounded-xl hover:bg-gray-100 active:scale-95 transition-all border border-gray-150 shadow-sm flex items-center justify-center cursor-pointer"
+                  >
+                    <ChevronRight size={18} />
+                  </button>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex items-center gap-1.5 sm:gap-2">
                   <button
                     onClick={() => setShowCopyWeekModal(true)}
                     title="Repeat Previous Week PT Sessions"
-                    className="px-2.5 py-1.5 bg-[#0B4550] text-[#E6FF2B] rounded-xl font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all"
+                    className="px-2.5 py-2 bg-[#0B4550] text-[#E6FF2B] rounded-xl font-bold text-xs flex items-center gap-1 shadow-sm active:scale-95 transition-all cursor-pointer"
                   >
                     <RotateCw size={13} />
                     <span>Copy PT</span>
                   </button>
                   <button
                     onClick={() => setSelectedScheduleDate(new Date())}
-                    className="px-3 py-1.5 bg-[#F9F7F2] text-[#0B4550] border border-gray-150 rounded-xl font-black text-xs uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+                    className="px-3 py-2 bg-[#F9F7F2] text-[#0B4550] border border-gray-150 rounded-xl font-black text-xs uppercase tracking-widest shadow-sm active:scale-95 transition-all cursor-pointer"
                   >
                     Today
                   </button>
-                  <button onClick={() => setShowEventModal(true)} className="bg-[#0B4550] text-[#E6FF2B] w-9 h-9 rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-all">
+                  <button onClick={() => setShowEventModal(true)} className="bg-[#0B4550] text-[#E6FF2B] w-9 h-9 rounded-xl flex items-center justify-center shadow-md active:scale-95 transition-all cursor-pointer">
                     <Plus size={18} strokeWidth={3} />
                   </button>
                 </div>
@@ -8095,7 +8461,7 @@ export default function Dashboard({ session }) {
             </div>
 
             {/* DESKTOP SCHEDULE CONTROLS */}
-            <div className="hidden md:flex flex-row justify-between items-center mb-8 bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
+            <div className="hidden lg:flex flex-row justify-between items-center mb-8 bg-white rounded-3xl p-4 shadow-sm border border-gray-100">
               <div className="flex items-center gap-4 md:gap-6 px-4">
                 <ChevronLeft
                   size={28}
@@ -8195,8 +8561,8 @@ export default function Dashboard({ session }) {
                       return (
                         <div key={session.id} onClick={() => { setSelectedSession(session); if (window.innerWidth < 1024) setShowMobileRosterDrawer(true); }}>
 
-                          {/* MOBILE SESSION CARD */}
-                          <div className={`md:hidden flex gap-4 items-center group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-60' : ''}`}>
+                          {/* MOBILE & TABLET SESSION CARD (< 1024px) */}
+                          <div className={`lg:hidden flex gap-4 items-center group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-60' : ''}`}>
                             <div className="w-16 text-right shrink-0">
                               <p className={`text-lg font-black ${isSelected ? 'text-[#0B4550]' : 'text-[#0B4550]'} ${isPast ? 'line-through opacity-50' : ''}`}>{session.time}</p>
                               <p className="text-[10px] font-bold text-[#898A8D] uppercase tracking-widest">{session.duration}</p>
@@ -8220,8 +8586,8 @@ export default function Dashboard({ session }) {
                             </div>
                           </div>
 
-                          {/* DESKTOP SESSION CARD */}
-                          <div className={`hidden md:flex gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-70 hover:opacity-100' : ''}`}>
+                          {/* DESKTOP SESSION CARD (>= 1024px) */}
+                          <div className={`hidden lg:flex gap-6 items-center cursor-pointer group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-70 hover:opacity-100' : ''}`}>
                             <div className="w-24 text-right shrink-0">
                               <p className={`text-xl font-medium ${isSelected ? 'text-[#0B4550]' : 'text-[#898A8D]'} ${isPast ? 'line-through opacity-60' : ''}`}>{session.time}</p>
                               <p className="text-sm font-medium text-[#898A8D]">{session.duration}</p>
@@ -8580,6 +8946,233 @@ export default function Dashboard({ session }) {
                 )}
               </div>
             </div>
+          </div>
+        )}
+
+        {/* VIEW: NOTES (APPLE STYLE) */}
+        {activePage === 'Notes' && (
+          <div className="animate-in fade-in duration-500 flex flex-col h-full space-y-6">
+            {/* TOP CONTROLS & FILTER TABS */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-white p-4 md:p-6 rounded-[2rem] border border-gray-150 shadow-sm">
+              {/* Category Folder Pills */}
+              <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1 md:pb-0">
+                {[
+                  { id: 'all', label: 'All Notes', count: notes.length, icon: <FileText size={16} /> },
+                  { id: 'reminders', label: 'Reminders', count: notes.filter(n => n.isReminder).length, icon: <Clock size={16} /> },
+                  { id: 'clients', label: 'Client Notes', count: notes.filter(n => n.clientId).length, icon: <User size={16} /> },
+                  { id: 'pinned', label: 'Pinned', count: notes.filter(n => n.isPinned).length, icon: <Pin size={16} /> }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setNoteFilter(tab.id)}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-black transition-all whitespace-nowrap cursor-pointer ${noteFilter === tab.id
+                      ? 'bg-[#0B4550] text-[#E6FF2B] shadow-md scale-[1.02]'
+                      : 'bg-[#F9F7F2] text-[#898A8D] hover:text-[#0B4550]'
+                      }`}
+                  >
+                    {tab.icon}
+                    <span>{tab.label}</span>
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${noteFilter === tab.id ? 'bg-white/20 text-white' : 'bg-gray-200/70 text-[#0B4550]'}`}>
+                      {tab.count}
+                    </span>
+                  </button>
+                ))}
+              </div>
+
+              {/* Search & New Note CTA */}
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1 md:w-64">
+                  <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#898A8D]" size={16} />
+                  <input
+                    type="text"
+                    placeholder="Search notes or clients..."
+                    value={noteSearchQuery}
+                    onChange={(e) => setNoteSearchQuery(e.target.value)}
+                    className="w-full bg-[#F9F7F2] border border-gray-150 text-[#0B4550] pl-10 pr-8 py-2.5 rounded-2xl font-bold text-xs outline-none focus:border-[#0B4550]"
+                  />
+                  {noteSearchQuery && (
+                    <button
+                      onClick={() => setNoteSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#898A8D] hover:text-[#0B4550]"
+                    >
+                      <X size={14} />
+                    </button>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => handleOpenNoteEditor()}
+                  className="bg-[#0B4550] text-[#E6FF2B] px-5 py-2.5 rounded-2xl font-black text-xs flex items-center gap-2 shadow-md hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
+                >
+                  <Plus size={16} strokeWidth={3} />
+                  <span>New Note</span>
+                </button>
+              </div>
+            </div>
+
+            {/* NOTES GRID */}
+            {(() => {
+              const query = noteSearchQuery.toLowerCase().trim();
+              const filtered = notes.filter(n => {
+                if (noteFilter === 'reminders' && !n.isReminder) return false;
+                if (noteFilter === 'clients' && !n.clientId) return false;
+                if (noteFilter === 'pinned' && !n.isPinned) return false;
+
+                if (query) {
+                  const matchTitle = (n.title || '').toLowerCase().includes(query);
+                  const matchBody = (n.body || '').toLowerCase().includes(query);
+                  const matchClient = (n.clientName || '').toLowerCase().includes(query);
+                  if (!matchTitle && !matchBody && !matchClient) return false;
+                }
+                return true;
+              });
+
+              if (filtered.length === 0) {
+                return (
+                  <div className="text-center py-20 bg-white rounded-3xl border border-gray-150 shadow-sm flex flex-col items-center justify-center p-8">
+                    <div className="w-16 h-16 rounded-full bg-[#F9F7F2] flex items-center justify-center text-[#0B4550] mb-4">
+                      <FileText size={32} />
+                    </div>
+                    <h3 className="text-2xl font-black text-[#0B4550] mb-1">
+                      {noteSearchQuery ? 'No matching notes found' : 'Your Notes are Empty'}
+                    </h3>
+                    <p className="text-sm font-medium text-[#898A8D] max-w-sm mb-6">
+                      {noteSearchQuery
+                        ? `No notes matching "${noteSearchQuery}". Try a different keyword.`
+                        : 'Capture quick training thoughts, client remarks, and set scheduled reminders just like Apple Notes.'}
+                    </p>
+                    <button
+                      onClick={() => handleOpenNoteEditor()}
+                      className="bg-[#0B4550] text-[#E6FF2B] px-6 py-3 rounded-2xl font-bold text-sm shadow-md hover:scale-105 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                    >
+                      <Plus size={18} strokeWidth={3} /> Create First Note
+                    </button>
+                  </div>
+                );
+              }
+
+              const pinnedNotes = filtered.filter(n => n.isPinned);
+              const otherNotes = filtered.filter(n => !n.isPinned);
+
+              const renderNoteCard = (note) => {
+                const isOverdueReminder = note.isReminder && note.reminderDate && note.reminderDate < todayDateStr;
+                const isTodayReminder = note.isReminder && note.reminderDate && note.reminderDate === todayDateStr;
+
+                return (
+                  <div
+                    key={note.id}
+                    onClick={() => handleOpenNoteEditor(note)}
+                    className="bg-white rounded-3xl p-5 md:p-6 border border-gray-150 shadow-xs hover:shadow-md hover:border-gray-300 transition-all cursor-pointer flex flex-col justify-between group relative overflow-hidden"
+                  >
+                    <div>
+                      {/* Top Bar: Title & Pin Action */}
+                      <div className="flex justify-between items-start gap-2 mb-2">
+                        <h4 className="font-black text-lg text-[#0B4550] leading-snug truncate">
+                          {note.title || 'Untitled Note'}
+                        </h4>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => handleTogglePinNote(note.id, e)}
+                            className={`p-1.5 rounded-xl transition-all cursor-pointer ${note.isPinned
+                              ? 'text-amber-500 bg-amber-50'
+                              : 'text-gray-300 hover:text-gray-500 hover:bg-gray-100 opacity-0 group-hover:opacity-100'
+                              }`}
+                            title={note.isPinned ? "Unpin note" : "Pin note"}
+                          >
+                            <Pin size={15} className={note.isPinned ? "fill-amber-500" : ""} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteNote(note.id);
+                            }}
+                            className="p-1.5 rounded-xl text-gray-300 hover:text-red-500 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-all cursor-pointer"
+                            title="Delete note"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Note snippet preview */}
+                      <p className="text-xs md:text-sm text-[#898A8D] font-medium line-clamp-3 leading-relaxed mb-4">
+                        {note.body || 'No additional text'}
+                      </p>
+                    </div>
+
+                    {/* Metadata & Badges Footer */}
+                    <div className="pt-3 border-t border-gray-100 flex flex-wrap items-center justify-between gap-2 text-[10px] font-bold text-[#898A8D]">
+                      <span className="text-[#898A8D]/80">
+                        {formatNoteDate(note.updatedAt)}
+                      </span>
+
+                      <div className="flex items-center gap-1.5">
+                        {/* Client Tag */}
+                        {note.clientId && (
+                          <span
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const c = clients.find(cl => cl.id === note.clientId);
+                              if (c) setSelectedClient(c);
+                            }}
+                            className="inline-flex items-center gap-1 bg-[#0B4550]/5 text-[#0B4550] hover:bg-[#0B4550]/15 px-2.5 py-1 rounded-full font-black text-[10px] border border-[#0B4550]/10 transition-colors cursor-pointer"
+                            title="View Client Profile"
+                          >
+                            <User size={11} />
+                            <span className="truncate max-w-[100px]">{note.clientName || 'Client'}</span>
+                          </span>
+                        )}
+
+                        {/* Reminder Badge */}
+                        {note.isReminder && note.reminderDate && (
+                          <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full font-black text-[10px] ${isOverdueReminder
+                            ? 'bg-rose-50 text-rose-600 border border-rose-200'
+                            : isTodayReminder
+                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                              : 'bg-gray-100 text-[#0B4550]'
+                            }`}>
+                            <Clock size={11} />
+                            <span>{isTodayReminder ? 'Due Today' : note.reminderDate}</span>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              };
+
+              return (
+                <div className="space-y-8 pb-12">
+                  {/* Pinned section */}
+                  {noteFilter === 'all' && pinnedNotes.length > 0 && (
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 px-1 text-xs font-black text-[#898A8D] uppercase tracking-widest">
+                        <Pin size={13} className="text-amber-500 fill-amber-500" />
+                        <span>Pinned ({pinnedNotes.length})</span>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {pinnedNotes.map(renderNoteCard)}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Notes / Unpinned section */}
+                  <div className="space-y-3">
+                    {noteFilter === 'all' && pinnedNotes.length > 0 && (
+                      <div className="flex items-center gap-2 px-1 text-xs font-black text-[#898A8D] uppercase tracking-widest">
+                        <FileText size={13} />
+                        <span>Notes ({otherNotes.length})</span>
+                      </div>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {(noteFilter === 'all' && pinnedNotes.length > 0 ? otherNotes : filtered).map(renderNoteCard)}
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         )}
 
@@ -12189,10 +12782,475 @@ export default function Dashboard({ session }) {
         </div>
       )}
 
+      {/* --- APPLE-STYLE NOTE COMPOSER / EDITOR MODAL --- */}
+      {isNoteEditorOpen && (
+        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-[110] flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200" onClick={() => setIsNoteEditorOpen(false)}>
+          <div
+            className="bg-white rounded-[2rem] sm:rounded-[2.5rem] w-full max-w-2xl max-h-[92vh] overflow-y-auto p-5 sm:p-8 shadow-2xl flex flex-col relative border border-gray-150 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal Header */}
+            <div className="flex items-center justify-between pb-4 border-b border-gray-150 mb-4">
+              <button
+                type="button"
+                onClick={() => setIsNoteEditorOpen(false)}
+                className="text-[#898A8D] hover:text-[#0B4550] p-2 bg-[#F9F7F2] rounded-xl transition-colors cursor-pointer"
+                title="Cancel / Close"
+              >
+                <ArrowLeft size={18} />
+              </button>
+
+              <div className="flex items-center gap-2">
+                {/* Pin Button */}
+                <button
+                  type="button"
+                  onClick={() => setNoteFormData(prev => ({ ...prev, isPinned: !prev.isPinned }))}
+                  className={`p-2 rounded-xl transition-all flex items-center gap-1.5 text-xs font-bold cursor-pointer ${noteFormData.isPinned
+                    ? 'bg-amber-100 text-amber-800'
+                    : 'bg-[#F9F7F2] text-[#898A8D] hover:text-[#0B4550]'
+                    }`}
+                  title={noteFormData.isPinned ? "Pinned to top" : "Pin to top"}
+                >
+                  <Pin size={16} className={noteFormData.isPinned ? "fill-amber-600 text-amber-600" : ""} />
+                  <span className="hidden sm:inline">{noteFormData.isPinned ? "Pinned" : "Pin"}</span>
+                </button>
+
+                {/* Delete Button (if existing note) */}
+                {editingNote && (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteNote(editingNote.id)}
+                    className="p-2 bg-rose-50 text-rose-600 rounded-xl hover:bg-rose-100 transition-colors cursor-pointer"
+                    title="Delete Note"
+                  >
+                    <Trash2 size={16} />
+                  </button>
+                )}
+
+                {/* Save Note Button */}
+                <button
+                  type="button"
+                  onClick={handleSaveNote}
+                  className="bg-[#0B4550] text-[#E6FF2B] px-5 py-2 rounded-xl font-black text-xs hover:brightness-110 active:scale-95 transition-all shadow-sm flex items-center gap-1.5 cursor-pointer"
+                >
+                  <Check size={16} />
+                  <span>Done</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Note Metadata / Timestamps */}
+            <p className="text-[11px] font-bold text-[#898A8D] uppercase tracking-wider mb-3">
+              {editingNote
+                ? `Last modified ${formatNoteDate(editingNote.updatedAt)}`
+                : `New Note • ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' })}`}
+            </p>
+
+            {/* Title Input */}
+            <input
+              type="text"
+              placeholder="Title"
+              value={noteFormData.title}
+              onChange={(e) => setNoteFormData({ ...noteFormData, title: e.target.value })}
+              className="text-2xl sm:text-3xl font-black text-[#0B4550] w-full outline-none placeholder-gray-300 pb-3 border-b border-gray-150 mb-4"
+              autoFocus
+            />
+
+            {/* Options Bar: Client Assignment & Reminder Switch */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4 bg-[#F9F7F2] p-3.5 rounded-2xl border border-gray-150">
+              {/* Client Picker */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#898A8D] flex items-center gap-1">
+                  <User size={12} /> Assign to Client
+                </label>
+                <select
+                  value={noteFormData.clientId}
+                  onChange={(e) => {
+                    const cId = e.target.value;
+                    const matched = clients.find(cl => cl.id === cId);
+                    setNoteFormData({
+                      ...noteFormData,
+                      clientId: cId,
+                      clientName: matched ? matched.name : ''
+                    });
+                  }}
+                  className="bg-white border border-gray-200 text-[#0B4550] px-3 py-2 rounded-xl text-xs font-bold outline-none cursor-pointer"
+                >
+                  <option value="">No Client (Personal / General Note)</option>
+                  {clients
+                    .slice()
+                    .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+                    .map(c => (
+                      <option key={c.id} value={c.id}>
+                        {c.name} {c.package ? `(${c.package})` : ''}
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              {/* Reminder Switch */}
+              <div className="flex flex-col gap-1">
+                <label className="text-[10px] font-black uppercase tracking-widest text-[#898A8D] flex items-center gap-1">
+                  <Clock size={12} /> Reminder
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setNoteFormData(prev => ({
+                      ...prev,
+                      isReminder: !prev.isReminder,
+                      reminderDate: prev.reminderDate || todayDateStr
+                    }))}
+                    className={`flex-1 py-2 px-3 rounded-xl text-xs font-bold transition-all flex items-center justify-between cursor-pointer border ${noteFormData.isReminder
+                      ? 'bg-amber-100 text-amber-900 border-amber-300'
+                      : 'bg-white text-[#898A8D] border-gray-200'
+                      }`}
+                  >
+                    <span>{noteFormData.isReminder ? "Reminder Set" : "Add Reminder"}</span>
+                    <span className={`w-3.5 h-3.5 rounded-full border ${noteFormData.isReminder ? "bg-amber-600 border-amber-700" : "bg-gray-200 border-gray-300"}`}></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Reminder Date & Time Sub-panel */}
+            {noteFormData.isReminder && (
+              <div className="p-3 bg-amber-50/70 border border-amber-200 rounded-2xl mb-4 flex flex-wrap items-center gap-3 animate-in fade-in duration-200">
+                <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+                  <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider">Date:</span>
+                  <input
+                    type="date"
+                    value={noteFormData.reminderDate}
+                    onChange={(e) => setNoteFormData({ ...noteFormData, reminderDate: e.target.value })}
+                    className="bg-white border border-amber-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-amber-900 outline-none w-full"
+                  />
+                </div>
+                <div className="flex items-center gap-2 flex-1 min-w-[140px]">
+                  <span className="text-[10px] font-black text-amber-800 uppercase tracking-wider">Time:</span>
+                  <input
+                    type="text"
+                    value={noteFormData.reminderTime}
+                    placeholder="09:00 AM"
+                    onChange={(e) => setNoteFormData({ ...noteFormData, reminderTime: e.target.value })}
+                    className="bg-white border border-amber-200 rounded-xl px-2.5 py-1.5 text-xs font-bold text-amber-900 outline-none w-full"
+                  />
+                </div>
+                <p className="text-[10px] text-amber-700 font-semibold w-full">
+                  🔔 You'll receive a notification and morning briefing alert for this item.
+                </p>
+              </div>
+            )}
+
+            {/* Body Textarea */}
+            <textarea
+              placeholder="Write your note here... (Apple Notes style with full rich thoughts, trainee records, etc.)"
+              value={noteFormData.body}
+              onChange={(e) => setNoteFormData({ ...noteFormData, body: e.target.value })}
+              className="w-full flex-1 min-h-[220px] sm:min-h-[280px] text-sm sm:text-base text-[#0B4550] font-medium outline-none resize-none leading-relaxed placeholder-gray-300 pt-1"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* --- MORNING BRIEFING & NOTIFICATION CENTER MODAL --- */}
+      {showBriefingModal && (
+        <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-[110] flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200" onClick={() => setShowBriefingModal(false)}>
+          <div
+            className="bg-white rounded-[2.5rem] w-full max-w-xl max-h-[92vh] overflow-y-auto p-6 md:p-8 shadow-2xl flex flex-col relative border border-gray-150 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header */}
+            <div className="flex items-start justify-between pb-4 border-b border-gray-150 mb-5">
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-[#0B4550] text-[#E6FF2B] flex items-center justify-center shadow-md">
+                  <BellRing size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-black text-[#0B4550]">Daily Morning Briefing</h3>
+                  <p className="text-xs text-[#898A8D] font-bold mt-0.5">
+                    {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' })}
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowBriefingModal(false)}
+                className="text-[#898A8D] hover:text-[#0B4550] p-2 bg-[#F9F7F2] rounded-full transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Web Push Notification Permissions Toggle Banner */}
+            <div className="mb-6 p-4 rounded-2xl bg-[#F9F7F2] border border-gray-150 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-black text-[#0B4550]">Device Push Notifications</p>
+                <p className="text-[11px] text-[#898A8D] font-medium mt-0.5">
+                  {notificationPermission === 'granted'
+                    ? 'Native push alerts are active for reminders and daily briefings.'
+                    : 'Get morning briefing alerts on desktop, phone, or tablet.'}
+                </p>
+              </div>
+              {notificationPermission === 'granted' ? (
+                <span className="inline-flex items-center gap-1 text-[11px] font-black text-emerald-700 bg-emerald-100 px-3 py-1.5 rounded-xl shrink-0">
+                  <CheckCircle2 size={14} /> Active
+                </span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={requestNotificationAccess}
+                  className="bg-[#0B4550] text-[#E6FF2B] px-3.5 py-1.5 rounded-xl font-black text-xs shadow-sm hover:scale-105 active:scale-95 transition-all shrink-0 cursor-pointer"
+                >
+                  Enable Push
+                </button>
+              )}
+            </div>
+
+            <div className="space-y-6">
+              {/* 1. TODAY'S SCHEDULE */}
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="text-xs font-black text-[#0B4550] uppercase tracking-widest flex items-center gap-1.5">
+                    <CalendarCheck size={16} className="text-[#0B4550]" />
+                    Today's Schedule ({briefingSchedule.length})
+                  </h4>
+                  {briefingSchedule.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActivePage('Schedule');
+                        setShowBriefingModal(false);
+                      }}
+                      className="text-[10px] font-black text-[#0B4550] hover:underline cursor-pointer"
+                    >
+                      Open Schedule →
+                    </button>
+                  )}
+                </div>
+
+                {briefingSchedule.length === 0 ? (
+                  <div className="p-4 bg-gray-50 rounded-2xl border border-gray-100 text-center text-xs text-[#898A8D] font-medium">
+                    No sessions scheduled for today. Enjoy your break or book an appointment!
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {briefingSchedule.map(s => {
+                      const is1on1 = s.type === '1-on-1';
+                      return (
+                        <div
+                          key={s.id}
+                          onClick={() => {
+                            setSelectedSession(s);
+                            setActivePage('Schedule');
+                            setShowBriefingModal(false);
+                          }}
+                          className="flex items-center justify-between p-3.5 bg-[#F9F7F2] hover:bg-[#F9F7F2]/80 border border-gray-150 rounded-2xl transition-all cursor-pointer"
+                        >
+                          <div className="flex items-center gap-3">
+                            <span className="w-14 text-center font-black text-xs text-[#0B4550] bg-white py-1 rounded-lg border border-gray-150">
+                              {s.time}
+                            </span>
+                            <div>
+                              <p className="font-bold text-xs text-[#0B4550]">{getSessionDisplayTitle(s)}</p>
+                              <p className="text-[10px] text-[#898A8D] font-medium">{s.duration} • {s.location ? s.location.split(' | Coach: ')[0] : 'Main Floor'}</p>
+                            </div>
+                          </div>
+                          <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${is1on1 ? 'bg-[#0B4550] text-[#E6FF2B]' : 'bg-teal-100 text-teal-800'}`}>
+                            {s.type}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 2. BIRTHDAYS TODAY */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-[#0B4550] uppercase tracking-widest flex items-center gap-1.5">
+                  <Cake size={16} className="text-amber-500" />
+                  Birthdays Today ({briefingBirthdays.length})
+                </h4>
+
+                {briefingBirthdays.length === 0 ? (
+                  <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 text-center text-xs text-[#898A8D] font-medium">
+                    No client birthdays today.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {briefingBirthdays.map(c => (
+                      <div
+                        key={c.id}
+                        className="p-4 bg-gradient-to-r from-amber-50 to-yellow-50 border border-yellow-200 rounded-2xl flex items-center justify-between"
+                      >
+                        <div className="flex items-center gap-3">
+                          <span className="text-2xl">🎂</span>
+                          <div>
+                            <p className="font-black text-sm text-[#0B4550]">{c.name}</p>
+                            <p className="text-[10px] text-amber-800 font-bold">Happy Birthday! Don't forget to send wishes.</p>
+                          </div>
+                        </div>
+                        {c.phone && (
+                          <a
+                            href={`https://wa.me/${c.phone.replace(/\D/g, '')}?text=${encodeURIComponent(`Happy Birthday ${c.name}! 🎉 Wishing you strength, health and happiness from TrackPoint!`)}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="px-3 py-1.5 bg-[#0B4550] text-[#E6FF2B] rounded-xl text-[10px] font-black hover:scale-105 active:scale-95 transition-all shadow-sm"
+                          >
+                            Wish on WhatsApp
+                          </a>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 3. PACKAGES ENDING SOON (<= 2 SESSIONS) */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-[#0B4550] uppercase tracking-widest flex items-center gap-1.5">
+                  <AlertCircle size={16} className="text-rose-500" />
+                  Packages Ending Soon (≤ 2 Sessions Left) ({briefingLowPackages.length})
+                </h4>
+
+                {briefingLowPackages.length === 0 ? (
+                  <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 text-center text-xs text-[#898A8D] font-medium">
+                    All clients currently have more than 2 sessions remaining.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {briefingLowPackages.map(c => {
+                      const rem = Number(c.remaining_package || 0);
+                      return (
+                        <div
+                          key={c.id}
+                          className="flex items-center justify-between p-3.5 bg-rose-50/60 border border-rose-200/80 rounded-2xl"
+                        >
+                          <div>
+                            <p className="font-bold text-xs text-[#0B4550]">{c.name}</p>
+                            <p className="text-[10px] text-rose-700 font-semibold">{c.package || 'Session Pack'}</p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="px-2.5 py-1 bg-rose-600 text-white font-black text-[10px] rounded-full">
+                              {rem === 0 ? '0 sessions left' : `${rem} session${rem > 1 ? 's' : ''} left`}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedClient(c);
+                                handleNavigateToPage('Clients');
+                                setShowBriefingModal(false);
+                              }}
+                              className="px-2.5 py-1 bg-white text-[#0B4550] border border-gray-200 rounded-lg text-[10px] font-bold hover:bg-gray-100 transition-colors cursor-pointer"
+                            >
+                              Profile
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* 4. MEMBERSHIPS EXPIRING SOON (1 WEEK LEFT) */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-[#0B4550] uppercase tracking-widest flex items-center gap-1.5">
+                  <Clock size={16} className="text-amber-600" />
+                  Memberships Ending Soon (≤ 7 Days) ({briefingExpiringMemberships.length})
+                </h4>
+
+                {briefingExpiringMemberships.length === 0 ? (
+                  <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 text-center text-xs text-[#898A8D] font-medium">
+                    No memberships expiring within the next 7 days.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {briefingExpiringMemberships.map(c => (
+                      <div
+                        key={c.id}
+                        className="flex items-center justify-between p-3.5 bg-amber-50/60 border border-amber-200/80 rounded-2xl"
+                      >
+                        <div>
+                          <p className="font-bold text-xs text-[#0B4550]">{c.name}</p>
+                          <p className="text-[10px] text-amber-800 font-semibold">Expires: {c.expiry} ({getExpiryText(c)})</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedClient(c);
+                            handleNavigateToPage('Clients');
+                            setShowBriefingModal(false);
+                          }}
+                          className="px-2.5 py-1 bg-white text-[#0B4550] border border-gray-200 rounded-lg text-[10px] font-bold hover:bg-gray-100 transition-colors cursor-pointer"
+                        >
+                          Renew
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 5. DUE REMINDERS FROM NOTES */}
+              <div className="space-y-3">
+                <h4 className="text-xs font-black text-[#0B4550] uppercase tracking-widest flex items-center gap-1.5">
+                  <Pin size={16} className="text-amber-500 fill-amber-500" />
+                  Reminders from Notes ({briefingReminders.length})
+                </h4>
+
+                {briefingReminders.length === 0 ? (
+                  <div className="p-3.5 bg-gray-50 rounded-2xl border border-gray-100 text-center text-xs text-[#898A8D] font-medium">
+                    No notes marked as reminders due today.
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {briefingReminders.map(n => (
+                      <div
+                        key={n.id}
+                        onClick={() => {
+                          handleOpenNoteEditor(n);
+                          setShowBriefingModal(false);
+                        }}
+                        className="flex items-center justify-between p-3.5 bg-[#F9F7F2] hover:bg-[#F9F7F2]/80 border border-gray-150 rounded-2xl transition-all cursor-pointer"
+                      >
+                        <div>
+                          <p className="font-bold text-xs text-[#0B4550]">{n.title || 'Untitled Reminder'}</p>
+                          <p className="text-[10px] text-[#898A8D] font-medium line-clamp-1">{n.body || 'No description'}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {n.clientName && (
+                            <span className="text-[9px] bg-white px-2 py-0.5 rounded-md border border-gray-200 font-bold text-[#0B4550]">
+                              {n.clientName}
+                            </span>
+                          )}
+                          <span className="text-[10px] text-amber-800 font-black bg-amber-100 px-2 py-0.5 rounded-full">
+                            {n.reminderDate}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Bottom Dismiss Button */}
+            <button
+              type="button"
+              onClick={() => setShowBriefingModal(false)}
+              className="w-full bg-[#0B4550] text-[#E6FF2B] py-3.5 rounded-2xl font-black text-sm hover:brightness-110 active:scale-98 transition-all shadow-md mt-6 cursor-pointer"
+            >
+              Close Briefing
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* --- AI COPILOT FLOATING BUTTON --- */}
       <button
         onClick={() => setShowAICopilot(true)}
-        className="fixed bottom-36 md:bottom-8 right-8 w-16 h-16 bg-[#0B4550] text-[#E6FF2B] rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-40 group border-4 border-white"
+        className="fixed bottom-36 lg:bottom-8 right-8 w-16 h-16 bg-[#0B4550] text-[#E6FF2B] rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-40 group border-4 border-white"
       >
         <Sparkles size={28} className="group-hover:rotate-12 transition-transform" />
       </button>
@@ -12213,6 +13271,14 @@ export default function Dashboard({ session }) {
               >
                 <CalendarSearch size={28} />
                 <span className="text-xs font-semibold">Calendar</span>
+              </button>
+
+              <button
+                onClick={() => { setActivePage('Notes'); setShowMoreMenu(false); }}
+                className={`flex flex-col items-center gap-2 p-3 rounded-2xl transition-all ${activePage === 'Notes' ? 'bg-[#F9F7F2] text-[#0B4550] font-bold' : 'text-[#898A8D] hover:bg-gray-50'}`}
+              >
+                <FileText size={28} />
+                <span className="text-xs font-semibold">Notes</span>
               </button>
 
               <button

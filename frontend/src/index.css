@@ -30,3 +30,12 @@ body {
 html {
   font-size: 75%;
 }
+
+/* Prevent iOS / iPadOS Safari auto-zooming when focusing search bars and input fields */
+@media (max-width: 1024px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px !important;
+  }
+}
