@@ -575,210 +575,6 @@ export default function Dashboard({ session }) {
   const [aiMessage, setAiMessage] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
 
-  // --- NOTES TAB STATES ---
-  const [notes, setNotes] = useState(() => {
-    try {
-      const saved = localStorage.getItem(`trackpoint_notes_${session?.user?.id || 'default'}`);
-      return saved ? JSON.parse(saved) : [];
-    } catch (e) {
-      return [];
-    }
-  });
-  const [noteSearchQuery, setNoteSearchQuery] = useState('');
-  const [noteFilter, setNoteFilter] = useState('all'); // 'all', 'reminders', 'clients', 'pinned'
-  const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
-  const [editingNote, setEditingNote] = useState(null);
-  const [noteFormData, setNoteFormData] = useState({
-    title: '',
-    body: '',
-    clientId: '',
-    clientName: '',
-    isReminder: false,
-    reminderDate: '',
-    reminderTime: '09:00 AM',
-    isPinned: false
-  });
-
-  // Sync notes to localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem(`trackpoint_notes_${session?.user?.id || 'default'}`, JSON.stringify(notes));
-    } catch (e) {
-      console.error("Error saving notes to storage:", e);
-    }
-  }, [notes, session?.user?.id]);
-
-  const handleOpenNoteEditor = (note = null, prefillClientId = null) => {
-    if (note) {
-      setEditingNote(note);
-      setNoteFormData({
-        title: note.title || '',
-        body: note.body || '',
-        clientId: note.clientId || '',
-        clientName: note.clientName || '',
-        isReminder: !!note.isReminder,
-        reminderDate: note.reminderDate || '',
-        reminderTime: note.reminderTime || '09:00 AM',
-        isPinned: !!note.isPinned
-      });
-    } else {
-      let matchedClient = null;
-      if (prefillClientId) {
-        matchedClient = clients.find(c => c.id === prefillClientId);
-      }
-      setEditingNote(null);
-      setNoteFormData({
-        title: '',
-        body: '',
-        clientId: prefillClientId || '',
-        clientName: matchedClient?.name || '',
-        isReminder: false,
-        reminderDate: new Date().toISOString().split('T')[0],
-        reminderTime: '09:00 AM',
-        isPinned: false
-      });
-    }
-    setIsNoteEditorOpen(true);
-  };
-
-  const handleSaveNote = () => {
-    if (!noteFormData.title.trim() && !noteFormData.body.trim()) {
-      alert("Please enter a title or note text.");
-      return;
-    }
-    const nowIso = new Date().toISOString();
-    let clientName = noteFormData.clientName;
-    if (noteFormData.clientId && !clientName) {
-      const match = clients.find(c => c.id === noteFormData.clientId);
-      if (match) clientName = match.name;
-    }
-
-    if (editingNote) {
-      setNotes(prev => prev.map(n => n.id === editingNote.id ? {
-        ...n,
-        ...noteFormData,
-        clientName,
-        updatedAt: nowIso
-      } : n));
-    } else {
-      const newNote = {
-        id: `note-${Date.now()}`,
-        ...noteFormData,
-        clientName,
-        createdAt: nowIso,
-        updatedAt: nowIso
-      };
-      setNotes(prev => [newNote, ...prev]);
-    }
-    setIsNoteEditorOpen(false);
-    setEditingNote(null);
-  };
-
-  const handleDeleteNote = (noteId) => {
-    if (window.confirm("Are you sure you want to delete this note?")) {
-      setNotes(prev => prev.filter(n => n.id !== noteId));
-      if (editingNote?.id === noteId) {
-        setIsNoteEditorOpen(false);
-        setEditingNote(null);
-      }
-    }
-  };
-
-  const handleTogglePinNote = (noteId, e = null) => {
-    if (e) e.stopPropagation();
-    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, isPinned: !n.isPinned } : n));
-  };
-
-  // --- NOTIFICATIONS & MORNING BRIEFING STATES ---
-  const [showBriefingModal, setShowBriefingModal] = useState(false);
-  const [notificationPermission, setNotificationPermission] = useState(() => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      return Notification.permission;
-    }
-    return 'default';
-  });
-
-  const todayDateStr = useMemo(() => {
-    const now = new Date();
-    const yr = now.getFullYear();
-    const mo = String(now.getMonth() + 1).padStart(2, '0');
-    const dy = String(now.getDate()).padStart(2, '0');
-    return `${yr}-${mo}-${dy}`;
-  }, []);
-
-  const briefingSchedule = useMemo(() => {
-    return sessions.filter(s => s.date === todayDateStr)
-      .sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
-  }, [sessions, todayDateStr]);
-
-  const briefingBirthdays = useMemo(() => {
-    return clients.filter(c => isBirthdayToday(c.dob));
-  }, [clients]);
-
-  const briefingLowPackages = useMemo(() => {
-    return clients.filter(c => {
-      if (c.unlimited) return false;
-      const rem = c.remaining_package !== null && c.remaining_package !== undefined ? Number(c.remaining_package) : null;
-      return rem !== null && rem <= 2 && rem >= 0;
-    });
-  }, [clients]);
-
-  const briefingExpiringMemberships = useMemo(() => {
-    return clients.filter(c => isMembershipExpiringWithin7Days(c.expiry));
-  }, [clients]);
-
-  const briefingReminders = useMemo(() => {
-    return notes.filter(n => n.isReminder && n.reminderDate && n.reminderDate <= todayDateStr);
-  }, [notes, todayDateStr]);
-
-  const totalBriefingAlerts = briefingSchedule.length + briefingBirthdays.length + briefingLowPackages.length + briefingExpiringMemberships.length + briefingReminders.length;
-
-  const requestNotificationAccess = async () => {
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      try {
-        const perm = await Notification.requestPermission();
-        setNotificationPermission(perm);
-        if (perm === 'granted') {
-          new Notification("TrackPoint Notifications Enabled! 🎉", {
-            body: "You will now receive morning briefings and timely client reminders.",
-            icon: '/favicon.png'
-          });
-        }
-      } catch (err) {
-        console.error("Error requesting notifications:", err);
-      }
-    } else {
-      alert("Push notifications are not supported by this browser.");
-    }
-  };
-
-  // Dispatch daily morning notification if permission granted and not sent today
-  useEffect(() => {
-    if (notificationPermission === 'granted' && typeof window !== 'undefined' && 'Notification' in window) {
-      const lastNotifDate = localStorage.getItem('trackpoint_last_morning_notification');
-      if (lastNotifDate !== todayDateStr) {
-        const summaryAlerts = [];
-        if (briefingSchedule.length > 0) summaryAlerts.push(`📅 ${briefingSchedule.length} session(s) today`);
-        if (briefingBirthdays.length > 0) summaryAlerts.push(`🎂 ${briefingBirthdays.map(c => c.name).join(', ')} birthday`);
-        if (briefingLowPackages.length > 0) summaryAlerts.push(`⚠️ ${briefingLowPackages.length} package(s) ending soon`);
-        if (briefingExpiringMemberships.length > 0) summaryAlerts.push(`⏳ ${briefingExpiringMemberships.length} membership(s) expiring`);
-        if (briefingReminders.length > 0) summaryAlerts.push(`🔔 ${briefingReminders.length} reminder(s) due`);
-
-        if (summaryAlerts.length > 0) {
-          try {
-            new Notification(`TrackPoint Morning Briefing • ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`, {
-              body: summaryAlerts.join(' • '),
-              icon: '/favicon.png'
-            });
-            localStorage.setItem('trackpoint_last_morning_notification', todayDateStr);
-          } catch (e) {
-            console.error("Error firing notification:", e);
-          }
-        }
-      }
-    }
-  }, [notificationPermission, todayDateStr, briefingSchedule.length, briefingBirthdays.length, briefingLowPackages.length, briefingExpiringMemberships.length, briefingReminders.length]);
-
   const CLASS_PIN = '1234'; // Gym Owner PIN for Class Mode
 
 
@@ -1081,6 +877,210 @@ export default function Dashboard({ session }) {
       sessions: matchedSessions
     };
   }, [searchQuery, clients, sessions]);
+
+  // --- NOTES TAB STATES ---
+  const [notes, setNotes] = useState(() => {
+    try {
+      const saved = localStorage.getItem(`trackpoint_notes_${session?.user?.id || 'default'}`);
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [noteSearchQuery, setNoteSearchQuery] = useState('');
+  const [noteFilter, setNoteFilter] = useState('all'); // 'all', 'reminders', 'clients', 'pinned'
+  const [isNoteEditorOpen, setIsNoteEditorOpen] = useState(false);
+  const [editingNote, setEditingNote] = useState(null);
+  const [noteFormData, setNoteFormData] = useState({
+    title: '',
+    body: '',
+    clientId: '',
+    clientName: '',
+    isReminder: false,
+    reminderDate: '',
+    reminderTime: '09:00 AM',
+    isPinned: false
+  });
+
+  // Sync notes to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(`trackpoint_notes_${session?.user?.id || 'default'}`, JSON.stringify(notes));
+    } catch (e) {
+      console.error("Error saving notes to storage:", e);
+    }
+  }, [notes, session?.user?.id]);
+
+  const handleOpenNoteEditor = (note = null, prefillClientId = null) => {
+    if (note) {
+      setEditingNote(note);
+      setNoteFormData({
+        title: note.title || '',
+        body: note.body || '',
+        clientId: note.clientId || '',
+        clientName: note.clientName || '',
+        isReminder: !!note.isReminder,
+        reminderDate: note.reminderDate || '',
+        reminderTime: note.reminderTime || '09:00 AM',
+        isPinned: !!note.isPinned
+      });
+    } else {
+      let matchedClient = null;
+      if (prefillClientId) {
+        matchedClient = clients.find(c => c.id === prefillClientId);
+      }
+      setEditingNote(null);
+      setNoteFormData({
+        title: '',
+        body: '',
+        clientId: prefillClientId || '',
+        clientName: matchedClient?.name || '',
+        isReminder: false,
+        reminderDate: new Date().toISOString().split('T')[0],
+        reminderTime: '09:00 AM',
+        isPinned: false
+      });
+    }
+    setIsNoteEditorOpen(true);
+  };
+
+  const handleSaveNote = () => {
+    if (!noteFormData.title.trim() && !noteFormData.body.trim()) {
+      alert("Please enter a title or note text.");
+      return;
+    }
+    const nowIso = new Date().toISOString();
+    let clientName = noteFormData.clientName;
+    if (noteFormData.clientId && !clientName) {
+      const match = clients.find(c => c.id === noteFormData.clientId);
+      if (match) clientName = match.name;
+    }
+
+    if (editingNote) {
+      setNotes(prev => prev.map(n => n.id === editingNote.id ? {
+        ...n,
+        ...noteFormData,
+        clientName,
+        updatedAt: nowIso
+      } : n));
+    } else {
+      const newNote = {
+        id: `note-${Date.now()}`,
+        ...noteFormData,
+        clientName,
+        createdAt: nowIso,
+        updatedAt: nowIso
+      };
+      setNotes(prev => [newNote, ...prev]);
+    }
+    setIsNoteEditorOpen(false);
+    setEditingNote(null);
+  };
+
+  const handleDeleteNote = (noteId) => {
+    if (window.confirm("Are you sure you want to delete this note?")) {
+      setNotes(prev => prev.filter(n => n.id !== noteId));
+      if (editingNote?.id === noteId) {
+        setIsNoteEditorOpen(false);
+        setEditingNote(null);
+      }
+    }
+  };
+
+  const handleTogglePinNote = (noteId, e = null) => {
+    if (e) e.stopPropagation();
+    setNotes(prev => prev.map(n => n.id === noteId ? { ...n, isPinned: !n.isPinned } : n));
+  };
+
+  // --- NOTIFICATIONS & MORNING BRIEFING STATES ---
+  const [showBriefingModal, setShowBriefingModal] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'default';
+  });
+
+  const todayDateStr = useMemo(() => {
+    const now = new Date();
+    const yr = now.getFullYear();
+    const mo = String(now.getMonth() + 1).padStart(2, '0');
+    const dy = String(now.getDate()).padStart(2, '0');
+    return `${yr}-${mo}-${dy}`;
+  }, []);
+
+  const briefingSchedule = useMemo(() => {
+    return (sessions || []).filter(s => s && s.date === todayDateStr)
+      .sort((a, b) => parseTimeToMinutes(a.time) - parseTimeToMinutes(b.time));
+  }, [sessions, todayDateStr]);
+
+  const briefingBirthdays = useMemo(() => {
+    return (clients || []).filter(c => c && isBirthdayToday(c.dob));
+  }, [clients]);
+
+  const briefingLowPackages = useMemo(() => {
+    return (clients || []).filter(c => {
+      if (!c || c.unlimited) return false;
+      const rem = c.remaining_package !== null && c.remaining_package !== undefined ? Number(c.remaining_package) : null;
+      return rem !== null && rem <= 2 && rem >= 0;
+    });
+  }, [clients]);
+
+  const briefingExpiringMemberships = useMemo(() => {
+    return (clients || []).filter(c => c && isMembershipExpiringWithin7Days(c.expiry));
+  }, [clients]);
+
+  const briefingReminders = useMemo(() => {
+    return (notes || []).filter(n => n && n.isReminder && n.reminderDate && n.reminderDate <= todayDateStr);
+  }, [notes, todayDateStr]);
+
+  const totalBriefingAlerts = (briefingSchedule?.length || 0) + (briefingBirthdays?.length || 0) + (briefingLowPackages?.length || 0) + (briefingExpiringMemberships?.length || 0) + (briefingReminders?.length || 0);
+
+  const requestNotificationAccess = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        const perm = await Notification.requestPermission();
+        setNotificationPermission(perm);
+        if (perm === 'granted') {
+          new Notification("TrackPoint Notifications Enabled! 🎉", {
+            body: "You will now receive morning briefings and timely client reminders.",
+            icon: '/favicon.png'
+          });
+        }
+      } catch (err) {
+        console.error("Error requesting notifications:", err);
+      }
+    } else {
+      alert("Push notifications are not supported by this browser.");
+    }
+  };
+
+  // Dispatch daily morning notification if permission granted and not sent today
+  useEffect(() => {
+    if (notificationPermission === 'granted' && typeof window !== 'undefined' && 'Notification' in window) {
+      const lastNotifDate = localStorage.getItem('trackpoint_last_morning_notification');
+      if (lastNotifDate !== todayDateStr) {
+        const summaryAlerts = [];
+        if (briefingSchedule.length > 0) summaryAlerts.push(`📅 ${briefingSchedule.length} session(s) today`);
+        if (briefingBirthdays.length > 0) summaryAlerts.push(`🎂 ${briefingBirthdays.map(c => c.name).join(', ')} birthday`);
+        if (briefingLowPackages.length > 0) summaryAlerts.push(`⚠️ ${briefingLowPackages.length} package(s) ending soon`);
+        if (briefingExpiringMemberships.length > 0) summaryAlerts.push(`⏳ ${briefingExpiringMemberships.length} membership(s) expiring`);
+        if (briefingReminders.length > 0) summaryAlerts.push(`🔔 ${briefingReminders.length} reminder(s) due`);
+
+        if (summaryAlerts.length > 0) {
+          try {
+            new Notification(`TrackPoint Morning Briefing • ${new Date().toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}`, {
+              body: summaryAlerts.join(' • '),
+              icon: '/favicon.png'
+            });
+            localStorage.setItem('trackpoint_last_morning_notification', todayDateStr);
+          } catch (e) {
+            console.error("Error firing notification:", e);
+          }
+        }
+      }
+    }
+  }, [notificationPermission, todayDateStr, briefingSchedule.length, briefingBirthdays.length, briefingLowPackages.length, briefingExpiringMemberships.length, briefingReminders.length]);
 
   const handleSelectClientFromSearch = (client) => {
     setSelectedClient(client);
