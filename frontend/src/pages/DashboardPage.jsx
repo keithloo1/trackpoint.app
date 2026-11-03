@@ -5695,8 +5695,8 @@ export default function Dashboard({ session }) {
       )}
 
       {/* MAIN CONTENT AREA */}
-      {/* pb-36 ensures content isn't hidden behind the mobile bottom nav */}
-      <main className="flex-1 h-full overflow-y-auto p-4 md:p-6 lg:p-8 pb-36 lg:pb-8 relative">
+      {/* pb-36 ensures content isn't hidden behind the mobile bottom nav on small screens, md:pb-8 removes the gap on tablet/desktop */}
+      <main className="flex-1 h-full overflow-y-auto p-4 md:p-6 lg:p-8 pb-36 md:pb-8 relative">
 
         {/* UNIVERSAL DYNAMIC HEADER - Hidden in ClassMode */}
         {activePage !== 'ClassMode' && (
@@ -8193,7 +8193,7 @@ export default function Dashboard({ session }) {
                       const displayCoach = locationParts[1] || '';
 
                       return (
-                        <div key={session.id} onClick={() => { setSelectedSession(session); if (isMobile) setShowMobileRosterDrawer(true); }}>
+                        <div key={session.id} onClick={() => { setSelectedSession(session); if (window.innerWidth < 1024) setShowMobileRosterDrawer(true); }}>
 
                           {/* MOBILE SESSION CARD */}
                           <div className={`md:hidden flex gap-4 items-center group transition-all ${isBlocked ? 'opacity-50' : ''} ${isPast ? 'opacity-60' : ''}`}>
@@ -8271,8 +8271,8 @@ export default function Dashboard({ session }) {
                 </div>
               </div>
 
-              {!isMobile && (
-                selectedSession && (
+              <div className="hidden lg:block">
+                {selectedSession && (
                   <div className="bg-white rounded-3xl p-5 md:p-8 shadow-sm border border-gray-100 sticky top-4">
                     <span className="inline-block px-4 py-1.5 rounded-xl bg-gray-100 text-[#898A8D] font-medium text-sm mb-4">{selectedSession.type}</span>
                     <h2 className="text-3xl md:text-4xl font-medium text-[#0B4550] mb-6 leading-tight">{getSessionDisplayTitle(selectedSession)}</h2>
@@ -8577,8 +8577,8 @@ export default function Dashboard({ session }) {
                       <Trash2 size={18} /> Cancel & Delete Event
                     </button>
                   </div>
-                )
-              )}
+                )}
+              </div>
             </div>
           </div>
         )}
@@ -11237,7 +11237,7 @@ export default function Dashboard({ session }) {
       {/* MODAL OVERLAY: EDIT EVENT */}
       {showEditEventModal && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-5 md:py-8 overflow-hidden">
-          <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full max-w-xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full max-w-xl shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <button onClick={() => setShowEditEventModal(false)} className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full">
               <X size={24} />
             </button>
@@ -11528,7 +11528,7 @@ export default function Dashboard({ session }) {
       {/* MODAL OVERLAY: GOOGLE CALENDAR SYNC */}
       {showGoogleSyncModal && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-50 flex justify-center items-center p-4 py-5 md:py-8 overflow-hidden">
-          <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full max-w-lg shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-[2.5rem] p-5 md:p-8 md:p-10 w-full max-w-lg shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowGoogleSyncModal(false)}
               className="absolute top-8 right-8 text-[#898A8D] hover:text-[#0B4550] transition-colors bg-gray-100 p-2 rounded-full"
@@ -12063,7 +12063,7 @@ export default function Dashboard({ session }) {
       {/* --- MODAL: REPEAT PREVIOUS WEEK PT SESSIONS CONFIRMATION --- */}
       {showCopyWeekModal && (
         <div className="fixed inset-0 bg-[#0B4550]/40 backdrop-blur-sm z-[100] flex items-center justify-center p-4">
-          <div className="bg-white rounded-[2.5rem] max-w-lg w-full p-6 md:p-8 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-[2.5rem] max-w-lg w-full p-6 md:p-8 shadow-2xl relative animate-in fade-in zoom-in-95 duration-200 max-h-[90vh] overflow-y-auto">
             <button
               onClick={() => setShowCopyWeekModal(false)}
               className="absolute top-6 right-6 text-[#898A8D] hover:text-[#0B4550] bg-gray-100 p-2 rounded-full transition-colors"
